@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🗑️ 撿垃圾打殭屍 🧟 (終極完整版)</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #1a1a2e; color: #fff; font-family: 'Microsoft JhengHei', Arial, sans-serif; overflow: hidden; user-select: none; -webkit-touch-callout: none; touch-action: none; }
+        
+        /* 漸層背景與 UI 面板 */
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; z-index: 1000; background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); }
+        .overlay-dark { background: rgba(0,0,0,0.85); }
+        .box { background: rgba(0,0,0,0.75); border: 2px solid #00ff88; border-radius: 15px; padding: 25px; max-width: 700px; width: 95%; max-height: 90vh; overflow-y: auto; box-shadow: 0 0 20px rgba(0,255,136,0.3); text-align: left; }
+        .box h1 { font-size: 2.2em; color: #00ff88; margin-bottom: 15px; text-shadow: 0 0 15px rgba(0,255,136,0.5); text-align: center; }
+        .box h2 { font-size: 1.3em; color: #00eeff; margin: 15px 0 5px 0; border-bottom: 1px solid #00eeff; padding-bottom: 5px; }
+        .box p, .box li { font-size: 0.95em; line-height: 1.6; color: #ddd; }
+        .box ul { padding-left: 20px; margin-bottom: 10px; }
+        
+        .btn { margin-top: 15px; padding: 12px 30px; font-size: 1.1em; font-weight: bold; background: linear-gradient(45deg, #00ff88, #00cc6a); color: #000; border: none; border-radius: 50px; cursor: pointer; transition: 0.2s; display: block; width: 100%; text-align: center; }
+        .btn:hover { transform: scale(1.02); box-shadow: 0 0 15px rgba(0,255,136,0.6); }
+        .btn:disabled { background: #555; color: #888; cursor: not-allowed; box-shadow: none; transform: none; }
+
+        #game-container { display: none; width: 100vw; height: 100vh; position: relative; }
+        canvas { display: block; background: #2d2d44; touch-action: none; }
+
+        /* 小地圖 */
+        #minimap-canvas { position: absolute; bottom: 20px; right: 20px; border: 2px solid #555; border-radius: 10px; background: rgba(0,0,0,0.6); z-index: 50; pointer-events: none; width: 150px; height: 150px; }
+        @media (max-width: 768px) { #minimap-canvas { top: 60px; left: 10px; bottom: auto; right: auto; width: 120px; height: 120px; } }
+
+        /* HUD */
+        #hud { position: absolute; top: 0; left: 0; width: 100%; padding: 10px; display: flex; justify-content: space-between; pointer-events: none; z-index: 10; }
+        .hud-col { display: flex; flex-direction: column; gap: 5px; pointer-events: auto; }
+        .hud-item { background: rgba(0,0,0,0.7); padding: 5px 12px; border-radius: 8px; font-size: 0.9em; border: 1px solid #444; }
+        
+        /* 暫停按鈕與手榴彈按鈕 */
+        .icon-btn { background: rgba(0,0,0,0.8); border: 2px solid #00eeff; color: #00eeff; font-size: 1.2em; width: 45px; height: 45px; border-radius: 10px; display: flex; justify-content: center; align-items: center; cursor: pointer; pointer-events: auto; box-shadow: 0 0 10px rgba(0,238,255,0.4); font-weight: bold; margin-bottom: 5px; }
+        #grenade-btn { border-color: #ffaa00; color: #ffaa00; box-shadow: 0 0 10px rgba(255,170,0,0.4); width: auto; padding: 0 15px; }
+
+        .health-bar-bg { width: 150px; height: 15px; background: #333; border-radius: 10px; overflow: hidden; margin-top: 5px; border: 1px solid #555; }
+        .health-bar { height: 100%; background: linear-gradient(90deg, #00ff88, #00cc6a); transition: width 0.2s; }
+
+        /* 動態文字 */
+        .damage-number { position: absolute; font-weight: bold; font-size: 1.2em; pointer-events: none; z-index: 30; animation: floatUp 0.8s forwards; text-shadow: 1px 1px 2px #000; }
+        .damage-number.crit { font-size: 2em; color: #ffcc00 !important; text-shadow: 0 0 10px #ffcc00, 2px 2px 0 #000; animation: critPop 0.8s forwards; }
+        @keyframes floatUp { 0% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-40px) scale(0.8); } }
+        @keyframes critPop { 0% { opacity: 1; transform: translateY(0) scale(1.5); } 20% { transform: translateY(-10px) scale(1.2); } 100% { opacity: 0; transform: translateY(-50px) scale(0.8); } }
+
+        #center-announce { position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%); font-size: 3em; font-weight: bold; color: #ffcc00; text-shadow: 0 0 20px #ff0000; opacity: 0; transition: opacity 0.3s; z-index: 20; pointer-events: none; }
+        
+        .shop-item { display: flex; justify-content: space-between; align-items: center; background: #222; padding: 10px; margin: 10px 0; border: 1px solid #555; border-radius: 10px; text-align: left; }
+        .shop-item div { font-size: 0.95em; flex-grow: 1; }
+        .shop-item span { color: #ffcc00; font-weight: bold; }
+        
+        /* 武器清單 */
+        #weapon-list { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; pointer-events: auto; z-index: 100; max-width: 80%; }
+        .weapon-slot { background: rgba(0,0,0,0.8); border: 2px solid #444; border-radius: 8px; padding: 5px 10px; color: #888; font-size: 1.1em; transition: 0.2s; cursor: pointer; }
+        .weapon-slot.unlocked { color: #fff; border-color: #888; }
+        .weapon-slot.active { border-color: #00ff88; background: rgba(0,255,136,0.3); transform: scale(1.1); box-shadow: 0 0 15px #00ff88; color: #fff; font-weight: bold; }
+
+    </style>
+</head>
+<body>
+
+<div id="intro-screen" class="overlay">
+    <div class="box">
+        <h1>🗑️ 撿垃圾打殭屍</h1>
+        <button id="btn-continue" class="btn" style="display:none; background: linear-gradient(45deg, #00eeff, #0088ff); margin-bottom: 10px;" onclick="startGame(true)">🟢 繼續遊戲 (讀取自動存檔)</button>
+        <button class="btn" onclick="startGame(false)">⚔️ 開始全新戰鬥</button>
+        
+        <h2>🕹️ 完整操作方式</h2>
+        <ul>
+            <li><b>💻 電腦版：</b> `W A S D` 移動，滑鼠瞄準並長按射擊。`1~9` 或 <b>滑鼠滾輪</b> 切換武器。`ESC` 暫停 / 開啟商店。`G` 投擲手榴彈。</li>
+            <li><b>📱 手機版：</b> 螢幕左下方搖桿移動，右下方搖桿瞄準射擊。點擊底部武器欄切換武器。左上角按鈕暫停 / 丟手榴彈。</li>
+        </ul>
+        
+        <h2>📜 遊戲規則</h2>
+        <p>這是一個無盡生存遊戲！在地圖中四處奔跑撿拾地上的「垃圾🗑️」與「急救包💊」。撿拾垃圾可以自動解鎖更強大的武器，並獲得「垃圾幣」，可用於在暫停選單的【黑市商店】中購買補給品與強化道具。</p>
+        
+        <h2>🔫 武器升級表 (部分)</h2>
+        <p>✊拳頭 ➔ 🔫手槍(10) ➔ 💥散彈(30) ➔ 💨衝鋒槍(50) ➔ 🧪劇毒(70) ➔ 🔥火焰(90) ➔ 🪚迴旋鏢(120) ➔ 🚀火箭筒(150) ➔ ⚡電磁槍(190) ➔ 🚁加特林(230) ➔ 🎯狙擊(270) ➔ ☄️激光炮(320)</p>
+
+        <h2>🧟 殭屍種類</h2>
+        <ul>
+            <li>🧟 <b>普通殭屍：</b> 數量多，移動緩慢。 | 🏃 <b>快速殭屍：</b> 血少但跑很快，會試圖包抄。</li>
+            <li>🛡️ <b>坦克殭屍：</b> 血量超厚，體型巨大。 | 👹 <b>首領 Boss：</b> 每10波出現，具有毀滅性。</li>
+            <li>🐺 <b>變異野狼：</b> 會繞大圈從側翼偷襲。 | 🕷️ <b>變異蜘蛛：</b> 會瞬間朝玩家高速跳躍衝刺。</li>
+            <li>💣 <b>自爆怪：</b> 靠近玩家會加速並閃爍紅光，死亡引發大爆炸（可利用來炸死其他怪）。</li>
+        </ul>
+
+        <h2>💡 小提示</h2>
+        <ul>
+            <li>小地圖（藍點：你，綠點：垃圾，紅/紫點：怪物）可以幫助你找到物資與防範偷襲！</li>
+            <li>手榴彈與不死圖騰是後期保命的關鍵，記得去商店購買。</li>
+            <li>怪物被限制在地圖邊界外 5 格內，不用擔心牠們繞太遠回不來。</li>
+        </ul>
+    </div>
+</div>
+
+<div id="pause-screen" class="overlay overlay-dark" style="display: none; z-index: 2000;">
+    <div class="box" style="border-color: #00eeff; box-shadow: 0 0 30px rgba(0,238,255,0.4); text-align: center;">
+        <h1 style="color: #00eeff;">⏸️ 遊戲已暫停</h1>
+        <p style="text-align: center; color:#aaa; margin-bottom: 10px;">進度已自動儲存</p>
+        <button class="btn" onclick="togglePause()">▶️ 繼續遊戲</button>
+        <button class="btn" style="background: linear-gradient(45deg, #ff00ff, #cc00ff); margin-top: 15px;" onclick="openShop()">🛒 進入黑市商店</button>
+        <button class="btn" style="background: linear-gradient(45deg, #ffcc00, #ff8800); margin-top: 15px;" onclick="exportSave()">💾 導出存檔代碼 (備份)</button>
+        <button class="btn" style="background: linear-gradient(45deg, #ff4444, #cc0000); margin-top: 15px;" onclick="quitToMenu()">🚪 返回主選單</button>
+    </div>
+</div>
+
+<div id="shop-screen" class="overlay overlay-dark" style="display: none; z-index: 2010;">
+    <div class="box">
+        <h1>🛒 黑市商人</h1>
+        <p style="text-align:center; color:#00ff88; font-size:1.2em; margin-bottom: 10px;">你身上的垃圾幣：<span id="shop-trash">0</span></p>
+        <div style="max-height: 50vh; overflow-y: auto; padding-right: 10px;">
+            <div class="shop-item"><div>❤️ <b>急救包</b><br><span style="color:#aaa;font-size:0.8em">回復 5 HP</span></div><button class="btn" style="margin:0; padding:8px 15px; width:auto;" onclick="buyItem('hp', 25)">25 幣</button></div>
+            <div class="shop-item"><div>🛡️ <b>能量護盾</b><br><span style="color:#aaa;font-size:0.8em">抵禦一次攻擊並彈飛敵人</span></div><button class="btn" style="margin:0; padding:8px 15px; width:auto;" id="btn-shield" onclick="buyItem('shield', 40)">40 幣</button></div>
+            <div class="shop-item"><div>💣 <b>手榴彈</b><br><span style="color:#aaa;font-size:0.8em">按鈕投擲，全頻毀滅爆破 (上限3顆)</span></div><button class="btn" style="margin:0; padding:8px 15px; width:auto;" id="btn-grenade" onclick="buyItem('grenade', 50)">50 幣</button></div>
+            <div class="shop-item"><div>👼 <b>不死圖騰</b><br><span style="color:#aaa;font-size:0.8em">致死時自動觸發：回半血、無敵3秒、核爆</span></div><button class="btn" style="margin:0; padding:8px 15px; width:auto;" id="btn-totem" onclick="buyItem('totem', 200)">200 幣</button></div>
+            <hr style="border-color:#444; margin: 10px 0;">
+            <div class="shop-item"><div>👟 <b>輕量化跑鞋</b><br><span style="color:#aaa;font-size:0.8em">永久增加移動速度</span></div><button class="btn" style="margin:0; padding:8px 15px; width:auto;" id="btn-speed" onclick="buyItem('speed', 60)">60 幣</button></div>
+            <div class="shop-item"><div>💪 <b>健身手環</b><br><span style="color:#aaa;font-size:0.8em">最大血量永久 +5</span></div><button class="btn" style="margin:0; padding:8px 15px; width:auto;" id="btn-maxhp" onclick="buyItem('maxhp', 80)">80 幣</button></div>
+            <div class="shop-item"><div>🍀 <b>幸運草</b><br><span style="color:#aaa;font-size:0.8em">爆擊率永久 +5%</span></div><button class="btn" style="margin:0; padding:8px 15px; width:auto;" id="btn-crit" onclick="buyItem('crit', 100)">100 幣</button></div>
+            <div class="shop-item"><div>☕ <b>黑咖啡</b><br><span style="color:#aaa;font-size:0.8em">射速與冷卻永久加快 10%</span></div><button class="btn" style="margin:0; padding:8px 15px; width:auto;" id="btn-cd" onclick="buyItem('cd', 120)">120 幣</button></div>
+        </div>
+        <button class="btn" style="background: #555; color: #fff;" onclick="closeShop()">⬅️ 返回暫停選單</button>
+    </div>
+</div>
+
+<div id="game-over" class="overlay overlay-dark" style="display: none; z-index: 2500;">
+    <div class="box" style="border-color: #ff0000; box-shadow: 0 0 30px rgba(255,0,0,0.5); text-align: center;">
+        <h1 style="color: #ff0000;">☠️ 你成為了殭屍的晚餐</h1>
+        <p style="font-size: 1.2em;">存活波次：<span id="final-wave"></span><br>擊殺數：<span id="final-kills"></span><br>撿拾垃圾：<span id="final-trash"></span></p>
+        <button class="btn" style="background: #ff4444;" onclick="quitToMenu()">🔄 返回主選單</button>
+    </div>
+</div>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+    <canvas id="minimap-canvas"></canvas> <div id="hud">
+        <div class="hud-col">
+            <div style="display:flex; gap:5px;">
+                <div class="icon-btn" onclick="togglePause()">⏸️</div>
+                <div class="icon-btn" id="grenade-btn" onclick="useGrenade()">💣 0</div>
+            </div>
+            <div class="hud-item" id="hud-hp-text">❤️ 10 / 10</div>
+            <div class="health-bar-bg"><div class="health-bar" id="hud-hp-bar"></div></div>
+            <div class="hud-item" style="margin-top:5px;" id="hud-stats">🛡️ 護盾: 0 | 👼 圖騰: 0 | 👟 速度: 4.5</div>
+        </div>
+        <div class="hud-col" style="align-items: center;">
+            <div class="hud-item" style="font-size:1.2em; font-weight:bold; color:#ffcc00;" id="hud-wave">🌊 波次：1</div>
+            <div class="hud-item" id="hud-score">💀 擊殺：0</div>
+        </div>
+        <div class="hud-col" style="align-items: flex-end;">
+            <div class="hud-item" style="color:#00ff88; font-weight:bold;" id="hud-trash">🗑️ 垃圾幣：0</div>
+            <div class="hud-item" id="hud-next">📦 下次解鎖：10 垃圾</div>
+        </div>
+    </div>
+    <div id="weapon-list"></div>
+    <div id="center-announce"></div>
+</div>
+
+<script>
+// ==================== 音效系統 ====================
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+let actx;
+function initAudio() { if(!actx) actx = new AudioContext(); if(actx.state === 'suspended') actx.resume(); }
+function playSound(type) {
+    if(!actx) return;
+    const osc = actx.createOscillator(); const gain = actx.createGain();
+    osc.connect(gain); gain.connect(actx.destination); const now = actx.currentTime;
+    if (type === 'shoot') { osc.type = 'square'; osc.frequency.setValueAtTime(150, now); osc.frequency.exponentialRampToValueAtTime(40, now + 0.1); gain.gain.setValueAtTime(0.05, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1); osc.start(now); osc.stop(now + 0.1); } 
+    else if (type === 'shotgun') { osc.type = 'sawtooth'; osc.frequency.setValueAtTime(100, now); osc.frequency.linearRampToValueAtTime(10, now + 0.2); gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0.01, now + 0.2); osc.start(now); osc.stop(now + 0.2); } 
+    else if (type === 'hit') { osc.type = 'triangle'; osc.frequency.setValueAtTime(300, now); osc.frequency.exponentialRampToValueAtTime(50, now + 0.1); gain.gain.setValueAtTime(0.05, now); gain.gain.linearRampToValueAtTime(0.01, now + 0.1); osc.start(now); osc.stop(now + 0.1); } 
+    else if (type === 'pickup') { osc.type = 'sine'; osc.frequency.setValueAtTime(600, now); osc.frequency.setValueAtTime(900, now + 0.05); gain.gain.setValueAtTime(0.05, now); gain.gain.linearRampToValueAtTime(0.01, now + 0.15); osc.start(now); osc.stop(now + 0.15); } 
+    else if (type === 'hurt') { osc.type = 'sawtooth'; osc.frequency.setValueAtTime(80, now); osc.frequency.linearRampToValueAtTime(20, now + 0.3); gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0.01, now + 0.3); osc.start(now); osc.stop(now + 0.3); } 
+    else if (type === 'explode') { osc.type = 'square'; osc.frequency.setValueAtTime(50, now); osc.frequency.exponentialRampToValueAtTime(10, now + 0.6); gain.gain.setValueAtTime(0.4, now); gain.gain.linearRampToValueAtTime(0.01, now + 0.6); osc.start(now); osc.stop(now + 0.6); }
+    else if (type === 'laser') { osc.type = 'sawtooth'; osc.frequency.setValueAtTime(800, now); osc.frequency.linearRampToValueAtTime(200, now + 0.2); gain.gain.setValueAtTime(0.05, now); gain.gain.linearRampToValueAtTime(0.01, now + 0.2); osc.start(now); osc.stop(now + 0.2); }
+}
+
+// ==================== 畫布與變數 ====================
+const canvas = document.getElementById('gameCanvas'); const ctx = canvas.getContext('2d');
+const minimap = document.getElementById('minimap-canvas'); const mCtx = minimap.getContext('2d');
+let W, H;
+let joyL = { baseX: 0, baseY: 0, active: false, id: null, dx: 0, dy: 0, maxR: 60 };
+let joyR = { baseX: 0, baseY: 0, active: false, id: null, dx: 0, dy: 0, maxR: 60 };
+
+function resize() { 
+    W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; 
+    joyL.baseX = 100; joyL.baseY = H - 100; joyR.baseX = W - 100; joyR.baseY = H - 100;
+}
+window.addEventListener('resize', resize); resize();
+
+const MAP_W = 2500, MAP_H = 2500;
+let gameRunning = false, isPaused = false, screenShake = 0, hitStop = 0;
+let keys = {}, mouseX = W/2, mouseY = H/2, mouseDown = false;
+
+let camera = { x: 0, y: 0 };
+let trashItems = [], bullets = [], zombies = [], particles = [], bloodStains = [], casings = [], damageTexts = [], explosions = [];
+let totalTrash = 0, trashCurrency = 0, totalKills = 0, currentWave = 1;
+let zombiesToSpawn = 0, waveTimer = 0, isShopTime = false;
+
+let player = { x: MAP_W/2, y: MAP_H/2, size: 18, hp: 10, maxHp: 10, speed: 4.5, critChance: 0.1, cdMultiplier: 1.0, shield: 0, invincible: 0, shootCooldown: 0, grenades: 0, totems: 0 };
+
+// 檢查是否已有存檔以顯示繼續遊戲按鈕
+if(localStorage.getItem('zombie_save_v3')) document.getElementById('btn-continue').style.display = 'block';
+
+// ==================== 武器系統 ====================
+const weapons = [
+    { id: 1, name: '拳頭', emoji: '✊', dmg: 2, cd: 20, type: 'melee', range: 60, req: 0 },
+    { id: 2, name: '手槍', emoji: '🔫', dmg: 3, cd: 15, type: 'pistol', speed: 12, req: 10 },
+    { id: 3, name: '散彈', emoji: '💥', dmg: 3, cd: 35, type: 'shotgun', speed: 12, spread: 5, req: 30 },
+    { id: 4, name: '衝鋒', emoji: '💨', dmg: 2, cd: 6,  type: 'smg', speed: 14, req: 50 },
+    { id: 5, name: '劇毒', emoji: '🧪', dmg: 1, cd: 25, type: 'poison', speed: 8, req: 70 },
+    { id: 6, name: '火焰', emoji: '🔥', dmg: 0.5, cd: 2, type: 'flame', speed: 8, range: 150, req: 90 },
+    { id: 7, name: '迴旋鏢',emoji: '🪚', dmg: 5, cd: 40, type: 'boomerang', speed: 15, req: 120 },
+    { id: 8, name: '火箭', emoji: '🚀', dmg: 35, cd: 70, type: 'rocket', speed: 10, radius: 200, req: 150 },
+    { id: 9, name: '電磁', emoji: '⚡', dmg: 10, cd: 40, type: 'lightning', speed: 20, chain: 4, req: 190 },
+    { id: 10, name:'加特林',emoji: '🚁', dmg: 2, cd: 3, type: 'minigun', speed: 18, spread: 1, req: 230 },
+    { id: 11, name:'狙擊', emoji: '🎯', dmg: 40, cd: 80, type: 'sniper', speed: 35, pierce: true, req: 270 },
+    { id: 12, name:'激光', emoji: '☄️', dmg: 15, cd: 5, type: 'laser', speed: 40, pierce: true, req: 320 }
+];
+let unlockedWeapons = [0]; let currentWepIdx = 0;
+
+function switchWeapon(idx) {
+    if (unlockedWeapons.includes(idx)) { currentWepIdx = idx; renderWeaponUI(); playSound('pickup'); }
+}
+
+// 鍵盤與滾輪事件
+window.addEventListener('keydown', e => {
+    if (e.key === 'Escape') togglePause();
+    if (e.key.toLowerCase() === 'g') useGrenade();
+    if(!gameRunning || isPaused) return;
+    keys[e.key.toLowerCase()] = true;
+    let num = parseInt(e.key);
+    if (num >= 1 && num <= 9) switchWeapon(num - 1);
+    if (e.key === '0') switchWeapon(9);
+    if (e.key === '-') switchWeapon(10);
+    if (e.key === '=') switchWeapon(11);
+});
+window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+window.addEventListener('wheel', e => {
+    if(!gameRunning || isPaused) return;
+    let currIdx = unlockedWeapons.indexOf(currentWepIdx);
+    if(e.deltaY > 0) currIdx = (currIdx + 1) % unlockedWeapons.length;
+    else currIdx = (currIdx - 1 + unlockedWeapons.length) % unlockedWeapons.length;
+    switchWeapon(unlockedWeapons[currIdx]);
+});
+
+function renderWeaponUI() {
+    const wl = document.getElementById('weapon-list'); wl.innerHTML = '';
+    weapons.forEach((w, i) => {
+        if (unlockedWeapons.includes(i)) {
+            let div = document.createElement('div');
+            div.className = 'weapon-slot unlocked' + (currentWepIdx === i ? ' active' : '');
+            div.textContent = `${i+1}.${w.emoji}`;
+            let preventAndSwitch = (e) => { e.stopPropagation(); e.preventDefault(); switchWeapon(i); };
+            div.addEventListener('mousedown', preventAndSwitch); div.addEventListener('touchstart', preventAndSwitch, {passive: false});
+            wl.appendChild(div);
+        }
+    });
+    document.getElementById('hud-next').textContent = unlockedWeapons.length < weapons.length ? `📦 解鎖 ${weapons[unlockedWeapons.length].emoji} : 還需 ${weapons[unlockedWeapons.length].req - totalTrash} 垃圾` : `✨ 武器已全滿！`;
+}
+
+// ==================== 存檔與暫停系統 ====================
+function autoSave() {
+    if(player.hp <= 0) return;
+    let saveData = { player, currentWave, totalKills, totalTrash, trashCurrency, unlockedWeapons, currentWepIdx };
+    localStorage.setItem('zombie_save_v3', JSON.stringify(saveData));
+    document.getElementById('btn-continue').style.display = 'block';
+}
+
+function togglePause() {
+    if (!gameRunning || document.getElementById('game-over').style.display === 'flex' || isShopTime) return;
+    isPaused = !isPaused;
+    if(isPaused) autoSave();
+    document.getElementById('pause-screen').style.display = isPaused ? 'flex' : 'none';
+}
+
+function quitToMenu() {
+    gameRunning = false; isPaused = false;
+    document.getElementById('pause-screen').style.display = 'none';
+    document.getElementById('game-over').style.display = 'none';
+    document.getElementById('shop-screen').style.display = 'none';
+    document.getElementById('game-container').style.display = 'none';
+    document.getElementById('intro-screen').style.display = 'flex';
+}
+
+function exportSave() {
+    try {
+        let saveData = { player, currentWave, totalKills, totalTrash, trashCurrency, unlockedWeapons, currentWepIdx };
+        let base64 = btoa(unescape(encodeURIComponent(JSON.stringify(saveData))));
+        navigator.clipboard.writeText(base64).then(() => { alert("✅ 存檔代碼已成功複製到剪貼簿！"); }).catch(err => { prompt("自動複製失敗，請手動複製以下代碼：", base64); });
+    } catch (e) { alert("❌ 導出存檔失敗！"); }
+}
+
+function importSave() {
+    let code = prompt("請貼上存檔代碼 (Base64)：");
+    if(code) {
+        try {
+            let str = decodeURIComponent(escape(atob(code)));
+            let saveData = JSON.parse(str);
+            localStorage.setItem('zombie_save_v3', JSON.stringify(saveData));
+            startGame(true);
+            alert("✅ 存檔讀取成功！歡迎回來。");
+        } catch(e) { alert("❌ 存檔代碼無效或已損壞！"); }
+    }
+}
+
+// ==================== 固定底座虛擬搖桿 ====================
+function handleTouchStart(e) {
+    e.preventDefault(); initAudio();
+    for (let t of e.changedTouches) {
+        if (Math.hypot(t.clientX - joyL.baseX, t.clientY - joyL.baseY) < joyL.maxR * 2 && !joyL.active) {
+            joyL.active = true; joyL.id = t.identifier; updateJoystick(joyL, t.clientX, t.clientY);
+        }
+        else if (Math.hypot(t.clientX - joyR.baseX, t.clientY - joyR.baseY) < joyR.maxR * 2 && !joyR.active) {
+            joyR.active = true; joyR.id = t.identifier; updateJoystick(joyR, t.clientX, t.clientY); mouseDown = true;
+        }
+    }
+}
+function handleTouchMove(e) {
+    e.preventDefault();
+    for (let t of e.changedTouches) {
+        if (joyL.active && t.identifier === joyL.id) updateJoystick(joyL, t.clientX, t.clientY);
+        if (joyR.active && t.identifier === joyR.id) updateJoystick(joyR, t.clientX, t.clientY);
+    }
+}
+function handleTouchEnd(e) {
+    e.preventDefault();
+    for (let t of e.changedTouches) {
+        if (joyL.active && t.identifier === joyL.id) { joyL.active = false; joyL.dx = 0; joyL.dy = 0; }
+        if (joyR.active && t.identifier === joyR.id) { joyR.active = false; joyR.dx = 0; joyR.dy = 0; mouseDown = false; }
+    }
+}
+function updateJoystick(joy, cx, cy) {
+    let dx = cx - joy.baseX; let dy = cy - joy.baseY; let dist = Math.hypot(dx, dy);
+    if (dist > joy.maxR) { joy.dx = (dx/dist)*joy.maxR; joy.dy = (dy/dist)*joy.maxR; } else { joy.dx = dx; joy.dy = dy; }
+}
+
+canvas.addEventListener('touchstart', handleTouchStart, {passive: false});
+canvas.addEventListener('touchmove', handleTouchMove, {passive: false});
+canvas.addEventListener('touchend', handleTouchEnd, {passive: false});
+canvas.addEventListener('touchcancel', handleTouchEnd, {passive: false});
+canvas.addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; });
+canvas.addEventListener('mousedown', e => { initAudio(); if(gameRunning && !isPaused && !isShopTime) mouseDown = true; });
+canvas.addEventListener('mouseup', () => mouseDown = false);
+
+// ==================== 核心邏輯 ====================
+function startGame(isLoad = false) {
+    initAudio();
+    document.getElementById('intro-screen').style.display = 'none';
+    document.getElementById('game-container').style.display = 'block';
+    resize(); 
+    
+    if(isLoad && localStorage.getItem('zombie_save_v3')) { 
+        let sd = JSON.parse(localStorage.getItem('zombie_save_v3'));
+        player = sd.player; currentWave = sd.currentWave; totalKills = sd.totalKills; 
+        totalTrash = sd.totalTrash; trashCurrency = sd.trashCurrency; 
+        unlockedWeapons = sd.unlockedWeapons; currentWepIdx = sd.currentWepIdx;
+        // 兼容舊存檔的屬性
+        if(player.grenades === undefined) player.grenades = 0;
+        if(player.totems === undefined) player.totems = 0;
+    } else {
+        player = { x: MAP_W/2, y: MAP_H/2, size: 18, hp: 10, maxHp: 10, speed: 4.5, critChance: 0.1, cdMultiplier: 1.0, shield: 0, invincible: 0, shootCooldown: 0, grenades: 0, totems: 0 };
+        totalTrash = 0; trashCurrency = 0; totalKills = 0; currentWave = 1; unlockedWeapons = [0]; currentWepIdx = 0;
+    }
+    
+    trashItems = []; bullets = []; zombies = []; particles = []; bloodStains = []; casings = []; explosions = []; damageTexts = [];
+    for(let i=0; i<40; i++) spawnTrash();
+    
+    gameRunning = true; isPaused = false; isShopTime = false; zombiesToSpawn = 12 + currentWave * 5;
+    renderWeaponUI(); updateHUD(); announce(isLoad ? '🔄 歡迎回來！' : '🗑️ 開始生存！', '#00ff88');
+}
+
+function spawnTrash(x, y, isMedkit = false) {
+    trashItems.push({
+        x: x || Math.random() * MAP_W, y: y || Math.random() * MAP_H,
+        emoji: isMedkit ? '💊' : ['🥫','📦','🔩','🔋','⚙️'][Math.floor(Math.random()*5)],
+        isMedkit: isMedkit, bob: Math.random()*Math.PI*2
+    });
+}
+
+function spawnZombie() {
+    let type = 'normal', color = '#55cc55', emoji = '🧟', hp = 10, spd = 1.8, size = 20, dmg = 1;
+    let r = Math.random();
+    
+    if (currentWave >= 8 && r < 0.05) { type = 'boss'; emoji = '👹'; hp = 150; spd = 1.3; size = 45; dmg = 3; color = '#ff0000'; }
+    else if (currentWave >= 5 && r < 0.15) { type = 'tank'; emoji = '🛡️'; hp = 45; spd = 1.0; size = 30; dmg = 2; color = '#aa66ff'; }
+    else if (currentWave >= 3 && r < 0.25) { type = 'bomber'; emoji = '💣'; hp = 12; spd = 2.0; size = 22; dmg = 1; color = '#ff3300'; } 
+    else if (currentWave >= 4 && r < 0.40) { type = 'spider'; emoji = '🕷️'; hp = 8; spd = 1.5; size = 16; dmg = 1; color = '#9933ff'; } 
+    else if (currentWave >= 2 && r < 0.60) { type = 'wolf'; emoji = '🐺'; hp = 10; spd = 3.5; size = 18; dmg = 1; color = '#ffff66'; } 
+    else if (r < 0.80) { type = 'fast'; emoji = '🏃'; hp = 8; spd = 3.8; size = 18; dmg = 1; color = '#ff6666'; }
+
+    // 難度動態平衡：隨波次提升能力
+    let hpMult = 1 + (currentWave - 1) * 0.25;
+    let extraSpd = currentWave * 0.015;
+    let extraDmg = Math.floor(currentWave / 5);
+
+    let angle = Math.random() * Math.PI * 2;
+    let dist = Math.max(W, H)/2 + 150;
+    
+    zombies.push({
+        x: player.x + Math.cos(angle)*dist, y: player.y + Math.sin(angle)*dist,
+        hp: hp * hpMult, maxHp: hp * hpMult, speed: spd + extraSpd, size, damage: dmg + extraDmg, color, emoji, type,
+        vx: 0, vy: 0, dot: 0, dotType: '', dashTimer: Math.random()*100 + 50, isDashing: 0, dashAngle: 0, flankDir: (Math.random() > 0.5 ? 1 : -1)
+    });
+}
+
+function shoot() {
+    if (player.shootCooldown > 0) return;
+    let w = weapons[currentWepIdx];
+    player.shootCooldown = w.cd * player.cdMultiplier;
+    playSound(w.type === 'shotgun' || w.type === 'rocket' ? 'shotgun' : w.type === 'laser' ? 'laser' : 'shoot');
+
+    let aimX = mouseX, aimY = mouseY;
+    if (joyR.active) { aimX = W/2 + joyR.dx; aimY = H/2 + joyR.dy; }
+    let angle = Math.atan2(aimY - H/2, aimX - W/2);
+
+    screenShake = w.type === 'rocket' ? 10 : w.type === 'sniper' ? 8 : w.type === 'shotgun' ? 5 : 1;
+    if(!['melee','flame','lightning','laser'].includes(w.type)) casings.push({ x: player.x, y: player.y, vx: Math.cos(angle+Math.PI/2)*3 + (Math.random()-0.5)*2, vy: Math.sin(angle+Math.PI/2)*3 + (Math.random()-0.5)*2, life: 100 });
+
+    if (w.type === 'melee') zombies.forEach(z => { if (Math.hypot(z.x - player.x, z.y - player.y) < w.range + z.size) dealDamage(z, w.dmg, angle, 15); });
+    else if (w.type === 'flame' || w.type === 'poison') for(let i=0; i<3; i++) { let a = angle + (Math.random()-0.5)*0.5; bullets.push({ x: player.x, y: player.y, vx: Math.cos(a)*w.speed, vy: Math.sin(a)*w.speed, dmg: w.dmg, type: w.type, life: 25, size: 8 }); }
+    else if (w.type === 'shotgun') for (let i = 0; i < w.spread; i++) { let a = angle + (Math.random()-0.5)*0.6; bullets.push({ x: player.x, y: player.y, vx: Math.cos(a)*w.speed, vy: Math.sin(a)*w.speed, dmg: w.dmg, type: 'normal', life: 25, size: 4 }); }
+    else if (w.type === 'minigun') { let a = angle + (Math.random()-0.5)*0.3; bullets.push({ x: player.x, y: player.y, vx: Math.cos(a)*w.speed, vy: Math.sin(a)*w.speed, dmg: w.dmg, type: 'normal', life: 40, size: 3 }); }
+    else if (w.type === 'lightning') {
+        let target = null, minDist = 400;
+        zombies.forEach(z => { let d = Math.hypot(z.x - player.x, z.y - player.y); let a = Math.atan2(z.y - player.y, z.x - player.x); if(d < minDist && Math.abs(a - angle) < 0.5) { minDist = d; target = z; } });
+        if(target) chainLightning(player.x, player.y, target, w.dmg, w.chain); else bullets.push({ x: player.x, y: player.y, vx: Math.cos(angle)*w.speed, vy: Math.sin(angle)*w.speed, dmg: w.dmg, type: 'normal', life: 30, size: 5 });
+    }
+    else if (w.type === 'boomerang') bullets.push({ x: player.x, y: player.y, vx: Math.cos(angle)*w.speed, vy: Math.sin(angle)*w.speed, dmg: w.dmg, type: 'boomerang', life: 60, maxLife: 60, size: 10, hitSet: new Set() });
+    else bullets.push({ x: player.x, y: player.y, vx: Math.cos(angle)*w.speed, vy: Math.sin(angle)*w.speed, dmg: w.dmg, type: w.type, life: w.type==='laser'?5:w.type==='sniper'?100:60, size: w.type==='rocket'?10:w.type==='laser'?2:5, pierce: w.pierce, hitSet: new Set() });
+}
+
+function chainLightning(startX, startY, target, dmg, bounces) {
+    playSound('hit'); dealDamage(target, dmg, 0, 0);
+    for(let i=0; i<5; i++) particles.push({ x: startX + (target.x-startX)*Math.random(), y: startY + (target.y-startY)*Math.random(), vx: (Math.random()-0.5)*2, vy: (Math.random()-0.5)*2, life: 10, color: '#00eeff', size: 3 });
+    if(bounces > 0) {
+        let nextTarget = null, minDist = 250;
+        zombies.forEach(z => { if(z === target) return; let d = Math.hypot(z.x - target.x, z.y - target.y); if(d < minDist) { minDist = d; nextTarget = z; } });
+        if(nextTarget) setTimeout(() => { if(gameRunning && !isPaused) chainLightning(target.x, target.y, nextTarget, dmg*0.8, bounces-1); }, 50);
+    }
+}
+
+function dealDamage(z, dmg, angle, knockback) {
+    let isCrit = Math.random() < player.critChance; let finalDmg = isCrit ? dmg * 2 : dmg; z.hp -= finalDmg;
+    if(isCrit || finalDmg >= 15) hitStop = 3; playSound('hit');
+    let textEl = document.createElement('div'); textEl.className = 'damage-number' + (isCrit ? ' crit' : ''); textEl.textContent = (isCrit ? 'Crit! ' : '') + '-' + Math.ceil(finalDmg);
+    document.getElementById('game-container').appendChild(textEl); damageTexts.push({ el: textEl, x: z.x, y: z.y - z.size, life: 40 });
+    if (knockback > 0) { z.x += Math.cos(angle)*knockback; z.y += Math.sin(angle)*knockback; }
+    for(let i=0; i< (isCrit?8:3); i++) bloodStains.push({ x: z.x + (Math.random()-0.5)*20, y: z.y + (Math.random()-0.5)*20, size: Math.random()*8+2, color: z.color === '#ff0000' ? '#990000' : z.color === '#aa66ff' ? '#440088' : '#005500' });
+    if (z.hp <= 0) {
+        totalKills++;
+        for(let i=0; i<15; i++) particles.push({ x: z.x, y: z.y, vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10, life: 30, color: z.color, size: Math.random()*5+2 });
+        if(Math.random() < 0.05) spawnTrash(z.x, z.y, true); 
+    }
+}
+
+function triggerExplosion(x, y, radius, dmg) {
+    screenShake = 20; playSound('explode');
+    explosions.push({ x: x, y: y, r: 0, maxR: radius, life: 15, maxLife: 15 });
+    zombies.forEach(z => { let d = Math.hypot(z.x - x, z.y - y); if(d < radius + z.size) dealDamage(z, dmg, Math.atan2(z.y - y, z.x - x), 30); });
+    for(let p=0; p<30; p++) particles.push({ x: x, y: y, vx: (Math.random()-0.5)*15, vy: (Math.random()-0.5)*15, life: 20, color: '#ff4400', size: Math.random()*8+4 });
+}
+
+function useGrenade() {
+    if(player.grenades > 0 && gameRunning && !isPaused) {
+        player.grenades--;
+        announce("💣 全頻轟炸！", "#ffaa00");
+        triggerExplosion(player.x, player.y, MAP_W, 100); // 超大範圍爆破
+        updateHUD();
+    }
+}
+
+function checkPlayerDeath() {
+    if (player.hp <= 0) { 
+        if (player.totems > 0) {
+            player.totems--;
+            player.hp = player.maxHp / 2;
+            player.invincible = 180; // 3秒無敵 (60fps)
+            triggerExplosion(player.x, player.y, 400, 50); // 核爆彈飛
+            announce("👼 不死圖騰觸發！", "#ffff00");
+            updateHUD();
+        } else {
+            gameRunning = false; 
+            localStorage.removeItem('zombie_save_v3'); // 死亡刪除自動存檔
+            document.getElementById('game-over').style.display = 'flex';
+            document.getElementById('final-wave').textContent = currentWave;
+            document.getElementById('final-kills').textContent = totalKills;
+            document.getElementById('final-trash').textContent = totalTrash;
+        }
+    }
+}
+
+function updateHUD() {
+    document.getElementById('hud-hp-text').textContent = `❤️ ${Math.ceil(player.hp)} / ${player.maxHp}`;
+    document.getElementById('hud-hp-bar').style.width = `${Math.max(0, (player.hp/player.maxHp)*100)}%`;
+    document.getElementById('hud-hp-bar').style.background = player.hp/player.maxHp > 0.5 ? 'linear-gradient(90deg, #00ff88, #00cc6a)' : 'linear-gradient(90deg, #ff4444, #cc0000)';
+    document.getElementById('hud-stats').textContent = `🛡️ 護盾: ${player.shield} | 👼 圖騰: ${player.totems} | 👟 速度: ${player.speed.toFixed(1)}`;
+    document.getElementById('hud-wave').textContent = `🌊 波次：${currentWave}`;
+    document.getElementById('hud-score').textContent = `💀 擊殺：${totalKills}`;
+    document.getElementById('hud-trash').textContent = `🗑️ 垃圾幣：${trashCurrency}`;
+    document.getElementById('grenade-btn').textContent = `💣 ${player.grenades}`;
+}
+
+function announce(text, color = '#ffcc00') {
+    let el = document.getElementById('center-announce');
+    el.textContent = text; el.style.color = color; el.style.opacity = 1;
+    setTimeout(() => el.style.opacity = 0, 2000);
+}
+
+// ==================== 商店系統 (位於暫停選單) ====================
+function openShop() {
+    document.getElementById('pause-screen').style.display = 'none';
+    document.getElementById('shop-screen').style.display = 'flex';
+    isShopTime = true;
+    updateShopUI();
+}
+function closeShop() {
+    document.getElementById('shop-screen').style.display = 'none';
+    document.getElementById('pause-screen').style.display = 'flex';
+    isShopTime = false;
+}
+function updateShopUI() {
+    document.getElementById('shop-trash').textContent = trashCurrency;
+    document.getElementById('btn-grenade').disabled = player.grenades >= 3;
+    document.getElementById('btn-speed').disabled = player.speed >= 8;
+    document.getElementById('btn-maxhp').disabled = player.maxHp >= 50;
+    document.getElementById('btn-crit').disabled = player.critChance >= 0.5;
+    document.getElementById('btn-cd').disabled = player.cdMultiplier <= 0.4;
+}
+function buyItem(type, cost) {
+    if(trashCurrency >= cost) {
+        trashCurrency -= cost; playSound('pickup');
+        if(type === 'hp') player.hp = Math.min(player.maxHp, player.hp + 5);
+        if(type === 'shield') player.shield++;
+        if(type === 'grenade') player.grenades++;
+        if(type === 'totem') player.totems++;
+        if(type === 'speed') player.speed += 0.5;
+        if(type === 'maxhp') { player.maxHp += 5; player.hp += 5; }
+        if(type === 'crit') player.critChance += 0.05;
+        if(type === 'cd') player.cdMultiplier -= 0.1;
+        updateShopUI(); updateHUD(); autoSave();
+    }
+}
+
+// ==================== 遊戲主迴圈 ====================
+function update() {
+    if (!gameRunning || isPaused || isShopTime) return;
+    if (hitStop > 0) { hitStop--; return; }
+
+    let dx = 0, dy = 0;
+    if (keys['w'] || keys['arrowup']) dy -= 1; if (keys['s'] || keys['arrowdown']) dy += 1;
+    if (keys['a'] || keys['arrowleft']) dx -= 1; if (keys['d'] || keys['arrowright']) dx += 1;
+    if (joyL.active && joyL.maxR > 0) { dx = joyL.dx / joyL.maxR; dy = joyL.dy / joyL.maxR; }
+
+    let actualSpeed = player.speed;
+    if (weapons[currentWepIdx].type === 'minigun' && mouseDown) actualSpeed *= 0.4;
+
+    if (dx !== 0 || dy !== 0) { let len = Math.hypot(dx, dy); player.x += (dx/len) * actualSpeed; player.y += (dy/len) * actualSpeed; }
+    player.x = Math.max(player.size, Math.min(MAP_W-player.size, player.x));
+    player.y = Math.max(player.size, Math.min(MAP_H-player.size, player.y));
+
+    if (player.invincible > 0) player.invincible--;
+    if (player.shootCooldown > 0) player.shootCooldown--;
+    if (mouseDown) shoot();
+
+    // 撿垃圾
+    for (let i = trashItems.length - 1; i >= 0; i--) {
+        let t = trashItems[i];
+        if (Math.hypot(t.x - player.x, t.y - player.y) < 50) {
+            trashItems.splice(i, 1);
+            if (t.isMedkit) { player.hp = Math.min(player.maxHp, player.hp + 5); playSound('pickup'); } 
+            else {
+                totalTrash++; trashCurrency++; playSound('pickup');
+                let nextWep = weapons[unlockedWeapons.length];
+                if (nextWep && totalTrash >= nextWep.req) {
+                    unlockedWeapons.push(nextWep.id - 1); switchWeapon(nextWep.id - 1);
+                    triggerExplosion(player.x, player.y, 400, 50); announce(`🎉 解鎖: ${nextWep.name}!`, '#00eeff');
+                }
+            }
+            updateHUD();
+        }
+    }
+    while(trashItems.length < 25) spawnTrash();
+
+    // 子彈邏輯
+    for (let i = bullets.length - 1; i >= 0; i--) {
+        let b = bullets[i];
+        if (b.type === 'boomerang') {
+            if (b.life < b.maxLife / 2) { 
+                let angle = Math.atan2(player.y - b.y, player.x - b.x); b.vx = Math.cos(angle) * 20; b.vy = Math.sin(angle) * 20; b.hitSet.clear(); 
+                if (Math.hypot(player.x - b.x, player.y - b.y) < 30) { bullets.splice(i, 1); continue; }
+            }
+        }
+        if (b.type === 'laser') {
+            let endX = b.x + b.vx * 30, endY = b.y + b.vy * 30;
+            zombies.forEach(z => {
+                let dist = Math.abs((endY-b.y)*z.x - (endX-b.x)*z.y + endX*b.y - endY*b.x) / Math.hypot(endX-b.x, endY-b.y);
+                if (dist < z.size + 15 && !b.hitSet.has(z)) { b.hitSet.add(z); dealDamage(z, b.dmg, Math.atan2(b.vy, b.vx), 5); }
+            });
+        }
+        b.x += b.vx; b.y += b.vy; b.life--;
+        if (b.type === 'rocket') particles.push({ x: b.x, y: b.y, vx: 0, vy: 0, life: 10, color: '#ff6600', size: 5 });
+        if (b.type === 'sniper') particles.push({ x: b.x, y: b.y, vx: 0, vy: 0, life: 5, color: '#00eeff', size: 3 });
+
+        if (b.x < 0 || b.x > MAP_W || b.y < 0 || b.y > MAP_H || b.life <= 0) {
+            if (b.type === 'rocket') triggerExplosion(b.x, b.y, 200, b.dmg); 
+            if (b.type !== 'boomerang') { bullets.splice(i, 1); continue; }
+        }
+
+        let hit = false;
+        for (let z of zombies) {
+            if (b.type === 'laser') continue; 
+            if (Math.hypot(z.x - b.x, z.y - b.y) < z.size + b.size) {
+                if (b.type === 'rocket') { hit = true; triggerExplosion(b.x, b.y, 200, b.dmg); break; }
+                if (b.pierce || b.type === 'boomerang') {
+                    if (!b.hitSet.has(z)) { b.hitSet.add(z); dealDamage(z, b.dmg, Math.atan2(b.vy, b.vx), 10); }
+                } else {
+                    if(b.type === 'flame') { z.dot = 60; z.dotType = 'flame'; }
+                    if(b.type === 'poison') { z.dot = 120; z.dotType = 'poison'; }
+                    dealDamage(z, b.dmg, Math.atan2(b.vy, b.vx), b.type==='flame'||b.type==='poison'?1:8); hit = true; break;
+                }
+            }
+        }
+        if (hit) bullets.splice(i, 1);
+    }
+
+    // 🧠 殭屍 AI 與邊界限制
+    let margin = 400; // 限制在邊界外 5 個方塊 (80*5)
+    for (let i = zombies.length - 1; i >= 0; i--) {
+        let z = zombies[i];
+        
+        // 邊界限制邏輯 (防止繞太遠)
+        if (z.x < -margin) z.x = -margin;
+        if (z.x > MAP_W + margin) z.x = MAP_W + margin;
+        if (z.y < -margin) z.y = -margin;
+        if (z.y > MAP_H + margin) z.y = MAP_H + margin;
+
+        if (z.dot > 0) { z.dot--; z.hp -= (z.dotType === 'poison' ? 0.1 : 0.05); if(Math.random()<0.2) particles.push({x:z.x, y:z.y, vx:0, vy:-2, life:10, color: z.dotType==='poison'?'#00ff00':'#ff6600', size:3}); }
+        if (z.hp <= 0) { if(z.type === 'bomber') triggerExplosion(z.x, z.y, 150, 20); zombies.splice(i, 1); continue; }
+
+        let distToPlayer = Math.hypot(player.x - z.x, player.y - z.y);
+        let angleToPlayer = Math.atan2(player.y - z.y, player.x - z.x);
+        let moveAngle = angleToPlayer; let currentSpd = z.speed;
+        if(z.dotType === 'poison') currentSpd *= 0.7;
+
+        if (z.type === 'spider') {
+            z.dashTimer--;
+            if (z.dashTimer <= 0) { z.dashTimer = 150; z.isDashing = 15; z.dashAngle = angleToPlayer; }
+            if (z.isDashing > 0) { z.isDashing--; moveAngle = z.dashAngle; currentSpd = 12; } else currentSpd = 1.5; 
+        }
+        else if (z.type === 'wolf' || z.type === 'fast') {
+            let flankForce = Math.min(1, 200 / Math.max(10, distToPlayer)); moveAngle += z.flankDir * (1 - flankForce) * 1.5; 
+        }
+        else if (z.type === 'bomber') {
+            if (distToPlayer < 120) { currentSpd *= 1.8; z.color = '#ff0000'; z.size = 25 + Math.sin(Date.now()/50)*5; }
+        }
+
+        z.vx = Math.cos(moveAngle) * currentSpd; z.vy = Math.sin(moveAngle) * currentSpd;
+
+        let sepX = 0, sepY = 0;
+        for (let j = 0; j < zombies.length; j++) {
+            if (i === j) continue;
+            let z2 = zombies[j]; let d = Math.hypot(z2.x - z.x, z2.y - z.y); let repelDist = z.size + z2.size + 15; 
+            if (d < repelDist && d > 0) {
+                let force = (repelDist - d) / repelDist; sepX -= (z2.x - z.x) / d * force * 1.5; sepY -= (z2.y - z.y) / d * force * 1.5;
+                if(d < z.size + z2.size) { let p = ((z.size + z2.size) - d) / 2; z.x -= (z2.x-z.x)/d * p; z.y -= (z2.y-z.y)/d * p; }
+            }
+        }
+        z.vx += sepX; z.vy += sepY; z.x += z.vx; z.y += z.vy;
+
+        if (distToPlayer < z.size + player.size && player.invincible <= 0) {
+            if (z.type === 'bomber') { triggerExplosion(z.x, z.y, 150, 20); z.hp = 0; } 
+            else if (player.shield > 0) { player.shield--; playSound('hit'); triggerExplosion(player.x, player.y, 150, 10); player.invincible = 40; } 
+            else { 
+                player.hp -= z.damage; playSound('hurt'); screenShake = 15; player.invincible = 40;
+                document.getElementById('game-container').style.boxShadow = 'inset 0 0 100px red'; setTimeout(()=> document.getElementById('game-container').style.boxShadow = 'none', 200);
+            }
+            updateHUD(); checkPlayerDeath();
+        }
+    }
+
+    // 特效清理
+    for(let i=particles.length-1; i>=0; i--) { let p = particles[i]; p.x+=p.vx; p.y+=p.vy; if(--p.life<=0) particles.splice(i,1); }
+    for(let i=casings.length-1; i>=0; i--) { let c = casings[i]; c.x+=c.vx; c.y+=c.vy; c.vx*=0.9; c.vy*=0.9; if(--c.life<=0) casings.splice(i,1); }
+    for(let i=damageTexts.length-1; i>=0; i--) { let t = damageTexts[i]; t.el.style.left = (t.x - camera.x) + 'px'; t.el.style.top = (t.y - camera.y) + 'px'; if(--t.life <= 0) { t.el.remove(); damageTexts.splice(i, 1); } }
+    if(bloodStains.length > 400) bloodStains.splice(0, bloodStains.length - 400);
+
+    // 波次管理 (自動推進，商店改為手動)
+    if (zombiesToSpawn > 0) {
+        waveTimer++;
+        if (waveTimer >= Math.max(10, 40 - currentWave * 2)) { waveTimer = 0; spawnZombie(); zombiesToSpawn--; }
+    } else if (zombies.length === 0) {
+        currentWave++; zombiesToSpawn = 12 + currentWave * 5;
+        announce(`🌊 第 ${currentWave} 波開始！`, '#00ff88');
+        player.hp = Math.min(player.maxHp, player.hp + 2); 
+        updateHUD(); autoSave(); // 每波自動存檔
+    }
+
+    let sx = 0, sy = 0;
+    if(screenShake > 0) { sx = (Math.random()-0.5)*screenShake; sy = (Math.random()-0.5)*screenShake; screenShake *= 0.8; if(screenShake<0.5) screenShake=0; }
+    camera.x = player.x - W/2 + sx; camera.y = player.y - H/2 + sy;
+}
+
+function draw() {
+    ctx.clearRect(0, 0, W, H); ctx.save(); ctx.translate(-camera.x, -camera.y);
+
+    ctx.strokeStyle = '#3a3a55'; ctx.lineWidth = 1;
+    let sx = Math.floor(camera.x/80)*80, sy = Math.floor(camera.y/80)*80;
+    for (let x=sx; x<camera.x+W+80; x+=80) { ctx.beginPath(); ctx.moveTo(x, camera.y); ctx.lineTo(x, camera.y+H); ctx.stroke(); }
+    for (let y=sy; y<camera.y+H+80; y+=80) { ctx.beginPath(); ctx.moveTo(camera.x, y); ctx.lineTo(camera.x+W, y); ctx.stroke(); }
+    ctx.strokeStyle = '#ff4444'; ctx.lineWidth = 4; ctx.strokeRect(0, 0, MAP_W, MAP_H);
+
+    bloodStains.forEach(b => { ctx.fillStyle = b.color; ctx.globalAlpha = 0.6; ctx.beginPath(); ctx.arc(b.x, b.y, b.size, 0, Math.PI*2); ctx.fill(); });
+    ctx.globalAlpha = 1;
+    casings.forEach(c => { ctx.fillStyle = '#ffcc00'; ctx.fillRect(c.x, c.y, 4, 2); });
+
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '24px Arial'; let time = Date.now()/200;
+    trashItems.forEach(t => { 
+        if(t.isMedkit) { ctx.shadowColor = '#ff4444'; ctx.shadowBlur = 15; } else { ctx.shadowColor = '#00ff88'; ctx.shadowBlur = 10; }
+        ctx.fillText(t.emoji, t.x, t.y + Math.sin(time+t.bob)*5); ctx.shadowBlur = 0;
+    });
+
+    let w = weapons[currentWepIdx];
+    if (['sniper', 'rocket', 'laser'].includes(w.type)) {
+        let aimX = mouseX + camera.x, aimY = mouseY + camera.y;
+        if(joyR.active) { aimX = player.x + joyR.dx*20; aimY = player.y + joyR.dy*20; }
+        let angle = Math.atan2(aimY - player.y, aimX - player.x);
+        ctx.beginPath(); ctx.moveTo(player.x, player.y); ctx.lineTo(player.x + Math.cos(angle)*1500, player.y + Math.sin(angle)*1500);
+        ctx.strokeStyle = w.type === 'sniper' ? 'rgba(0,238,255,0.2)' : w.type === 'laser' ? 'rgba(255,0,255,0.2)' : 'rgba(255,0,0,0.2)'; 
+        ctx.lineWidth = w.type === 'laser' ? 5 : 2; ctx.stroke();
+    }
+
+    zombies.forEach(z => {
+        ctx.fillStyle = '#333'; ctx.fillRect(z.x-z.size, z.y-z.size-10, z.size*2, 4);
+        ctx.fillStyle = z.hp/z.maxHp > 0.5 ? '#55cc55' : '#ff4444'; ctx.fillRect(z.x-z.size, z.y-z.size-10, z.size*2*(z.hp/z.maxHp), 4);
+        ctx.font = `${z.size*2}px Arial`; ctx.fillText(z.emoji, z.x, z.y);
+        if(z.dot > 0) { ctx.font = '16px Arial'; ctx.fillText(z.dotType==='poison'?'🧪':'🔥', z.x, z.y-z.size); }
+        if(z.type === 'spider' && z.isDashing > 0) { ctx.globalAlpha = 0.5; ctx.fillText(z.emoji, z.x - z.vx*2, z.y - z.vy*2); ctx.globalAlpha = 1; }
+    });
+
+    bullets.forEach(b => {
+        if (b.type === 'laser') { ctx.strokeStyle = '#ff00ff'; ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx*2, b.y - b.vy*2); ctx.stroke(); } 
+        else if (b.type === 'boomerang') { ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(Date.now()/50); ctx.font = '24px Arial'; ctx.fillText('🪚', 0, 0); ctx.restore(); } 
+        else { ctx.fillStyle = b.type === 'rocket' ? '#ff4400' : b.type === 'sniper' ? '#00eeff' : b.type === 'flame' ? '#ff8800' : b.type === 'poison' ? '#00ff00' : '#ffff00'; ctx.beginPath(); ctx.arc(b.x, b.y, b.size, 0, Math.PI*2); ctx.fill(); }
+    });
+
+    for(let i=explosions.length-1; i>=0; i--) {
+        let ex = explosions[i]; ex.r += (ex.maxR - ex.r) * 0.3; 
+        ctx.fillStyle = `rgba(255, ${60 + ex.life*10}, 0, ${ex.life/ex.maxLife})`; ctx.beginPath(); ctx.arc(ex.x, ex.y, ex.r, 0, Math.PI*2); ctx.fill();
+        if(--ex.life <= 0) explosions.splice(i, 1);
+    }
+
+    particles.forEach(p => { ctx.globalAlpha = p.life/30; ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill(); }); ctx.globalAlpha = 1;
+
+    if (player.invincible > 0 && Math.floor(player.invincible/4)%2===0) ctx.globalAlpha = 0.4;
+    ctx.font = '36px Arial'; ctx.fillText('🧑', player.x, player.y);
+    if (player.shield > 0) { ctx.strokeStyle = '#00eeff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(player.x, player.y, 30, 0, Math.PI*2); ctx.stroke(); }
+    
+    let aimX = mouseX+camera.x, aimY = mouseY+camera.y;
+    if(joyR.active) { aimX = player.x + joyR.dx; aimY = player.y + joyR.dy; }
+    let pAngle = Math.atan2(aimY - player.y, aimX - player.x);
+    ctx.font = '20px Arial'; ctx.fillText(w.emoji, player.x + Math.cos(pAngle)*30, player.y + Math.sin(pAngle)*30); ctx.globalAlpha = 1;
+
+    ctx.restore();
+
+    // ==================== 繪製小地圖 ====================
+    mCtx.clearRect(0, 0, minimap.width, minimap.height);
+    let mmScale = minimap.width / MAP_W;
+    
+    // 垃圾 (綠/紅點)
+    trashItems.forEach(t => { mCtx.fillStyle = t.isMedkit ? '#ff4444' : '#00ff88'; mCtx.fillRect(t.x * mmScale, t.y * mmScale, 3, 3); });
+    // 殭屍 (依種類變色)
+    zombies.forEach(z => { mCtx.fillStyle = z.type === 'boss' ? '#ff0000' : z.type === 'spider' ? '#9933ff' : '#ff6666'; mCtx.fillRect(z.x * mmScale, z.y * mmScale, z.type === 'boss'? 6:4, z.type === 'boss'? 6:4); });
+    // 玩家 (藍點)
+    mCtx.fillStyle = '#00eeff'; mCtx.beginPath(); mCtx.arc(player.x * mmScale, player.y * mmScale, 4, 0, Math.PI*2); mCtx.fill();
+    // 視野框
+    mCtx.strokeStyle = 'rgba(255,255,255,0.3)'; mCtx.strokeRect(camera.x * mmScale, camera.y * mmScale, W * mmScale, H * mmScale);
+
+    // 固定搖桿
+    if (navigator.maxTouchPoints > 0) {
+        ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.beginPath(); ctx.arc(joyL.baseX, joyL.baseY, joyL.maxR, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.beginPath(); ctx.arc(joyL.baseX + joyL.dx, joyL.baseY + joyL.dy, 25, 0, Math.PI*2); ctx.fill();
+        
+        ctx.fillStyle = 'rgba(255,100,100,0.1)'; ctx.beginPath(); ctx.arc(joyR.baseX, joyR.baseY, joyR.maxR, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = 'rgba(255,100,100,0.5)'; ctx.beginPath(); ctx.arc(joyR.baseX + joyR.dx, joyR.baseY + joyR.dy, 25, 0, Math.PI*2); ctx.fill();
+    }
+}
+
+function gameLoop() { update(); draw(); requestAnimationFrame(gameLoop); }
+
+gameLoop();
+</script>
+</body>
+</html>

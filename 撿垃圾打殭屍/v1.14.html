@@ -1,0 +1,1604 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🗑️ 撿垃圾打殭屍 🧟 (模式選擇與幫手升級版)</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --ui-scale: 1;
+            --bg-color: #1a1a2e; --text-color: #fff; --box-bg: rgba(0,0,0,0.75);
+            --border-color: #00ff88; --shadow-color: rgba(0,255,136,0.3);
+            --overlay-bg: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            --hud-bg: rgba(0,0,0,0.6); --panel-bg: #333; --grid-color: #555;
+            --text-shadow: 2px 2px 2px #000;
+        }
+        [data-theme="light"] { --bg-color: #f0f4f8; --text-color: #111; --box-bg: rgba(255,255,255,0.95); --border-color: #3498db; --shadow-color: rgba(52,152,219,0.3); --overlay-bg: linear-gradient(135deg, #e0eafc, #cfdef3); --hud-bg: rgba(255,255,255,0.85); --panel-bg: #ddd; --grid-color: #aaa; --text-shadow: none; }
+        [data-theme="cyber"] { --bg-color: #050510; --text-color: #0ff; --box-bg: rgba(10,10,25,0.9); --border-color: #f0f; --shadow-color: rgba(255,0,255,0.5); --overlay-bg: linear-gradient(135deg, #000, #110022); --hud-bg: rgba(0,20,40,0.8); --panel-bg: #202; --grid-color: #606; --text-shadow: 0 0 5px #0ff; }
+        [data-theme="mini"] { --bg-color: #ffffff; --text-color: #000; --box-bg: rgba(255,255,255,1); --border-color: #000; --shadow-color: transparent; --overlay-bg: rgba(255,255,255,0.98); --hud-bg: rgba(240,240,240,0.9); --panel-bg: #eee; --grid-color: #ccc; --text-shadow: none; }
+
+        body { background: var(--bg-color); color: var(--text-color); font-family: 'Microsoft JhengHei', Arial, sans-serif; overflow: hidden; user-select: none; -webkit-touch-callout: none; touch-action: none; transition: background 0.3s, color 0.3s; }
+        
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; z-index: 1000; background: var(--overlay-bg); transition: background 0.3s; }
+        .overlay-dark { background: rgba(0,0,0,0.85); flex-direction: column; }
+        .box { background: var(--box-bg); border: 2px solid var(--border-color); border-radius: 15px; padding: 25px; max-width: 800px; max-height: 90vh; overflow-y: auto; text-align: center; box-shadow: 0 0 30px var(--shadow-color); transition: all 0.3s; }
+        
+        h1 { font-size: 36px; color: var(--border-color); text-shadow: 0 0 10px var(--border-color); margin-bottom: 20px; }
+        h2 { font-size: 24px; color: #ffcc00; margin-bottom: 10px; border-bottom: 1px solid var(--grid-color); padding-bottom: 5px; }
+        p { font-size: 16px; line-height: 1.6; margin-bottom: 10px; }
+        
+        .btn-container { display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; margin-top: 20px; }
+        .btn { background: #00ff88; color: #000; border: none; padding: 12px 25px; font-size: 18px; font-weight: bold; border-radius: 8px; cursor: pointer; transition: 0.2s; box-shadow: 0 0 15px rgba(0,255,136,0.5); display: inline-block; }
+        .btn:hover { filter: brightness(1.1); transform: scale(1.05); }
+        .btn:active { transform: scale(0.95); }
+        .btn:disabled { background: #555; color: #888; cursor: not-allowed; box-shadow: none; transform: none; }
+        .btn-red { background: #ff4444; box-shadow: 0 0 15px rgba(255,68,68,0.5); color: #fff;}
+        .btn-blue { background: #00ccff; box-shadow: 0 0 15px rgba(0,204,255,0.5); }
+        .btn-gold { background: #f1c40f; box-shadow: 0 0 15px rgba(241,196,15,0.5); }
+        
+        .info-panel { display: flex; gap: 20px; text-align: left; flex-wrap: wrap; }
+        .info-col { flex: 1; min-width: 300px; }
+        .styled-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; background: var(--panel-bg); color: var(--text-color); }
+        .styled-table th, .styled-table td { padding: 8px; border: 1px solid var(--grid-color); text-align: center; }
+        .styled-table th { background: var(--border-color); color: #000; }
+
+        #game-container { display: none; width: 100vw; height: 100vh; position: relative; }
+        canvas { display: block; width: 100%; height: 100%; }
+        
+        #hud { position: absolute; top: 10px; left: 10px; pointer-events: none; z-index: 10; text-shadow: var(--text-shadow); transform: scale(var(--ui-scale)); transform-origin: top left; }
+        .hud-text { font-size: 22px; font-weight: bold; margin-bottom: 5px; color: var(--text-color); }
+        #hud-stats { font-size: 16px; color: var(--text-color); margin-top: 5px; }
+
+        #bottom-ui-wrapper { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%) scale(var(--ui-scale)); transform-origin: bottom center; display: flex; flex-direction: column; align-items: center; gap: 15px; z-index: 10; pointer-events: none; width: 360px; }
+        #bottom-hud { display: flex; flex-direction: column; gap: 6px; align-items: center; width: 100%; text-shadow: 1px 1px 2px #000; }
+        #hotbar-wep-name { font-size: 18px; font-weight: bold; color: var(--border-color); background: var(--hud-bg); padding: 4px 15px; border-radius: 12px; transition: 0.2s; margin-bottom: 2px; text-shadow: 1px 1px 2px #000; }
+        .bars-wrapper { display: flex; gap: 10px; width: 100%; }
+        .bar-row { display: flex; align-items: center; gap: 8px; width: 100%; flex: 1; }
+        .bar-label { font-weight: bold; font-size: 14px; width: 35px; text-align: right; text-shadow: 1px 1px 1px #000; color: #fff; }
+        .bottom-bar-container { flex-grow: 1; height: 22px; background: rgba(0,0,0,0.6); border: 2px solid #fff; border-radius: 11px; position: relative; overflow: hidden; box-shadow: 0 0 5px rgba(0,0,0,0.8); }
+        
+        #hud-exp-bar { height: 100%; background: linear-gradient(90deg, #3498db, #00ccff); transition: width 0.2s; box-shadow: 0 0 5px #00ccff; }
+        #hud-hp-bar { height: 100%; background: linear-gradient(90deg, #ff4444, #cc0000); transition: width 0.2s; }
+        #hud-stamina-bar { height: 100%; background: linear-gradient(90deg, #f1c40f, #f39c12); transition: width 0.1s; }
+        .bar-text { position: absolute; top: 0; left: 0; width: 100%; height: 100%; text-align: center; font-size: 13px; font-weight: bold; line-height: 19px; color: #fff; z-index: 2; }
+        
+        #weapon-selector { display: flex; gap: 12px; background: var(--hud-bg); padding: 10px; border-radius: 15px; border: 1px solid var(--grid-color); align-items: center; pointer-events: auto; }
+        .offhand-slot { width: 50px; height: 50px; background: var(--panel-bg); border: 2px dashed #00ccff; border-radius: 8px; display: flex; justify-content: center; align-items: center; font-size: 24px; box-shadow: 0 0 10px rgba(0,204,255,0.3); }
+        .weapon-slot { width: 45px; height: 45px; background: var(--panel-bg); border: 2px solid var(--grid-color); border-radius: 8px; display: flex; justify-content: center; align-items: center; font-size: 20px; color: #fff; cursor: pointer; transition: 0.2s; opacity: 0.5; flex-shrink: 0; position: relative; }
+        .weapon-slot.unlocked { opacity: 1; border-color: var(--text-color); }
+        .weapon-slot.active { background: #ffcc00; border-color: #fff; color: #000; transform: scale(1.1); box-shadow: 0 0 10px #ffcc00; z-index: 2; }
+        .slot-num { position: absolute; top: 2px; left: 4px; font-size: 12px; font-weight: bold; text-shadow: 1px 1px 0 #000; color: #fff; }
+        
+        .inv-title { font-size: 24px; color: var(--border-color); margin-bottom: 10px; }
+        .inv-grid { display: grid; grid-template-columns: repeat(9, 50px); gap: 8px; justify-content: center; margin-bottom: 20px; background: var(--hud-bg); padding: 15px; border-radius: 10px; }
+        .inv-slot { width: 50px; height: 50px; background: var(--panel-bg); border: 2px solid var(--grid-color); border-radius: 8px; font-size: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.1s; position: relative; }
+        .inv-slot:hover { filter: brightness(1.2); }
+        .inv-slot.selected { border-color: var(--border-color); box-shadow: 0 0 15px var(--border-color); transform: scale(1.1); z-index: 5; }
+
+        #minimap-container { position: absolute; top: 15px; right: 15px; width: 160px; height: 160px; border: 3px solid var(--grid-color); border-radius: 8px; background: rgba(0,0,0,0.7); overflow: hidden; z-index: 10; transform: scale(var(--ui-scale)); transform-origin: top right; }
+        
+        #mobile-controls { display: none; position: absolute; z-index: 10; pointer-events: auto; transform: scale(var(--ui-scale)); }
+        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        #mobile-left-controls { display: none; position: absolute; z-index: 10; pointer-events: auto; transform: scale(var(--ui-scale)); }
+        .action-btn { width: 65px; height: 65px; background: rgba(255,204,0,0.5); border: 2px solid #ffcc00; border-radius: 50%; font-size: 22px; color: white; display: flex; justify-content: center; align-items: center; font-weight: bold; box-shadow: 0 0 10px rgba(0,0,0,0.5); cursor: pointer; }
+        .action-btn:active { transform: scale(0.9); }
+        
+        .drag-item { position: absolute; display: flex; justify-content: center; align-items: center; font-weight: bold; color: #fff; background: rgba(255,255,255,0.2); cursor: grab; user-select: none; z-index: 1035; box-shadow: 0 0 10px #fff; text-shadow: 1px 1px 2px #000; }
+        .drag-item:active { cursor: grabbing; border-color: #00ff88 !important; }
+        
+        .shop-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; margin-top: 15px; max-height: 50vh; overflow-y: auto; padding: 10px; }
+        .shop-item { background: var(--panel-bg); padding: 15px; border-radius: 8px; border: 1px solid var(--grid-color); width: 160px; color: var(--text-color); }
+        .shop-item h3 { font-size: 16px; margin-bottom: 5px; color: var(--border-color); }
+        .shop-item p { font-size: 12px; margin-bottom: 8px; opacity: 0.8; }
+        
+        .damage-number { position: absolute; color: #fff; font-weight: bold; font-size: 18px; pointer-events: none; z-index: 20; text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000; animation: floatUp 0.8s ease-out forwards; }
+        .damage-number.crit { color: #ffcc00; font-size: 24px; text-shadow: 0 0 5px #ff0000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000; }
+        @keyframes floatUp { 0% { transform: translateY(0) scale(1); opacity: 1; } 50% { transform: translateY(-20px) scale(1.2); opacity: 1; } 100% { transform: translateY(-40px) scale(1); opacity: 0; } }
+        
+        #center-announce { position: absolute; top: 25%; left: 50%; transform: translate(-50%, -50%); font-size: 36px; font-weight: bold; color: var(--border-color); text-shadow: 0 0 15px var(--shadow-color), 2px 2px 0 #000; pointer-events: none; z-index: 30; opacity: 0; transition: opacity 0.3s; text-align: center; }
+        
+        .perk-btn { flex: 1; min-width: 200px; background: var(--panel-bg); border: 2px solid var(--border-color); border-radius: 12px; padding: 20px; color: var(--text-color); font-size: 18px; cursor: pointer; transition: 0.2s; text-align: center; box-shadow: 0 0 10px var(--shadow-color); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
+        .perk-btn:hover { transform: scale(1.05); filter: brightness(1.2); box-shadow: 0 0 20px var(--shadow-color); }
+        .perk-icon { font-size: 40px; }
+
+        input[type="file"] { margin: 20px 0; font-size: 16px; }
+        input[type="range"] { -webkit-appearance: none; height: 8px; background: var(--grid-color); border-radius: 5px; outline: none; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 22px; height: 22px; border-radius: 50%; background: var(--border-color); cursor: pointer; border: 2px solid #fff; box-shadow: 0 0 5px rgba(0,0,0,0.5); }
+        select { padding: 8px; border-radius: 5px; background: var(--panel-bg); color: var(--text-color); border: 1px solid var(--grid-color); font-size: 16px; outline: none; cursor: pointer; }
+        
+        .keybind-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: left; }
+        .keybind-item { display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 8px; }
+        .keybind-btn { background: var(--panel-bg); color: var(--border-color); border: 1px solid var(--border-color); padding: 5px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .keybind-btn:hover { background: rgba(0,255,136,0.2); }
+    </style>
+</head>
+<body>
+
+<div id="intro-screen" class="overlay">
+    <div class="box">
+        <h1>🗑️ 撿垃圾打殭屍 🧟<br><span style="font-size: 18px; opacity: 0.7;">版本 1.14</span></h1>
+        
+        <div style="margin-bottom: 20px; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 10px; border: 1px solid var(--grid-color);">
+            <h3 style="color: #ffcc00; margin-bottom: 10px;">請選擇遊戲模式：</h3>
+            <select id="game-mode-select" style="width: 80%; text-align: center; font-weight: bold;">
+                <option value="normal">🟢 一般模式 (死亡扣除50%物資並重生)</option>
+                <option value="hardcore">🔴 極限模式 (一命通關，死亡即結束)</option>
+            </select>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-col">
+                <h2>📖 遊戲機制</h2>
+                <p>1. 拾取零件獲取<b>經驗值(EXP)</b>，升級解鎖新武器。</p>
+                <p>2. 按 <b>[ESC]</b> 進入黑市購買附魔彈匣、新武器與戰鬥幫手。</p>
+                <p>3. 點擊畫面上的<b>🤖戰鬥幫手</b>可為他裝備專屬武器！</p>
+                <table class="styled-table">
+                    <tr><th>圖示</th><th>怪物種類</th><th>特徵說明</th></tr>
+                    <tr><td>🧟</td><td>普通 / 🏃快速</td><td>基礎怪物群，快速怪血少跑速快</td></tr>
+                    <tr><td>🛡️</td><td>裝甲坦克</td><td>跑速慢，護甲減傷高</td></tr>
+                    <tr><td>💣</td><td>自爆怪</td><td>靠近會加速並自爆</td></tr>
+                    <tr><td>👹</td><td>首領 Boss</td><td>每10波出現，血量極高並會放技能</td></tr>
+                </table>
+            </div>
+            <div class="info-col">
+                <h2>⌨️ 操作方式</h2>
+                <p><b>[W A S D]</b> 移動，<b>[滑鼠左鍵]</b> 射擊</p>
+                <p><b>[Shift]</b> 衝刺，<b>[1-9 / 滾輪]</b> 切換武器</p>
+                <p><b>[E]</b> 背包，<b>[R]</b> 技能，<b>[G]</b> 炸彈</p>
+                <div style="background:var(--panel-bg); padding:10px; border-radius:8px; margin-top:10px; font-size:14px; text-align:center;">
+                    📱 <b>手機/平板支援</b>：<br>可至<b>設定</b>中自訂觸控按鈕位置！
+                </div>
+            </div>
+        </div>
+
+        <div class="btn-container">
+            <button class="btn" onclick="startGame(false)">▶️ 開始新遊戲</button>
+            <button class="btn btn-blue" id="btn-continue" onclick="startGame(true)" style="display: none;">🔄 繼續遊戲</button>
+            <button class="btn btn-red" onclick="importSave()">📥 匯入 JSON 存檔</button>
+            <button class="btn btn-gold" onclick="openSettings('intro')">⚙️ 設定面板</button>
+        </div>
+    </div>
+</div>
+
+<!-- 設定面板 -->
+<div id="settings-screen" class="overlay overlay-dark" style="display: none; z-index: 1020;">
+    <div class="box" style="max-width: 600px; padding: 20px;">
+        <h1 style="color: var(--border-color); font-size: 28px;">⚙️ 遊戲設定</h1>
+        <div style="text-align: left; margin-bottom: 20px; background: var(--hud-bg); padding: 20px; border-radius: 12px; border: 1px solid var(--grid-color); max-height: 50vh; overflow-y: auto;">
+            
+            <div style="margin-bottom: 25px;">
+                <label style="display: flex; justify-content: space-between; font-size: 16px; margin-bottom: 10px;">
+                    <span>🎨 遊戲風格 (Theme)</span>
+                </label>
+                <select id="theme-select" style="width: 100%;" onchange="updateSettings()">
+                    <option value="dark">🌙 深色 (預設)</option>
+                    <option value="light">☀️ 淺色</option>
+                    <option value="cyber">🚀 科技風</option>
+                    <option value="mini">📄 精簡風</option>
+                </select>
+            </div>
+            
+            <div style="margin-bottom: 25px;">
+                <label style="display: flex; justify-content: space-between; font-size: 16px; margin-bottom: 10px;">
+                    <span>🔍 介面大小 (UI Scale)</span>
+                    <span id="scale-val" style="font-weight: bold;">100%</span>
+                </label>
+                <input type="range" id="scale-slider" min="50" max="150" value="100" style="width: 100%;" oninput="updateSettings()">
+            </div>
+            <div style="margin-bottom: 25px;">
+                <label style="display: flex; justify-content: space-between; font-size: 16px; margin-bottom: 10px;">
+                    <span>🔭 顯示距離 (Camera Zoom)</span>
+                    <span id="zoom-val" style="font-weight: bold;">100%</span>
+                </label>
+                <input type="range" id="zoom-slider" min="50" max="150" value="100" style="width: 100%;" oninput="updateSettings()">
+            </div>
+            
+            <div style="margin-bottom: 20px; border-top: 1px solid var(--grid-color); padding-top: 20px;">
+                <h3 style="color: #00ccff; margin-bottom: 10px;">⌨️ 電腦按鍵綁定</h3>
+                <div class="keybind-grid">
+                    <div class="keybind-item"><span>上移</span><button class="keybind-btn" onclick="rebindKey('up')" id="btn-key-up">W</button></div>
+                    <div class="keybind-item"><span>下移</span><button class="keybind-btn" onclick="rebindKey('down')" id="btn-key-down">S</button></div>
+                    <div class="keybind-item"><span>左移</span><button class="keybind-btn" onclick="rebindKey('left')" id="btn-key-left">A</button></div>
+                    <div class="keybind-item"><span>右移</span><button class="keybind-btn" onclick="rebindKey('right')" id="btn-key-right">D</button></div>
+                    <div class="keybind-item"><span>衝刺</span><button class="keybind-btn" onclick="rebindKey('sprint')" id="btn-key-sprint">SHIFT</button></div>
+                    <div class="keybind-item"><span>背包</span><button class="keybind-btn" onclick="rebindKey('inv')" id="btn-key-inv">E</button></div>
+                    <div class="keybind-item"><span>技能</span><button class="keybind-btn" onclick="rebindKey('skill')" id="btn-key-skill">R</button></div>
+                    <div class="keybind-item"><span>炸彈</span><button class="keybind-btn" onclick="rebindKey('grenade')" id="btn-key-grenade">G</button></div>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 20px; border-top: 1px solid var(--grid-color); padding-top: 20px;">
+                <h3 style="color: #00ccff; margin-bottom: 10px;">📱 手機版專屬</h3>
+                <button class="btn btn-gold" style="width: 100%;" onclick="openLayoutEditor()">🕹️ 自訂觸控佈局位置</button>
+            </div>
+
+            <div style="margin-bottom: 25px; border-top: 1px solid var(--grid-color); padding-top: 20px;">
+                <label style="display: flex; justify-content: space-between; font-size: 16px; margin-bottom: 10px;">
+                    <span>🎵 音樂音量 (BGM)</span>
+                    <span id="bgm-val">100%</span>
+                </label>
+                <input type="range" id="bgm-slider" min="0" max="100" value="100" style="width: 100%;" oninput="updateSettings()">
+            </div>
+            <div style="margin-bottom: 25px;">
+                <label style="display: flex; justify-content: space-between; font-size: 16px; margin-bottom: 10px;">
+                    <span>🔊 音效音量 (SFX)</span>
+                    <span id="sfx-val">100%</span>
+                </label>
+                <input type="range" id="sfx-slider" min="0" max="100" value="100" style="width: 100%;" oninput="updateSettings()">
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: flex; align-items: center; gap: 10px; font-size: 16px; cursor: pointer;">
+                    <input type="checkbox" id="shake-toggle" style="width: 22px; height: 22px;" onchange="updateSettings()">
+                    📳 開啟畫面震動 (防頭暈可關閉)
+                </label>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: flex; align-items: center; gap: 10px; font-size: 16px; cursor: pointer;">
+                    <input type="checkbox" id="dmg-toggle" style="width: 22px; height: 22px;" onchange="updateSettings()">
+                    🔢 顯示傷害數字
+                </label>
+            </div>
+        </div>
+        <div class="btn-container">
+            <button class="btn btn-blue" onclick="closeSettings()">✅ 儲存並返回</button>
+        </div>
+    </div>
+</div>
+
+<!-- 觸控佈局編輯器 -->
+<div id="layout-screen" class="overlay overlay-dark" style="display: none; z-index: 1030;">
+    <h2 style="color: #00ff88; position: absolute; top: 20px;">🕹️ 拖曳調整按鈕與搖桿位置</h2>
+    <p style="color: #fff; position: absolute; top: 60px;">請直接拖曳下方圖示，完成後點擊儲存。</p>
+    
+    <div id="drag-joyL" class="drag-item" style="width:100px; height:100px; border-radius:50%; border:2px dashed #00ccff;">左<br>搖桿</div>
+    <div id="drag-joyR" class="drag-item" style="width:100px; height:100px; border-radius:50%; border:2px dashed #ff4444;">右<br>搖桿</div>
+    <div id="drag-actions" class="drag-item" style="width:150px; height:150px; border:2px dashed #ffcc00; display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:10px; border-radius:15px;">
+        <div style="border:1px solid #fff; border-radius:50%;"></div><div style="border:1px solid #fff; border-radius:50%;"></div>
+        <div style="border:1px solid #fff; border-radius:50%;"></div><div style="border:1px solid #fff; border-radius:50%;"></div>
+    </div>
+    <div id="drag-sprint" class="drag-item" style="width:65px; height:65px; border-radius:50%; border:2px dashed #6666ff;">🏃</div>
+    
+    <div style="position: absolute; bottom: 20px; display: flex; gap: 20px;">
+        <button class="btn btn-blue" onclick="saveLayout()">💾 儲存佈局</button>
+        <button class="btn btn-red" onclick="resetLayout()">🔄 恢復預設</button>
+    </div>
+</div>
+
+<!-- 其他浮動視窗 -->
+<div id="perk-screen" class="overlay overlay-dark" style="display: none; z-index: 1005;">
+    <div class="box" style="max-width: 800px;">
+        <h1 style="color: var(--border-color);">🌊 波次完成！</h1>
+        <p style="font-size:18px; color:#ffcc00; margin-bottom:20px;">請選擇一項科技天賦強化 (屬性可無限疊加)：</p>
+        <div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
+            <div class="perk-btn" onclick="selectPerk('speed')">
+                <div class="perk-icon">👟</div>
+                <div>動力傳動軸</div>
+                <div style="font-size:14px; opacity:0.8;">提升移動速度 +0.25</div>
+            </div>
+            <div class="perk-btn" onclick="selectPerk('cd')">
+                <div class="perk-icon">⚙️</div>
+                <div>冷卻水套件</div>
+                <div style="font-size:14px; opacity:0.8;">武器冷卻時間減少 5%</div>
+            </div>
+            <div class="perk-btn" onclick="selectPerk('hp')">
+                <div class="perk-icon">❤️</div>
+                <div>納米修復層</div>
+                <div style="font-size:14px; opacity:0.8;">最大血量 +10 並恢復</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="import-screen" class="overlay overlay-dark" style="display: none;">
+    <div class="box" style="max-width: 500px;">
+        <h2>📥 匯入 JSON 存檔</h2>
+        <p>請選擇您下載的加密 .json 存檔檔案：</p>
+        <input type="file" id="import-file-input" accept=".json" style="margin: 20px 0; font-size: 16px;">
+        <div class="btn-container">
+            <button class="btn" onclick="confirmImport()">✅ 確認匯入</button>
+            <button class="btn btn-red" onclick="closeImportScreen()">❌ 取消</button>
+        </div>
+    </div>
+</div>
+
+<div id="pause-screen" class="overlay overlay-dark" style="display: none;">
+    <div class="box">
+        <h1>⏸️ 遊戲暫停</h1>
+        <div class="btn-container">
+            <button class="btn btn-blue" onclick="togglePause()">▶️ 繼續遊戲 (ESC)</button>
+            <button class="btn btn-gold" onclick="openShop()">🛒 進入黑市商店</button>
+            <button class="btn btn-blue" onclick="openSettings('pause')">⚙️ 設定</button>
+            <button class="btn btn-red" onclick="exportSave()">📤 導出存檔 (下載加密 JSON)</button>
+            <button class="btn btn-red" onclick="quitToMenu()">🏠 回主畫面</button>
+        </div>
+    </div>
+</div>
+
+<div id="shop-screen" class="overlay overlay-dark" style="display: none;">
+    <div class="box" style="max-width: 900px;">
+        <h1>🛒 黑市商店 (元素與裝備)</h1>
+        <p style="color: var(--border-color); font-weight: bold; font-size: 20px;">🗑️ 你的垃圾幣: <span id="shop-trash">0</span></p>
+        <div class="shop-grid">
+            <div class="shop-item"><h3>🔥 火焰彈匣</h3><p>附加燃燒傷害</p><button class="btn btn-red" style="padding: 5px 10px; font-size:14px;" id="btn-elem-fire" onclick="buyItem('elem_fire', 150)">購買 (150)</button></div>
+            <div class="shop-item"><h3>❄️ 冰霜彈匣</h3><p>附加嚴重緩速</p><button class="btn btn-blue" style="padding: 5px 10px; font-size:14px;" id="btn-elem-ice" onclick="buyItem('elem_ice', 150)">購買 (150)</button></div>
+            <div class="shop-item"><h3>☠️ 劇毒彈匣</h3><p>長效扣血降防</p><button class="btn" style="padding: 5px 10px; font-size:14px;" id="btn-elem-poison" onclick="buyItem('elem_poison', 150)">購買 (150)</button></div>
+            <div class="shop-item"><h3>🛰️ 追蹤槍</h3><p>子彈自動追蹤怪物</p><button class="btn btn-blue" id="btn-homing" style="padding: 5px 10px; font-size:14px;" onclick="buyItem('wpn_homing', 100)">購買 (100)</button></div>
+            <div class="shop-item"><h3>🤖 戰鬥幫手</h3><p>可自由走位與射擊</p><button class="btn btn-gold" id="btn-helper" style="padding: 5px 10px; font-size:14px;" onclick="buyItem('helper', 300)">購買 (300)</button></div>
+            
+            <div class="shop-item"><h3>🩹 急救包</h3><p>恢復 5 HP</p><button class="btn" style="padding: 5px 10px; font-size:14px;" onclick="buyItem('hp', 15)">購買 (15)</button></div>
+            <div class="shop-item"><h3>🛡️ 護盾產生器</h3><p>抵擋 1 次傷害</p><button class="btn" id="btn-shield" style="padding: 5px 10px; font-size:14px;" onclick="buyItem('shield', 30)">購買 (30)</button></div>
+            <div class="shop-item"><h3>💣 手榴彈</h3><p>全頻轟炸 (按 G)</p><button class="btn" id="btn-grenade" style="padding: 5px 10px; font-size:14px;" onclick="buyItem('grenade', 50)">購買 (50)</button></div>
+            <div class="shop-item"><h3>👼 不死圖騰</h3><p>免死一次並核爆</p><button class="btn" id="btn-totem" style="padding: 5px 10px; font-size:14px;" onclick="buyItem('totem', 150)">購買 (150)</button></div>
+            <div class="shop-item"><h3>🧲 磁力核心</h3><p>自動吸附周圍零件</p><button class="btn" id="btn-magnet" style="padding: 5px 10px; font-size:14px;" onclick="buyItem('magnet', 50)">購買 (50)</button></div>
+            <div class="shop-item"><h3>🪖 鋼盔</h3><p>永久減傷 20%</p><button class="btn" id="btn-helmet" style="padding: 5px 10px; font-size:14px;" onclick="buyItem('helmet', 150)">購買 (150)</button></div>
+            <div class="shop-item"><h3>🧥 防彈衣</h3><p>永久減傷 30%</p><button class="btn" id="btn-chest" style="padding: 5px 10px; font-size:14px;" onclick="buyItem('chest', 200)">購買 (200)</button></div>
+            <div class="shop-item"><h3>🩳 護腿</h3><p>永久減傷 15%</p><button class="btn" id="btn-legs" style="padding: 5px 10px; font-size:14px;" onclick="buyItem('legs', 100)">購買 (100)</button></div>
+            <div class="shop-item"><h3>🥾 戰術靴</h3><p>永久減傷 10%</p><button class="btn" id="btn-boots" style="padding: 5px 10px; font-size:14px;" onclick="buyItem('boots', 80)">購買 (80)</button></div>
+        </div>
+        <button class="btn btn-red" style="margin-top: 20px;" onclick="closeShop()">⬅️ 離開商店</button>
+    </div>
+</div>
+
+<div id="inventory-screen" class="overlay overlay-dark" style="display: none;">
+    <div class="box" style="max-width: 600px; padding: 30px;">
+        <div class="inv-title">🎒 物品欄與幫手武裝 (點擊交換位置)</div>
+        <p style="margin-bottom: 10px; opacity: 0.8;">提示：點擊背包、快捷欄或幫手的格子來互相交換武器配置。</p>
+        <div id="inv-desc-panel" style="background:var(--hud-bg); border:1px solid var(--grid-color); padding:10px; border-radius:8px; margin-bottom:15px; min-height:70px;">
+            <div id="inv-desc-title" style="color:var(--border-color); font-weight:bold; font-size:18px;">滑鼠停留/點擊物品以查看說明</div>
+            <div id="inv-desc-text" style="font-size:14px; margin-top:5px; opacity: 0.8;">--</div>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+                <h3 style="text-align: left; margin-bottom:10px;">📦 背包空間 (9x3)</h3>
+                <div id="inv-grid" class="inv-grid"></div>
+            </div>
+            <div style="text-align: center; margin-left: 20px; background: rgba(255,204,0,0.1); padding: 10px; border-radius: 10px; border: 1px solid #ffcc00;">
+                <h3 style="color:#ffcc00; margin-bottom:10px; font-size: 16px;">🤖 戰鬥幫手</h3>
+                <div id="helper-weapon-grid"></div>
+            </div>
+        </div>
+        
+        <h3 style="text-align: left; color:var(--border-color); margin-bottom:10px; margin-top:10px;">⭐ 快捷欄 (1-9)</h3>
+        <div id="inv-hotbar-grid" class="inv-grid" style="margin-bottom: 10px;"></div>
+        <button class="btn btn-blue" style="margin-top: 20px;" onclick="toggleInventory()">✅ 完成配置</button>
+    </div>
+</div>
+
+<div id="game-over" class="overlay overlay-dark" style="display: none;">
+    <div class="box">
+        <h1 style="color: #ff4444; text-shadow: 0 0 10px #ff4444;">💀 遊戲結束...</h1>
+        <p style="font-size: 20px;">你存活到了第 <b id="final-wave" style="color: var(--border-color);"></b> 波</p>
+        <p style="font-size: 20px;">最高等級 <b id="final-level" style="color: #00ccff;"></b> 級</p>
+        <p style="font-size: 20px;">擊殺了 <b id="final-kills" style="color: #ffcc00;"></b> 隻殭屍</p>
+        <p style="font-size: 20px;">遊玩時間 <b id="final-time"></b></p>
+        <button class="btn" onclick="quitToMenu()">🔄 返回主畫面</button>
+    </div>
+</div>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+    <div id="minimap-container"><canvas id="minimap"></canvas></div>
+    
+    <div id="hud">
+        <div class="hud-text" id="hud-wave" style="color: var(--border-color);">🌊 波次：1</div>
+        <div class="hud-text" id="hud-score" style="color: #ffcc00;">💀 擊殺：0</div>
+        <div class="hud-text" id="hud-trash" style="opacity: 0.8;">🗑️ 垃圾幣：0</div>
+        <div class="hud-text" id="hud-time" style="font-size: 18px; margin-top:5px;">⏱️ 時間：00:00</div>
+        <div id="hud-stats">🛡️ 護盾: 0 | 👼 圖騰: 0 | 👟 速度: 4.5 | R 技能: 就緒</div>
+    </div>
+    
+    <div id="center-announce"></div>
+    
+    <!-- 底部 UI 統一容器 -->
+    <div id="bottom-ui-wrapper">
+        <div id="bottom-hud">
+            <div id="hotbar-wep-name">武器名稱</div>
+            <div class="bars-wrapper">
+                <div class="bar-row">
+                    <span class="bar-label" style="color: #ff4444;">HP</span>
+                    <div class="bottom-bar-container"><div id="hud-hp-bar"></div><span id="hud-hp-text" class="bar-text">10 / 10</span></div>
+                </div>
+                <div class="bar-row">
+                    <span class="bar-label" style="color: #f1c40f;">SP</span>
+                    <div class="bottom-bar-container"><div id="hud-stamina-bar"></div></div>
+                </div>
+            </div>
+            <div class="bar-row" style="margin-top: 2px;">
+                <span class="bar-label" style="color: #3498db;">EXP</span>
+                <div class="bottom-bar-container"><div id="hud-exp-bar"></div><span id="hud-lvl-text" class="bar-text">LV.1 (0 / 15)</span></div>
+            </div>
+        </div>
+        
+        <div id="weapon-selector">
+            <div class="offhand-slot" id="ui-offhand" title="副手裝備區 (磁鐵/幫手)"></div>
+            <div id="hotbar-list" style="display: flex; gap: 8px;"></div>
+        </div>
+    </div>
+    
+    <div id="mobile-left-controls">
+        <button class="action-btn" id="sprint-btn" style="background: rgba(100,100,255,0.5); border-color: #6666ff;" onclick="toggleSprint()">🏃</button>
+    </div>
+    <div id="mobile-controls">
+        <div class="btn-grid">
+            <button class="action-btn" style="background: rgba(0,204,255,0.5); border-color: #00ccff;" onclick="useWeaponSpecial()">✨</button>
+            <button class="action-btn" id="grenade-btn" style="background: rgba(255,68,68,0.5); border-color: #ff4444;" onclick="useGrenade()">💣</button>
+            <button class="action-btn" style="background: rgba(255,153,0,0.5); border-color: #ff9900;" onclick="toggleInventory()">🎒</button>
+            <button class="action-btn" style="background: rgba(0,255,136,0.5); border-color: #00ff88;" onclick="togglePause()">⏸️</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ==================== 全局變數與設定 ====================
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d', { alpha: false });
+const minimap = document.getElementById('minimap');
+const mCtx = minimap.getContext('2d');
+minimap.width = 160; minimap.height = 160;
+
+let W, H, camera = { x: 0, y: 0 };
+const MAP_W = 4000, MAP_H = 4000;
+let mouseX = 0, mouseY = 0, mouseDown = false, keys = {};
+let gameRunning = false, isPaused = false, isShopTime = false, isInventoryOpen = false, isPerkTime = false;
+let screenShake = 0, hitStop = 0, lastFrameTime = 0, mobileSprinting = false;
+let currentMode = 'normal'; // normal 或 hardcore
+
+// === 遊戲設定系統與按鍵綁定 ===
+let settings = { 
+    bgmVolume: 1.0, sfxVolume: 1.0, screenShake: true, damageNumbers: true, uiScale: 1.0, cameraZoom: 1.0, theme: 'dark',
+    keys: { up: 'w', down: 's', left: 'a', right: 'd', sprint: 'shift', inv: 'e', skill: 'r', grenade: 'g' },
+    layout: {
+        joyL: { left: 10, top: 70 }, joyR: { left: 80, top: 70 },
+        sprint: { left: 5, top: 50 }, actions: { left: 75, top: 45 }
+    }
+};
+try { 
+    if(localStorage.getItem('zombie_settings')) {
+        let loaded = JSON.parse(localStorage.getItem('zombie_settings'));
+        settings = { ...settings, ...loaded };
+        settings.keys = { ...settings.keys, ...(loaded.keys || {}) };
+        settings.layout = { ...settings.layout, ...(loaded.layout || {}) };
+    }
+} catch(e) {}
+function saveSettings() { localStorage.setItem('zombie_settings', JSON.stringify(settings)); }
+
+let themeGridColor = '#555', themeWallColor = '#3a3a3a', themeTextColor = '#fff';
+
+function applyTheme() {
+    document.body.setAttribute('data-theme', settings.theme);
+    if(settings.theme === 'light') { themeGridColor = '#aaa'; themeWallColor = '#999999'; themeTextColor = '#111'; }
+    else if(settings.theme === 'cyber') { themeGridColor = '#606'; themeWallColor = '#220033'; themeTextColor = '#0ff'; }
+    else if(settings.theme === 'mini') { themeGridColor = '#ccc'; themeWallColor = '#dddddd'; themeTextColor = '#000'; }
+    else { themeGridColor = '#555'; themeWallColor = '#3a3a3a'; themeTextColor = '#fff'; }
+    terrainFeatures.forEach(o => { if(o.type === 'wall') o.color = themeWallColor; });
+}
+
+let settingsFrom = 'pause';
+function openSettings(from) {
+    settingsFrom = from;
+    document.getElementById('theme-select').value = settings.theme;
+    document.getElementById('scale-slider').value = settings.uiScale * 100;
+    document.getElementById('zoom-slider').value = settings.cameraZoom * 100;
+    document.getElementById('bgm-slider').value = settings.bgmVolume * 100;
+    document.getElementById('sfx-slider').value = settings.sfxVolume * 100;
+    document.getElementById('shake-toggle').checked = settings.screenShake;
+    document.getElementById('dmg-toggle').checked = settings.damageNumbers;
+    
+    for(let k in settings.keys) {
+        let btn = document.getElementById(`btn-key-${k}`);
+        if(btn) btn.innerText = settings.keys[k].toUpperCase();
+    }
+    
+    updateSettingsUI();
+    document.getElementById('intro-screen').style.display = 'none';
+    document.getElementById('pause-screen').style.display = 'none';
+    document.getElementById('settings-screen').style.display = 'flex';
+}
+function updateSettingsUI() {
+    document.getElementById('scale-val').textContent = `${Math.round(document.getElementById('scale-slider').value)}%`;
+    document.getElementById('zoom-val').textContent = `${Math.round(document.getElementById('zoom-slider').value)}%`;
+    document.getElementById('bgm-val').textContent = `${Math.round(document.getElementById('bgm-slider').value)}%`;
+    document.getElementById('sfx-val').textContent = `${Math.round(document.getElementById('sfx-slider').value)}%`;
+}
+function closeSettings() {
+    document.getElementById('settings-screen').style.display = 'none';
+    if(settingsFrom === 'intro') document.getElementById('intro-screen').style.display = 'flex';
+    else document.getElementById('pause-screen').style.display = 'flex';
+}
+function updateSettings() {
+    settings.theme = document.getElementById('theme-select').value;
+    settings.uiScale = document.getElementById('scale-slider').value / 100;
+    settings.cameraZoom = document.getElementById('zoom-slider').value / 100;
+    settings.bgmVolume = document.getElementById('bgm-slider').value / 100;
+    settings.sfxVolume = document.getElementById('sfx-slider').value / 100;
+    settings.screenShake = document.getElementById('shake-toggle').checked;
+    settings.damageNumbers = document.getElementById('dmg-toggle').checked;
+    updateSettingsUI(); saveSettings(); document.documentElement.style.setProperty('--ui-scale', settings.uiScale); applyTheme(); applyLayout();
+}
+
+// 按鍵綁定邏輯
+let bindingKey = null;
+function rebindKey(action) {
+    bindingKey = action;
+    document.getElementById(`btn-key-${action}`).innerText = "請按鍵...";
+    document.addEventListener('keydown', handleKeyBind, {once: true});
+}
+function handleKeyBind(e) {
+    if(!bindingKey) return;
+    let key = e.key.toLowerCase(); if(key === ' ') key = 'space'; if(key === 'escape') key = 'esc';
+    settings.keys[bindingKey] = key;
+    document.getElementById(`btn-key-${bindingKey}`).innerText = key.toUpperCase();
+    bindingKey = null; updateSettings();
+}
+
+// 觸控佈局編輯器
+function openLayoutEditor() {
+    document.getElementById('settings-screen').style.display = 'none';
+    document.getElementById('layout-screen').style.display = 'flex';
+    ['joyL', 'joyR', 'sprint', 'actions'].forEach(id => {
+        let el = document.getElementById('drag-' + id);
+        el.style.left = settings.layout[id].left + 'vw';
+        el.style.top = settings.layout[id].top + 'vh';
+    });
+}
+function saveLayout() {
+    let w = window.innerWidth, h = window.innerHeight;
+    ['joyL', 'joyR', 'sprint', 'actions'].forEach(id => {
+        let el = document.getElementById('drag-' + id);
+        let rect = el.getBoundingClientRect();
+        settings.layout[id] = { left: (rect.left / w) * 100, top: (rect.top / h) * 100 };
+    });
+    updateSettings();
+    document.getElementById('layout-screen').style.display = 'none';
+    document.getElementById('settings-screen').style.display = 'flex';
+}
+function resetLayout() {
+    settings.layout = { joyL: { left: 10, top: 70 }, joyR: { left: 80, top: 70 }, sprint: { left: 5, top: 50 }, actions: { left: 75, top: 45 } };
+    openLayoutEditor(); 
+}
+
+document.querySelectorAll('.drag-item').forEach(el => {
+    let isDragging = false;
+    el.addEventListener('pointerdown', e => { isDragging = true; el.setPointerCapture(e.pointerId); });
+    el.addEventListener('pointermove', e => {
+        if(!isDragging) return;
+        el.style.left = (e.clientX - el.offsetWidth/2) + 'px';
+        el.style.top = (e.clientY - el.offsetHeight/2) + 'px';
+    });
+    el.addEventListener('pointerup', e => { isDragging = false; el.releasePointerCapture(e.pointerId); });
+});
+
+let joyL = { active: false, id: null, baseX: 100, baseY: 0, dx: 0, dy: 0, maxR: 50 };
+let joyR = { active: false, id: null, baseX: 0, baseY: 0, dx: 0, dy: 0, maxR: 50 };
+
+function applyLayout() {
+    let lay = settings.layout;
+    let sprintEl = document.getElementById('mobile-left-controls');
+    let actionsEl = document.getElementById('mobile-controls');
+    
+    sprintEl.style.left = lay.sprint.left + 'vw'; sprintEl.style.top = lay.sprint.top + 'vh'; sprintEl.style.bottom = 'auto';
+    actionsEl.style.left = lay.actions.left + 'vw'; actionsEl.style.top = lay.actions.top + 'vh'; actionsEl.style.bottom = 'auto'; actionsEl.style.right = 'auto';
+
+    joyL.baseX = (lay.joyL.left / 100) * window.innerWidth + 50; 
+    joyL.baseY = (lay.joyL.top / 100) * window.innerHeight + 50;
+    joyR.baseX = (lay.joyR.left / 100) * window.innerWidth + 50;
+    joyR.baseY = (lay.joyR.top / 100) * window.innerHeight + 50;
+}
+
+function resize() {
+    W = window.innerWidth; H = window.innerHeight; canvas.width = W; canvas.height = H;
+    applyLayout();
+    document.getElementById('mobile-controls').style.display = navigator.maxTouchPoints > 0 ? 'block' : 'none';
+    document.getElementById('mobile-left-controls').style.display = navigator.maxTouchPoints > 0 ? 'block' : 'none';
+}
+window.addEventListener('resize', resize); resize(); document.documentElement.style.setProperty('--ui-scale', settings.uiScale);
+
+function toggleSprint() {
+    mobileSprinting = !mobileSprinting;
+    let btn = document.getElementById('sprint-btn');
+    if(mobileSprinting) { btn.style.background = 'rgba(0,255,136,0.5)'; btn.style.borderColor = '#00ff88'; } 
+    else { btn.style.background = 'rgba(100,100,255,0.5)'; btn.style.borderColor = '#6666ff'; }
+}
+
+let hudCache = { hp: -1, maxHp: -1, exp: -1, wave: -1, kills: -1, trash: -1, grenades: -1, statsStr: '', stamina: -1, timeStr: '' };
+let lastHeartbeatTime = 0, minimapTimer = 0; 
+let playTime = 0; 
+
+function getDistSq(x1, y1, x2, y2) { return (x1-x2)*(x1-x2) + (y1-y2)*(y1-y2); }
+function checkLOS(x1, y1, x2, y2) {
+    let dist = Math.hypot(x2-x1, y2-y1), steps = Math.ceil(dist / 20);
+    for(let i=1; i<=steps; i++) if (isEntityCollidingWithWall(x1 + (x2-x1)*i/steps, y1 + (y2-y1)*i/steps, 2)) return false;
+    return true;
+}
+
+// ==================== 音效系統 ====================
+let audioCtx, bgmOscNode = null;
+const sounds = {
+    shoot: { f: [400, 100], t: 'square', d: 0.1 }, shotgun: { f: [200, 50], t: 'sawtooth', d: 0.2 },
+    laser: { f: [800, 1200], t: 'sine', d: 0.15 }, pickup: { f: [600, 1200], t: 'sine', d: 0.1 },
+    hurt: { f: [150, 50], t: 'sawtooth', d: 0.2 }, hit: { f: [300, 150], t: 'square', d: 0.05 },
+    explode: { f: [100, 20], t: 'square', d: 0.4 }, heartbeat: { f: [80, 40], t: 'sine', d: 0.3 },
+    levelup: { f: [400, 800], t: 'square', d: 0.3 }
+};
+function initAudio() { if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); if(audioCtx.state === 'suspended') audioCtx.resume(); }
+function playSound(type) {
+    if (!audioCtx || settings.sfxVolume <= 0) return; 
+    const s = sounds[type]; if(!s) return;
+    const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+    osc.type = s.t; osc.frequency.setValueAtTime(s.f[0], audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(s.f[1], audioCtx.currentTime + s.d);
+    let startVolume = 0.15 * settings.sfxVolume; let endVolume = 0.01 * settings.sfxVolume; if(endVolume < 0.0001) endVolume = 0.0001;
+    gain.gain.setValueAtTime(startVolume, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(endVolume, audioCtx.currentTime + s.d);
+    osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + s.d);
+}
+
+function playBackgroundMusic() {
+    if (!audioCtx || bgmOscNode) return;
+    const notes = [220, 246, 261, 293, 329, 349, 392, 440], gainNode = audioCtx.createGain(); 
+    gainNode.connect(audioCtx.destination);
+    
+    function playNextNote() {
+        if (!gameRunning) { bgmOscNode = null; return; }
+        if (isPaused || isShopTime || isInventoryOpen || isPerkTime || document.getElementById('settings-screen').style.display === 'flex' || document.getElementById('layout-screen').style.display === 'flex') { setTimeout(playNextNote, 100); return; }
+        
+        gainNode.gain.value = 0.03 * settings.bgmVolume;
+        if (settings.bgmVolume > 0) {
+            let note = notes[Math.floor(Math.random() * notes.length)] * (currentWave > 10 ? 1.5 : 1) * (hitStop > 0 ? 0.5 : 1);
+            bgmOscNode = audioCtx.createOscillator(); bgmOscNode.type = 'triangle'; bgmOscNode.frequency.value = note;
+            bgmOscNode.connect(gainNode); bgmOscNode.start(); bgmOscNode.stop(audioCtx.currentTime + 0.15);
+        }
+        setTimeout(() => { bgmOscNode = null; playNextNote(); }, 200 + Math.random() * 200);
+    }
+    playNextNote();
+}
+
+// ==================== 實體與武器資料 ====================
+let trashItems = [], bullets = [], zombies = [], particles = [], bloodStains = [], casings = [], damageTexts = [], explosions = [];
+let totalTrash = 0, trashCurrency = 0, totalKills = 0, currentWave = 1, zombiesToSpawn = 0, waveTimer = 0, lastKillTime = 0;
+let terrainFeatures = [], firePuddles = [];
+let stamina = 100, maxStamina = 100, sprintCost = 0.8, sprintRegen = 0.4, specialCooldown = 0;
+
+let player = {};
+let combatHelper = { x: MAP_W/2, y: MAP_H/2, angle: 0, shootTimer: 0, weaponIdx: null };
+
+if(localStorage.getItem('zombie_save_v13') || localStorage.getItem('zombie_save_v12') || localStorage.getItem('zombie_save_v11') || localStorage.getItem('zombie_save_v10') || localStorage.getItem('zombie_save_v9') || localStorage.getItem('zombie_save_v8') || localStorage.getItem('zombie_save_v7') || localStorage.getItem('zombie_save_v6') || localStorage.getItem('zombie_save_v5') || localStorage.getItem('zombie_save_v4') || localStorage.getItem('zombie_save_v3')) document.getElementById('btn-continue').style.display = 'inline-block';
+
+const weapons = [
+    { id: 1, name: '拳頭', emoji: '✊', dmg: 2, cd: 20, type: 'melee', range: 60 },
+    { id: 2, name: '手槍', emoji: '🔫', dmg: 3, cd: 15, type: 'pistol', speed: 12 },
+    { id: 3, name: '散彈', emoji: '💥', dmg: 3, cd: 35, type: 'shotgun', speed: 12, spread: 5 },
+    { id: 4, name: '衝鋒', emoji: '💨', dmg: 2, cd: 6,  type: 'smg', speed: 14 },
+    { id: 5, name: '劇毒', emoji: '🧪', dmg: 2, cd: 25, type: 'poison', speed: 8 },
+    { id: 6, name: '火焰', emoji: '🔥', dmg: 0.5, cd: 2, type: 'flame', speed: 8, range: 150 },
+    { id: 7, name: '迴旋鏢',emoji: '🪚', dmg: 5, cd: 40, type: 'boomerang', speed: 15 },
+    { id: 8, name: '電磁', emoji: '⚡', dmg: 10, cd: 40, type: 'lightning', speed: 20, chain: 4 },
+    { id: 9, name: '狙擊', emoji: '🎯', dmg: 40, cd: 65, type: 'sniper', speed: 35, pierce: true },
+    { id: 10, name:'加特林',emoji: '🚁', dmg: 4, cd: 3, type: 'minigun', speed: 18, spread: 1 },
+    { id: 11, name:'火箭', emoji: '🚀', dmg: 35, cd: 70, type: 'rocket', speed: 10, radius: 200 },
+    { id: 12, name:'激光', emoji: '☄️', dmg: 15, cd: 8, type: 'laser', speed: 40, pierce: true },
+    { id: 13, name:'冰凍槍', emoji: '🧊', dmg: 25, cd: 10, type: 'freeze', speed: 10, slow: 0.5 },
+    { id: 14, name:'流星錘', emoji: '☄️', dmg: 75, cd: 40, type: 'hammer', speed: 12, knockback: 20 },
+    { id: 15, name:'散彈火箭筒', emoji: '💥🚀', dmg: 20, cd: 80, type: 'rocket_shotgun', speed: 10, spread: 3, radius: 100 },
+    { id: 16, name:'榴彈砲', emoji: '💣', dmg: 70, cd: 20, type: 'grenade_launcher', speed: 8, radius: 250 },
+    { id: 17, name:'輻射槍', emoji: '☢️', dmg: 30, cd: 10, type: 'radiation', speed: 12 },
+    { id: 18, name:'燃燒瓶', emoji: '🔥', dmg: 40, cd: 10, type: 'molotov', speed: 10, duration: 120 },
+    { id: 19, name:'雷射槍', emoji: '🔴', dmg: 60, cd: 5, type: 'ray', speed: 50, pierce: true },
+    { id: 20, name:'射刀砲', emoji: '🗡️', dmg: 25, cd: 10, type: 'knife_gun', speed: 16, count: 5 },
+    { id: 21, name:'黑洞發射器', emoji: '🕳️', dmg: 100, cd: 30, type: 'blackhole', speed: 5, suck: true },
+    { id: 22, name:'削半刀', emoji: '⚔️', dmg: 0, cd: 100, type: 'halve', range: 80 },
+    { id: 23, name:'手裡劍', emoji: '🥷', dmg: 20, cd: 5, type: 'shuriken', speed: 18, pierce: true },
+    { id: 24, name:'方正快砲', emoji: '🔲', dmg: 50, cd: 20, type: 'square_gun', speed: 20, radius: 80 },
+    { id: 25, name:'反彈盾', emoji: '🛡️', dmg: 0, cd: 80, type: 'bounce_shield', range: 100 },
+    { id: 26, name:'法杖', emoji: '🪄', dmg: 60, cd: 15, type: 'staff', summon: true },
+    { id: 27, name:'火球槍', emoji: '🔥', dmg: 20, cd: 10, type: 'fireball', speed: 14, explode: true },
+    { id: 28, name:'TNT', emoji: '💥', dmg: 100, cd: 30, type: 'tnt', delay: 180 },
+    { id: 29, name:'長矛', emoji: '🗡️', dmg: 40, cd: 10, type: 'spear', range: 70 },
+    { id: 30, name:'鏈鋸', emoji: '🪚', dmg: 25, cd: 1, type: 'chainsaw', range: 50 },
+    { id: 31, name:'大卡車', emoji: '🚛', dmg: 200, cd: 20, type: 'truck', summon: true },
+    { id: 32, name:'追蹤槍', emoji: '🛰️', dmg: 10, cd: 10, type: 'homing', speed: 12 }
+];
+
+// ==================== 存檔加密系統 (自動多版本相容) ====================
+function encryptData(obj) {
+    let str = JSON.stringify(obj); let encoded = new TextEncoder().encode(str); let key = new TextEncoder().encode("ZOMBIE_SURVIVAL_KEY_2026_V13");
+    for(let i=0; i<encoded.length; i++) encoded[i] = encoded[i] ^ key[i % key.length];
+    let binStr = ""; for(let i=0; i<encoded.length; i++) binStr += String.fromCharCode(encoded[i]);
+    return btoa(binStr);
+}
+function decryptData(b64, keyStr) {
+    let binStr = atob(b64); let decoded = new Uint8Array(binStr.length); let key = new TextEncoder().encode(keyStr);
+    for(let i=0; i<binStr.length; i++) decoded[i] = binStr.charCodeAt(i) ^ key[i % key.length];
+    return JSON.parse(new TextDecoder().decode(decoded));
+}
+function tryDecrypt(dataStr) {
+    const versions = [13, 12, 11, 10, 9, 8, 7];
+    for(let v of versions) { try { return decryptData(dataStr, "ZOMBIE_SURVIVAL_KEY_2026_V" + v); } catch(e) {} }
+    return null;
+}
+
+// ==================== 背包與快捷欄系統 ====================
+let hotbar = Array(9).fill(null), inventory = Array(27).fill(null);
+let hotbarIdx = 0, currentWepIdx = 0, selectedInvSlot = null;
+
+function selectHotbar(idx) { hotbarIdx = idx; currentWepIdx = hotbar[hotbarIdx]; renderWeaponUI(); if(currentWepIdx !== null && weapons[currentWepIdx]) playSound('pickup'); }
+function updateInvDesc(wId) {
+    let titleEl = document.getElementById('inv-desc-title'), textEl = document.getElementById('inv-desc-text');
+    if (wId === null || wId === undefined || !weapons[wId]) { titleEl.textContent = '空欄位'; textEl.textContent = '--'; } 
+    else { let w = weapons[wId]; titleEl.textContent = `${w.emoji} ${w.name}`; textEl.innerHTML = `<span style="color:#ff4444;">傷害: ${w.dmg}</span> | <span style="color:#00ccff;">冷卻: ${w.cd}</span> | <span style="color:#00ff88;">種類: ${w.type}</span>`; }
+}
+function toggleInventory() {
+    if (!gameRunning || document.getElementById('game-over').style.display === 'flex' || isShopTime || isPerkTime) return;
+    isInventoryOpen = !isInventoryOpen; document.getElementById('inventory-screen').style.display = isInventoryOpen ? 'flex' : 'none';
+    if (isInventoryOpen) { initAudio(); selectedInvSlot = null; updateInvDesc(null); renderInventoryUI(); } else { selectedInvSlot = null; renderWeaponUI(); autoSave(); }
+}
+function renderInventoryUI() {
+    let invGrid = document.getElementById('inv-grid'), hotbarGrid = document.getElementById('inv-hotbar-grid'), helperGrid = document.getElementById('helper-weapon-grid'); 
+    invGrid.innerHTML = ''; hotbarGrid.innerHTML = ''; helperGrid.innerHTML = '';
+    
+    for(let i=0; i<27; i++) {
+        let div = document.createElement('div'); div.className = 'inv-slot' + (selectedInvSlot && selectedInvSlot.type === 'inv' && selectedInvSlot.idx === i ? ' selected' : '');
+        if (inventory[i] !== null && weapons[inventory[i]]) div.textContent = weapons[inventory[i]].emoji; div.onmouseover = () => updateInvDesc(inventory[i]); div.onclick = () => { updateInvDesc(inventory[i]); handleSlotClick('inv', i); }; invGrid.appendChild(div);
+    }
+    for(let i=0; i<9; i++) {
+        let div = document.createElement('div'); div.className = 'inv-slot' + (selectedInvSlot && selectedInvSlot.type === 'hotbar' && selectedInvSlot.idx === i ? ' selected' : '');
+        if (hotbar[i] !== null && weapons[hotbar[i]]) div.textContent = weapons[hotbar[i]].emoji; div.onmouseover = () => updateInvDesc(hotbar[i]); div.onclick = () => { updateInvDesc(hotbar[i]); handleSlotClick('hotbar', i); }; hotbarGrid.appendChild(div);
+    }
+    
+    let helperDiv = document.createElement('div'); helperDiv.className = 'inv-slot' + (selectedInvSlot && selectedInvSlot.type === 'helper' && selectedInvSlot.idx === 0 ? ' selected' : '');
+    if (!player.hasHelper) {
+        helperDiv.textContent = '🔒'; helperDiv.style.opacity = 0.5; helperDiv.title = '未解鎖戰鬥幫手';
+    } else {
+        if (combatHelper.weaponIdx !== null && weapons[combatHelper.weaponIdx]) helperDiv.textContent = weapons[combatHelper.weaponIdx].emoji;
+        helperDiv.onmouseover = () => updateInvDesc(combatHelper.weaponIdx);
+        helperDiv.onclick = () => { updateInvDesc(combatHelper.weaponIdx); handleSlotClick('helper', 0); };
+    }
+    helperGrid.appendChild(helperDiv);
+}
+function handleSlotClick(type, idx) {
+    if (type === 'helper' && !player.hasHelper) return;
+    playSound('hit');
+    if (!selectedInvSlot) { selectedInvSlot = { type, idx }; renderInventoryUI(); } 
+    else {
+        let val1 = selectedInvSlot.type === 'inv' ? inventory[selectedInvSlot.idx] : (selectedInvSlot.type === 'hotbar' ? hotbar[selectedInvSlot.idx] : combatHelper.weaponIdx);
+        let val2 = type === 'inv' ? inventory[idx] : (type === 'hotbar' ? hotbar[idx] : combatHelper.weaponIdx);
+        
+        if (selectedInvSlot.type === 'inv') inventory[selectedInvSlot.idx] = val2; 
+        else if (selectedInvSlot.type === 'hotbar') hotbar[selectedInvSlot.idx] = val2;
+        else combatHelper.weaponIdx = val2;
+        
+        if (type === 'inv') inventory[idx] = val1; 
+        else if (type === 'hotbar') hotbar[idx] = val1;
+        else combatHelper.weaponIdx = val1;
+        
+        selectedInvSlot = null; renderInventoryUI();
+    }
+}
+function renderWeaponUI() {
+    const wl = document.getElementById('hotbar-list'); wl.innerHTML = '';
+    for(let i=0; i<9; i++) {
+        let div = document.createElement('div'); div.className = 'weapon-slot' + (hotbarIdx === i ? ' active' : '') + (hotbar[i] !== null ? ' unlocked' : '');
+        let numSpan = document.createElement('span'); numSpan.className = 'slot-num'; numSpan.textContent = i + 1; div.appendChild(numSpan);
+        if (hotbar[i] !== null && weapons[hotbar[i]]) div.appendChild(document.createTextNode(weapons[hotbar[i]].emoji));
+        let preventAndSwitch = (e) => { e.stopPropagation(); e.preventDefault(); selectHotbar(i); }; div.addEventListener('mousedown', preventAndSwitch); div.addEventListener('touchstart', preventAndSwitch, {passive: false}); wl.appendChild(div);
+    }
+    let offhandEmoji = player.hasHelper ? (player.hasMagnet ? '🧲🤖' : '🤖') : (player.hasMagnet ? '🧲' : '');
+    document.getElementById('ui-offhand').textContent = offhandEmoji;
+    
+    currentWepIdx = hotbar[hotbarIdx]; let nameEl = document.getElementById('hotbar-wep-name');
+    if (currentWepIdx !== null && weapons[currentWepIdx]) { nameEl.innerHTML = `${weapons[currentWepIdx].emoji} ${weapons[currentWepIdx].name}`; nameEl.style.opacity = 1; } else { nameEl.style.opacity = 0; }
+}
+
+// ==================== 地形與基礎系統 ====================
+function generateTerrain() {
+    terrainFeatures = [];
+    for (let i = 0; i < 10; i++) { let w = 120 + Math.random() * 260, h = 80 + Math.random() * 180, x = Math.random() * (MAP_W - w - 120) + 60, y = Math.random() * (MAP_H - h - 120) + 60; terrainFeatures.push({ type: 'wall', x, y, w, h, color: themeWallColor }); }
+    for (let i = 0; i < 8; i++) terrainFeatures.push({ type: 'mud', x: Math.random() * (MAP_W - 200) + 100, y: Math.random() * (MAP_H - 200) + 100, r: 40 + Math.random() * 30, color: 'rgba(0,120,0,0.25)' });
+}
+function isEntityCollidingWithWall(x, y, size) { return terrainFeatures.some(o => o.type === 'wall' && x + size > o.x && x - size < o.x + o.w && y + size > o.y && y - size < o.y + o.h); }
+function isCollidingWithWall(x, y) { return isEntityCollidingWithWall(x, y, player.size); }
+function placePlayerInSafeZone() {
+    if (!isEntityCollidingWithWall(player.x, player.y, player.size)) return;
+    let attempts = 0; while (attempts < 200 && isEntityCollidingWithWall(player.x, player.y, player.size)) { player.x = Math.random() * (MAP_W - 200) + 100; player.y = Math.random() * (MAP_H - 200) + 100; attempts++; }
+}
+
+function useWeaponSpecial() {
+    if (!gameRunning || isPaused || isShopTime || isInventoryOpen || isPerkTime || specialCooldown > 0 || currentWepIdx === null || !weapons[currentWepIdx]) return;
+    let w = weapons[currentWepIdx], skillText = '特殊技能啟動！', skillUsed = false;
+    if (w.type === 'minigun') { skillText = '🔩 大口徑爆射！'; skillUsed = true; for (let i = 0; i < 12; i++) { let angle = Math.random() * Math.PI * 2; bullets.push({ x: player.x, y: player.y, vx: Math.cos(angle) * 22, vy: Math.sin(angle) * 22, dmg: w.dmg * 1.5, type: 'normal', life: 40, size: 4, pierce: true, hitSet: new Set(), element: player.element }); } } 
+    else if (w.type === 'rocket' || w.type === 'rocket_shotgun') { skillText = '🚀 追蹤火箭轟炸！'; skillUsed = true; let nearestZombies = zombies.slice().sort((a, b) => getDistSq(a.x, a.y, player.x, player.y) - getDistSq(b.x, b.y, player.x, player.y)).slice(0, 5); nearestZombies.forEach(z => { triggerExplosion(z.x, z.y, 120, w.dmg * 0.8, true); }); } 
+    else if (w.type === 'fireball' || w.type === 'molotov') { skillText = '🔥 燃燒風暴！'; skillUsed = true; firePuddles.push({ x: player.x, y: player.y, r: 120, life: 100, dmg: 4, tickAccum: 0 }); } 
+    else if (w.type === 'staff') { skillText = '🪄 聖光審判！'; skillUsed = true; for (let i = 0; i < 8; i++) triggerExplosion(player.x + Math.cos(i * Math.PI / 4) * 100, player.y + Math.sin(i * Math.PI / 4) * 100, 80, w.dmg * 0.7, true); } 
+    else if (w.type === 'blackhole') { skillText = '🕳️ 終極重力風暴！'; skillUsed = true; zombies.forEach(z => { if (getDistSq(z.x, z.y, player.x, player.y) < 250000 && checkLOS(player.x, player.y, z.x, z.y)) { z.x += (player.x - z.x) * 0.8; z.y += (player.y - z.y) * 0.8; dealDamage(z, 500, 0, 0, player.element); } }); } 
+    else { skillText = '⚡ 當前武器無特殊技能'; }
+    announce(skillText, '#00ccff'); if (skillUsed) specialCooldown = 180;
+}
+
+window.addEventListener('keydown', e => {
+    let key = e.key.toLowerCase(); if(key === ' ') key = 'space'; if(key === 'escape') key = 'esc';
+    if (key === 'esc') { togglePause(); return; }
+    
+    if(!gameRunning || isPaused || isShopTime || isInventoryOpen || isPerkTime || document.getElementById('settings-screen').style.display === 'flex' || document.getElementById('layout-screen').style.display === 'flex') {
+        if(key === settings.keys.inv && isInventoryOpen) toggleInventory();
+        return;
+    }
+    
+    if (key === settings.keys.inv) toggleInventory();
+    if (key === settings.keys.grenade) useGrenade();
+    if (key === settings.keys.skill) useWeaponSpecial();
+    
+    keys[key] = true; 
+    let num = parseInt(key); if (num >= 1 && num <= 9) selectHotbar(num - 1);
+});
+window.addEventListener('keyup', e => { 
+    let key = e.key.toLowerCase(); if(key === ' ') key = 'space'; if(key === 'escape') key = 'esc';
+    keys[key] = false; 
+});
+window.addEventListener('wheel', e => {
+    if(!gameRunning || isPaused || isShopTime || isInventoryOpen || isPerkTime) return;
+    let newIdx = hotbarIdx; if(e.deltaY > 0) newIdx = (newIdx + 1) % 9; else newIdx = (newIdx - 1 + 9) % 9; selectHotbar(newIdx);
+});
+
+// ==================== 存檔與 UI 系統 (JSON 加密下載與匯入) ====================
+function autoSave() {
+    if(player.hp <= 0 && currentMode === 'hardcore') return;
+    let saveData = { currentMode, player, currentWave, totalKills, totalTrash, trashCurrency, unlockedWeapons, hotbar, inventory, hotbarIdx, terrainFeatures, zombies, trashItems, stamina, specialCooldown, waveTimer, zombiesToSpawn, playTime, combatHelper };
+    localStorage.setItem('zombie_save_v13', encryptData(saveData)); document.getElementById('btn-continue').style.display = 'inline-block';
+}
+function togglePause() {
+    if (!gameRunning || document.getElementById('game-over').style.display === 'flex' || isShopTime || isInventoryOpen || isPerkTime || document.getElementById('settings-screen').style.display === 'flex' || document.getElementById('layout-screen').style.display === 'flex') return;
+    isPaused = !isPaused; if(isPaused) { autoSave(); lastKillTime = Date.now(); }
+    document.getElementById('pause-screen').style.display = isPaused ? 'flex' : 'none';
+}
+function quitToMenu() {
+    gameRunning = false; isPaused = false; isShopTime = false; isInventoryOpen = false; isPerkTime = false;
+    document.getElementById('pause-screen').style.display = 'none'; document.getElementById('game-over').style.display = 'none'; document.getElementById('shop-screen').style.display = 'none'; document.getElementById('inventory-screen').style.display = 'none'; document.getElementById('perk-screen').style.display = 'none'; document.getElementById('settings-screen').style.display = 'none'; document.getElementById('layout-screen').style.display = 'none';
+    document.getElementById('game-container').style.display = 'none'; document.getElementById('intro-screen').style.display = 'flex';
+}
+function exportSave() {
+    try { 
+        let saveData = { currentMode, player, currentWave, totalKills, totalTrash, trashCurrency, unlockedWeapons, hotbar, inventory, hotbarIdx, terrainFeatures, zombies, trashItems, stamina, specialCooldown, waveTimer, zombiesToSpawn, playTime, combatHelper };
+        let encryptedStr = encryptData(saveData);
+        let outObj = { "version": 13, "signature": "ZOMBIE_SAVE_FILE", "data": encryptedStr };
+        let blob = new Blob([JSON.stringify(outObj, null, 2)], { type: "application/json" });
+        let url = URL.createObjectURL(blob);
+        let a = document.createElement('a'); a.href = url;
+        let d = new Date(), pad = (n) => String(n).padStart(2, '0');
+        a.download = `ZombieSave_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}.json`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    } catch (e) { alert("❌ 導出存檔失敗！"); }
+}
+function importSave() { document.getElementById('import-screen').style.display = 'flex'; document.getElementById('import-file-input').value = ''; }
+function closeImportScreen() { document.getElementById('import-screen').style.display = 'none'; }
+function confirmImport() {
+    let fileInput = document.getElementById('import-file-input');
+    if (!fileInput.files.length) { alert("❌ 請選擇存檔檔案！"); return; }
+    let reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            let obj = JSON.parse(e.target.result);
+            let sd;
+            if(obj.signature === "ZOMBIE_SAVE_FILE" && obj.data) {
+                sd = tryDecrypt(obj.data);
+                if (!sd) throw new Error("Decrypt failed");
+            } else { sd = obj; }
+            localStorage.setItem('zombie_save_v13', encryptData(sd)); 
+            closeImportScreen(); startGame(true); alert("✅ 存檔讀取成功！歡迎回來。");
+        } catch(err) { alert("❌ 檔案內容無效或解密失敗！"); }
+    };
+    reader.readAsText(fileInput.files[0]);
+}
+
+// 搖桿事件 (獨立於 Canvas 縮放，確保觸控精準)
+function handleTouchStart(e) { e.preventDefault(); initAudio(); for (let t of e.changedTouches) { if (Math.hypot(t.clientX - joyL.baseX, t.clientY - joyL.baseY) < joyL.maxR * 2 && !joyL.active) { joyL.active = true; joyL.id = t.identifier; updateJoystick(joyL, t.clientX, t.clientY); } else if (Math.hypot(t.clientX - joyR.baseX, t.clientY - joyR.baseY) < joyR.maxR * 2 && !joyR.active) { joyR.active = true; joyR.id = t.identifier; updateJoystick(joyR, t.clientX, t.clientY); mouseDown = true; } } }
+function handleTouchMove(e) { e.preventDefault(); for (let t of e.changedTouches) { if (joyL.active && t.identifier === joyL.id) updateJoystick(joyL, t.clientX, t.clientY); if (joyR.active && t.identifier === joyR.id) updateJoystick(joyR, t.clientX, t.clientY); } }
+function handleTouchEnd(e) { e.preventDefault(); for (let t of e.changedTouches) { if (joyL.active && t.identifier === joyL.id) { joyL.active = false; joyL.dx = 0; joyL.dy = 0; } if (joyR.active && t.identifier === joyR.id) { joyR.active = false; joyR.dx = 0; joyR.dy = 0; mouseDown = false; } } }
+function updateJoystick(joy, cx, cy) { let dx = cx - joy.baseX, dy = cy - joy.baseY, dist = Math.hypot(dx, dy); if (dist > joy.maxR) { joy.dx = (dx/dist)*joy.maxR; joy.dy = (dy/dist)*joy.maxR; } else { joy.dx = dx; joy.dy = dy; } }
+
+canvas.addEventListener('touchstart', handleTouchStart, {passive: false}); canvas.addEventListener('touchmove', handleTouchMove, {passive: false}); canvas.addEventListener('touchend', handleTouchEnd, {passive: false}); canvas.addEventListener('touchcancel', handleTouchEnd, {passive: false});
+canvas.addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; }); 
+canvas.addEventListener('mousedown', e => { 
+    initAudio(); 
+    if(gameRunning && !isPaused && !isShopTime && !isInventoryOpen && !isPerkTime && document.getElementById('settings-screen').style.display !== 'flex' && document.getElementById('layout-screen').style.display !== 'flex') {
+        if (player.hasHelper) {
+            let zoom = settings.cameraZoom || 1.0;
+            let aimX = (mouseX / zoom) + camera.x, aimY = (mouseY / zoom) + camera.y;
+            if (getDistSq(aimX, aimY, combatHelper.x, combatHelper.y) < 1600) { 
+                toggleInventory(); 
+                let hSlot = document.querySelector('#helper-weapon-grid .inv-slot');
+                if(hSlot) { hSlot.style.boxShadow = '0 0 30px #00ff88'; setTimeout(()=>hSlot.style.boxShadow='', 1500); }
+                return; 
+            }
+        }
+        mouseDown = true; 
+    } 
+}); 
+canvas.addEventListener('mouseup', () => mouseDown = false);
+
+// ==================== 核心邏輯 ====================
+function startGame(isLoad = false) {
+    applyTheme(); initAudio(); document.getElementById('intro-screen').style.display = 'none'; document.getElementById('game-container').style.display = 'block'; resize(); 
+    let loadedData = null;
+    currentMode = document.getElementById('game-mode-select').value;
+    
+    if (isLoad) {
+        let savedDataStr = localStorage.getItem('zombie_save_v13') || localStorage.getItem('zombie_save_v12') || localStorage.getItem('zombie_save_v11') || localStorage.getItem('zombie_save_v10') || localStorage.getItem('zombie_save_v9') || localStorage.getItem('zombie_save_v8') || localStorage.getItem('zombie_save_v7');
+        if (savedDataStr) { try { loadedData = tryDecrypt(savedDataStr); } catch(e) {} }
+        else if (localStorage.getItem('zombie_save_v6')) { loadedData = JSON.parse(localStorage.getItem('zombie_save_v6')); }
+    }
+
+    if(loadedData) { 
+        let sd = loadedData;
+        currentMode = sd.currentMode || 'normal';
+        // 防呆預設值載入
+        player = Object.assign({ x: MAP_W/2, y: MAP_H/2, size: 18, hp: 10, maxHp: 10, speed: 4.5, critChance: 0.1, cdMultiplier: 1.0, shield: 0, invincible: 0, shootCooldown: 0, grenades: 0, totems: 0, helmet: 0, chest: 0, legs: 0, boots: 0, slowTimer: 0, hasMagnet: false, level: 1, exp: 0, nextExp: 15, element: 'none', hasHelper: false }, sd.player);
+        currentWave = sd.currentWave || 1; totalKills = sd.totalKills || 0; totalTrash = sd.totalTrash || 0; trashCurrency = sd.trashCurrency || 0; unlockedWeapons = sd.unlockedWeapons || [0]; 
+        playTime = sd.playTime || 0;
+        
+        if (sd.combatHelper) combatHelper = sd.combatHelper; else combatHelper = { x: player.x, y: player.y, angle: 0, shootTimer: 0, weaponIdx: null };
+        if (sd.player && sd.player.hasDrone !== undefined) { player.hasHelper = sd.player.hasDrone; }
+        
+        if (sd.hotbar) { hotbar = sd.hotbar; inventory = sd.inventory; hotbarIdx = sd.hotbarIdx; } else { hotbar = Array(9).fill(null); inventory = Array(27).fill(null); unlockedWeapons.forEach((wId, idx) => { if (idx < 9) hotbar[idx] = wId; else if (idx - 9 < 27) inventory[idx - 9] = wId; }); hotbarIdx = 0; }
+        
+        if (sd.terrainFeatures) {
+            terrainFeatures = sd.terrainFeatures; terrainFeatures.forEach(o => { if(o.type === 'wall') o.color = themeWallColor; });
+            zombies = sd.zombies || []; trashItems = sd.trashItems || [];
+            stamina = sd.stamina ?? maxStamina; specialCooldown = sd.specialCooldown || 0; waveTimer = sd.waveTimer || 0; zombiesToSpawn = sd.zombiesToSpawn || 0;
+        } else {
+            generateTerrain(); placePlayerInSafeZone(); trashItems = []; for(let i=0; i<30; i++) spawnTrash(); zombies = [];
+            stamina = maxStamina; specialCooldown = 0; zombiesToSpawn = Math.min(10000, 12 + currentWave * 3); waveTimer = 0;
+        }
+    } else {
+        player = { x: MAP_W/2, y: MAP_H/2, size: 18, hp: 10, maxHp: 10, speed: 4.5, critChance: 0.1, cdMultiplier: 1.0, shield: 0, invincible: 0, shootCooldown: 0, grenades: 0, totems: 0, helmet: 0, chest: 0, legs: 0, boots: 0, slowTimer: 0, hasMagnet: false, level: 1, exp: 0, nextExp: 15, element: 'none', hasHelper: false };
+        combatHelper = { x: MAP_W/2, y: MAP_H/2, angle: 0, shootTimer: 0, weaponIdx: null };
+        totalTrash = 0; trashCurrency = 0; totalKills = 0; currentWave = 1; unlockedWeapons = [0]; hotbar = Array(9).fill(null); hotbar[0] = 0; inventory = Array(27).fill(null); hotbarIdx = 0;
+        generateTerrain(); placePlayerInSafeZone(); trashItems = []; for(let i=0; i<30; i++) spawnTrash(); zombies = []; stamina = maxStamina; specialCooldown = 0;
+        zombiesToSpawn = Math.min(10000, 12 + currentWave * 3); waveTimer = 0; playTime = 0; 
+    }
+    bullets = []; particles = []; bloodStains = []; casings = []; explosions = []; damageTexts = [];
+    gameRunning = true; isPaused = false; isShopTime = false; isInventoryOpen = false; isPerkTime = false;
+    lastKillTime = Date.now(); lastFrameTime = performance.now();
+    playBackgroundMusic(); renderWeaponUI(); updateHUD(true); announce(isLoad ? '🔄 歡迎回來！' : '🗑️ 開始生存！', '#00ff88');
+}
+
+function spawnTrash(x, y, isMedkit = false) {
+    let size = 14;
+    let tx = x !== undefined ? x : Math.random() * (MAP_W - 40) + 20;
+    let ty = y !== undefined ? y : Math.random() * (MAP_H - 40) + 20;
+    // 【修正 3】強制邊界保護，確保掉落物絕不會卡出場外
+    tx = Math.max(size, Math.min(MAP_W - size, tx));
+    ty = Math.max(size, Math.min(MAP_H - size, ty));
+    
+    let attempts = 0;
+    while (attempts < 50 && isEntityCollidingWithWall(tx, ty, size)) { 
+        tx = Math.random() * (MAP_W - 40) + 20; ty = Math.random() * (MAP_H - 40) + 20; 
+        tx = Math.max(size, Math.min(MAP_W - size, tx)); ty = Math.max(size, Math.min(MAP_H - size, ty));
+        attempts++; 
+    }
+    trashItems.push({ x: tx, y: ty, emoji: isMedkit ? '💊' : ['🥫','📦','🔩','🔋','⚙️'][Math.floor(Math.random()*5)], isMedkit: isMedkit, bob: Math.random()*Math.PI*2 });
+}
+
+function spawnZombie() {
+    let type = 'normal', color = '#55cc55', emoji = '🧟', hp = 10, spd = 1.8, size = 20, dmg = 1, r = Math.random();
+    if (currentWave >= 28 && r < 0.01) { type = 'void'; emoji = '👾'; hp = 80; spd = 0.8; size = 40; dmg = 4; color = '#330066'; }
+    else if (currentWave >= 26 && r < 0.02) { type = 'crystal'; emoji = '💎'; hp = 60; spd = 1.2; size = 28; dmg = 2; color = '#00dddd'; }
+    else if (currentWave >= 24 && r < 0.03) { type = 'toxic'; emoji = '☢️'; hp = 22; spd = 2.3; size = 20; dmg = 1; color = '#00dd00'; }
+    else if (currentWave >= 22 && r < 0.04) { type = 'corrupted'; emoji = '👻'; hp = 30; spd = 1.9; size = 25; dmg = 2; color = '#ff00ff'; }
+    else if (currentWave >= 20 && r < 0.035) { type = 'armored'; emoji = '🤖'; hp = 55; spd = 0.9; size = 32; dmg = 2; color = '#666666'; }
+    else if (currentWave >= 25 && r < 0.02) { type = 'blackhole'; emoji = '🕳️'; hp = 50; spd = 0.5; size = 35; dmg = 3; color = '#000000'; }
+    else if (currentWave >= 20 && r < 0.04) { type = 'electric'; emoji = '⚡'; hp = 18; spd = 2.2; size = 22; dmg = 1; color = '#ffff00'; }
+    else if (currentWave >= 18 && r < 0.06) { type = 'ice'; emoji = '🧊'; hp = 25; spd = 1.0; size = 24; dmg = 1; color = '#00ffff'; }
+    else if (currentWave >= 15 && r < 0.08) { type = 'fire'; emoji = '🔥'; hp = 15; spd = 2.0; size = 21; dmg = 1; color = '#ff6600'; }
+    else if (currentWave >= 12 && r < 0.1) { type = 'invisible'; emoji = '🦹'; hp = 20; spd = 2.5; size = 20; dmg = 2; color = '#888888'; }
+    else if (currentWave >= 10 && r < 0.05) { type = 'boss'; emoji = '👹'; hp = 150; spd = 1.3; size = 45; dmg = 3; color = '#ff0000'; }
+    else if (currentWave >= 5 && r < 0.15) { type = 'tank'; emoji = '🛡️'; hp = 45; spd = 1.0; size = 30; dmg = 2; color = '#aa66ff'; }
+    else if (currentWave >= 4 && r < 0.25) { type = 'bomber'; emoji = '💣'; hp = 12; spd = 2.0; size = 22; dmg = 1; color = '#ff3300'; } 
+    else if (currentWave >= 4 && r < 0.35) { type = 'spider'; emoji = '🕷️'; hp = 8; spd = 1.5; size = 16; dmg = 1; color = '#9933ff'; } 
+    else if (currentWave >= 3 && r < 0.45) { type = 'wolf'; emoji = '🐺'; hp = 10; spd = 3.5; size = 18; dmg = 1; color = '#ffff66'; } 
+    else if (r < 0.55) { type = 'fast'; emoji = '🏃'; hp = 8; spd = 3.8; size = 18; dmg = 1; color = '#ff6666'; }
+
+    let hpMult = 1 + (currentWave - 1) * 0.25, extraSpd = currentWave * 0.015, extraDmg = Math.floor(currentWave / 5);
+    let angle, dist = Math.max(W, H)/2 + 150, spawnX, spawnY, attempts = 0;
+    do { angle = Math.random() * Math.PI * 2; spawnX = player.x + Math.cos(angle) * dist; spawnY = player.y + Math.sin(angle) * dist; attempts++; } while (attempts < 30 && isEntityCollidingWithWall(spawnX, spawnY, size));
+    spawnX = Math.max(size, Math.min(MAP_W - size, spawnX)); spawnY = Math.max(size, Math.min(MAP_H - size, spawnY));
+    
+    zombies.push({ x: spawnX, y: spawnY, hp: hp * hpMult, maxHp: hp * hpMult, speed: spd + extraSpd, size, damage: dmg + extraDmg, color, emoji, type, vx: 0, vy: 0, dot: 0, dotType: '', dashTimer: Math.random()*100 + 50, isDashing: 0, dashAngle: 0, flankDir: (Math.random() > 0.5 ? 1 : -1), invisible: type === 'invisible' ? 120 : 0, iceSlow: 0, fireAura: type === 'fire' ? 30 : 0, electricChain: type === 'electric' ? 4 : 0, armor: type === 'armored' ? 0.7 : 0, toxic: type === 'toxic' ? 30 : 0, crystalShard: type === 'crystal' ? 200 : 0, stuckTimer: 0, stuckAngle: 0 });
+}
+
+function spawnProjectile(originX, originY, angle, w, element) {
+    if (!w) return;
+    if (w.type === 'melee') zombies.forEach(z => { if (getDistSq(z.x, z.y, originX, originY) < (w.range + z.size)**2 && checkLOS(originX, originY, z.x, z.y)) dealDamage(z, w.dmg, angle, 15, element); });
+    else if (w.type === 'flame' || w.type === 'poison') for(let i=0; i<3; i++) { let a = angle + (Math.random()-0.5)*0.5; bullets.push({ x: originX, y: originY, vx: Math.cos(a)*w.speed, vy: Math.sin(a)*w.speed, dmg: w.dmg, type: w.type, life: 25, size: 8, dot: w.dot, element: element }); }
+    else if (w.type === 'shotgun') for (let i = 0; i < w.spread; i++) { let a = angle + (Math.random()-0.5)*0.6; bullets.push({ x: originX, y: originY, vx: Math.cos(a)*w.speed, vy: Math.sin(a)*w.speed, dmg: w.dmg, type: 'normal', life: 25, size: 4, element: element }); }
+    else if (w.type === 'minigun') { let a = angle + (Math.random()-0.5)*0.3; bullets.push({ x: originX, y: originY, vx: Math.cos(a)*w.speed, vy: Math.sin(a)*w.speed, dmg: w.dmg, type: 'normal', life: 40, size: 3, element: element }); }
+    else if (w.type === 'lightning') { let target = null, minDistSq = 400 * 400; zombies.forEach(z => { let dSq = getDistSq(z.x, z.y, originX, originY); let a = Math.atan2(z.y - originY, z.x - originX); if(dSq < minDistSq && Math.abs(a - angle) < 0.5 && checkLOS(originX, originY, z.x, z.y)) { minDistSq = dSq; target = z; } }); if(target) chainLightning(originX, originY, target, w.dmg, w.chain); else bullets.push({ x: originX, y: originY, vx: Math.cos(angle)*w.speed, vy: Math.sin(angle)*w.speed, dmg: w.dmg, type: 'normal', life: 30, size: 5, element: element }); }
+    else if (w.type === 'boomerang') bullets.push({ x: originX, y: originY, vx: Math.cos(angle)*w.speed, vy: Math.sin(angle)*w.speed, dmg: w.dmg, type: 'boomerang', life: 60, maxLife: 60, size: 10, hitSet: new Set(), element: element });
+    else if (w.type === 'freeze') bullets.push({ x: originX, y: originY, vx: Math.cos(angle)*w.speed, vy: Math.sin(angle)*w.speed, dmg: w.dmg, type: 'freeze', life: 40, size: 6, slow: w.slow, element: element });
+    else if (w.type === 'hammer') bullets.push({ x: originX, y: originY, vx: Math.cos(angle)*w.speed, vy: Math.sin(angle)*w.speed, dmg: w.dmg, type: 'hammer', life: 30, size: 12, knockback: w.knockback, element: element });
+    else if (w.type === 'rocket_shotgun') for (let i = 0; i < w.spread; i++) { let a = angle + (Math.random()-0.5)*0.8; bullets.push({ x: originX, y: originY, vx: Math.cos(a)*w.speed, vy: Math.sin(a)*w.speed, dmg: w.dmg, type: 'rocket', life: 60, size: 8, radius: w.radius, element: element }); }
+    else if (w.type === 'grenade_launcher') bullets.push({ x: originX, y: originY, vx: Math.cos(angle)*w.speed, vy: Math.sin(angle)*w.speed, dmg: w.dmg, type: 'grenade', life: 80, size: 10, radius: w.radius, element: element });
+    else if (w.type === 'radiation') { bullets.push({ x: originX, y: originY, vx: Math.cos(angle)*w.speed, vy: Math.sin(angle)*w.speed, dmg: w.dmg, type: 'radiation', life: 50, size: 7, element: element }); }
+    else if (w.type === 'molotov') bullets.push({ x: originX, y: originY, vx: Math.cos(angle)*w.speed, vy: Math.sin(angle)*w.speed, dmg: w.dmg, type: 'molotov', life: 40, size: 8, duration: w.duration, element: element });
+    else if (w.type === 'ray') bullets.push({ x: originX, y: originY, vx: Math.cos(angle)*w.speed, vy: Math.sin(angle)*w.speed, dmg: w.dmg, type: 'ray', life: 10, size: 4, pierce: true, hitSet: new Set(), element: element });
+    else if (w.type === 'knife_gun') for (let i = 0; i < w.count; i++) { let a = angle + (Math.random()-0.5)*0.4; bullets.push({ x: originX, y: originY, vx: Math.cos(a)*w.speed, vy: Math.sin(a)*w.speed, dmg: w.dmg, type: 'knife', life: 50, size: 4, pierce: true, hitSet: new Set(), element: element }); }
+    else if (w.type === 'blackhole') bullets.push({ x: originX, y: originY, vx: Math.cos(angle)*w.speed, vy: Math.sin(angle)*w.speed, dmg: w.dmg, type: 'blackhole', life: 100, size: 15, suck: true, element: element });
+    else if (w.type === 'halve') zombies.forEach(z => { if (getDistSq(z.x, z.y, originX, originY) < (w.range + z.size)**2 && checkLOS(originX, originY, z.x, z.y)) { z.hp = Math.max(1, z.hp / 2); dealDamage(z, 0, angle, 10, element); } });
+    else if (w.type === 'shuriken') bullets.push({ x: originX, y: originY, vx: Math.cos(angle)*w.speed, vy: Math.sin(angle)*w.speed, dmg: w.dmg, type: 'shuriken', life: 60, size: 6, pierce: true, hitSet: new Set(), element: element });
+    else if (w.type === 'square_gun') bullets.push({ x: originX, y: originY, vx: Math.cos(angle)*w.speed, vy: Math.sin(angle)*w.speed, dmg: w.dmg, type: 'square', life: 45, size: 5, radius: w.radius || 80, element: element });
+    else if (w.type === 'bounce_shield') { if(originX === player.x) player.shield += 1; announce("🛡️ 反彈盾啟動！", "#00eeff"); }
+    else if (w.type === 'staff') { let summonX = originX + Math.cos(angle)*100, summonY = originY + Math.sin(angle)*100; triggerExplosion(summonX, summonY, 150, w.dmg, true); }
+    else if (w.type === 'fireball') bullets.push({ x: originX, y: originY, vx: Math.cos(angle)*w.speed, vy: Math.sin(angle)*w.speed, dmg: w.dmg, type: 'fireball', life: 50, size: 9, explode: true, element: element });
+    else if (w.type === 'tnt') { let tntX = originX + Math.cos(angle)*50, tntY = originY + Math.sin(angle)*50; setTimeout(() => triggerExplosion(tntX, tntY, 300, w.dmg, true), w.delay); }
+    else if (w.type === 'spear') zombies.forEach(z => { if (getDistSq(z.x, z.y, originX, originY) < (w.range + z.size)**2 && checkLOS(originX, originY, z.x, z.y)) { let speedMult = Math.max(1, player.speed / 4.5); dealDamage(z, w.dmg * speedMult, angle, 20, element); } });
+    else if (w.type === 'chainsaw') zombies.forEach(z => { if (getDistSq(z.x, z.y, originX, originY) < (w.range + z.size)**2 && checkLOS(originX, originY, z.x, z.y)) dealDamage(z, w.dmg, angle, 5, element); });
+    else if (w.type === 'truck') { let truckX = originX + Math.cos(angle)*200, truckY = originY + Math.sin(angle)*200; triggerExplosion(truckX, truckY, 400, w.dmg, true); }
+    else if (w.type === 'homing') bullets.push({ x: originX, y: originY, vx: Math.cos(angle)*w.speed, vy: Math.sin(angle)*w.speed, dmg: w.dmg, type: 'homing', life: 100, size: 6, element: element });
+    else bullets.push({ x: originX, y: originY, vx: Math.cos(angle)*w.speed, vy: Math.sin(angle)*w.speed, dmg: w.dmg, type: w.type, life: w.type==='laser'?20:w.type==='sniper'?100:60, size: w.type==='rocket'?10:w.type==='laser'?12:5, pierce: w.pierce, hitSet: new Set(), element: element });
+}
+
+function shoot() {
+    if (player.shootCooldown > 0 || currentWepIdx === null || !weapons[currentWepIdx]) return;
+    let w = weapons[currentWepIdx]; player.shootCooldown = w.cd * player.cdMultiplier;
+    playSound(w.type === 'shotgun' || w.type === 'rocket' || w.type === 'rocket_shotgun' || w.type === 'grenade_launcher' ? 'shotgun' : w.type === 'laser' || w.type === 'ray' ? 'laser' : 'shoot');
+
+    let angle;
+    if (joyR.active) { angle = Math.atan2(joyR.dy, joyR.dx); } 
+    else {
+        let zoom = settings.cameraZoom || 1.0;
+        let aimX = (mouseX / zoom) + camera.x, aimY = (mouseY / zoom) + camera.y;
+        angle = Math.atan2(aimY - player.y, aimX - player.x);
+    }
+    
+    screenShake = w.type === 'rocket' || w.type === 'rocket_shotgun' || w.type === 'grenade_launcher' ? 10 : w.type === 'sniper' ? 8 : w.type === 'hammer' ? 6 : w.type === 'shotgun' ? 5 : 1;
+    if(!['melee','flame','lightning','laser','ray','chainsaw','spear','bounce_shield','halve','staff','truck'].includes(w.type)) casings.push({ x: player.x, y: player.y, vx: Math.cos(angle+Math.PI/2)*3 + (Math.random()-0.5)*2, vy: Math.sin(angle+Math.PI/2)*3 + (Math.random()-0.5)*2, life: 100 });
+
+    spawnProjectile(player.x, player.y, angle, w, player.element);
+}
+
+function chainLightning(startX, startY, target, dmg, bounces) {
+    playSound('hit'); dealDamage(target, dmg, 0, 0, player.element);
+    for(let i=0; i<5; i++) particles.push({ x: startX + (target.x-startX)*Math.random(), y: startY + (target.y-startY)*Math.random(), vx: (Math.random()-0.5)*2, vy: (Math.random()-0.5)*2, life: 10, color: '#00eeff', size: 3 });
+    if(bounces > 0) {
+        let nextTarget = null, minDistSq = 250 * 250;
+        zombies.forEach(z => { if(z === target) return; let dSq = getDistSq(z.x, z.y, target.x, target.y); if(dSq < minDistSq && checkLOS(target.x, target.y, z.x, z.y)) { minDistSq = dSq; nextTarget = z; } });
+        if(nextTarget) setTimeout(() => { if(gameRunning && !isPaused) chainLightning(target.x, target.y, nextTarget, dmg*0.8, bounces-1); }, 50);
+    }
+}
+
+function dealDamage(z, dmg, angle, knockback, element = 'none') {
+    let isCrit = Math.random() < player.critChance; let finalDmg = isCrit ? dmg * 2 : dmg; 
+    let wType = (currentWepIdx !== null && weapons[currentWepIdx]) ? weapons[currentWepIdx].type : null;
+    if (wType === 'minigun') finalDmg = isCrit ? 8 : 4;
+    if (z.armor > 0) finalDmg *= (1 - z.armor); z.hp -= finalDmg;
+    
+    if ((isCrit || finalDmg >= 15) && !['laser', 'ray', 'minigun', 'chainsaw', 'flame', 'poison'].includes(wType)) hitStop = 3; 
+    playSound('hit');
+    
+    if (element === 'elem_fire') { z.dotType = 'flame'; z.dot = 180; }
+    if (element === 'elem_ice') z.iceSlow = 120;
+    if (element === 'elem_poison') { z.dotType = 'poison'; z.dot = 300; }
+    
+    if (settings.damageNumbers) {
+        let txtColor = themeTextColor; if(isCrit) txtColor = '#ffcc00';
+        damageTexts.push({ text: (isCrit ? 'Crit! ' : '') + '-' + Math.ceil(finalDmg), x: z.x, y: z.y - z.size, life: 40, isCrit: isCrit, color: txtColor });
+    }
+    
+    if (knockback > 0) { z.x += Math.cos(angle)*knockback; z.y += Math.sin(angle)*knockback; }
+    if (wType === 'freeze') { z.iceSlow = 180; }
+    if (wType === 'hammer') { z.x += Math.cos(angle)*20; z.y += Math.sin(angle)*20; }
+    if (wType === 'blackhole') { z.x += (player.x - z.x) * 0.1; z.y += (player.y - z.y) * 0.1; }
+    for(let i=0; i< (isCrit?8:3); i++) bloodStains.push({ x: z.x + (Math.random()-0.5)*20, y: z.y + (Math.random()-0.5)*20, size: Math.random()*8+2, color: z.color === '#ff0000' ? '#990000' : z.color === '#aa66ff' ? '#440088' : '#005500' });
+    
+    if (z.hp <= 0) {
+        totalKills++; lastKillTime = Date.now();
+        for(let i=0; i<15; i++) particles.push({ x: z.x, y: z.y, vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10, life: 30, color: z.color, size: Math.random()*5+2 });
+        if (z.type === 'boss') { 
+            for(let i=0; i<(5+Math.floor(Math.random()*6)); i++) spawnTrash(z.x + (Math.random()-0.5)*50, z.y + (Math.random()-0.5)*50); 
+        } else if (z.type !== 'boss_minion') { 
+            if(Math.random() < 0.3) spawnTrash(z.x, z.y); 
+            if(Math.random() < 0.05) spawnTrash(z.x, z.y, true); 
+        }
+    }
+}
+
+function triggerExplosion(x, y, radius, dmg, ignorePlayer = false) {
+    screenShake = 20; playSound('explode'); explosions.push({ x: x, y: y, r: 0, maxR: radius, life: 15, maxLife: 15 }); let rSq = radius * radius;
+    zombies.forEach(z => { 
+        let dSq = getDistSq(z.x, z.y, x, y);
+        if(dSq < (radius + z.size)**2 && checkLOS(x, y, z.x, z.y)) { let d = Math.sqrt(dSq); let damageMult = Math.max(0.3, 1 - d / (radius * 1.5)); let waveMult = Math.min(2, 1 + (currentWave - 1) * 0.1); dealDamage(z, dmg * damageMult * waveMult, Math.atan2(z.y - y, z.x - x), 30, player.element); }
+    });
+    if (!ignorePlayer) {
+        let pSq = getDistSq(player.x, player.y, x, y);
+        if (pSq < rSq && player.invincible <= 0 && checkLOS(x, y, player.x, player.y)) { let damageMult = Math.max(0.2, 1 - Math.sqrt(pSq) / (radius * 1.5)); player.hp -= dmg * damageMult * 0.5; player.invincible = 20; checkPlayerDeath(); }
+    }
+    for(let p=0; p<30; p++) particles.push({ x: x, y: y, vx: (Math.random()-0.5)*15, vy: (Math.random()-0.5)*15, life: 20, color: '#ff4400', size: Math.random()*8+4 });
+}
+
+function useGrenade() { if(player.grenades > 0 && gameRunning && !isPaused && !isInventoryOpen && !isPerkTime && document.getElementById('settings-screen').style.display !== 'flex') { player.grenades--; announce("💣 全頻轟炸！", "#ffaa00"); triggerExplosion(player.x, player.y, MAP_W, 100, true); } }
+
+// 【修正 2】嚴格的玩家死亡與重生機制
+function checkPlayerDeath() {
+    if (player.hp <= 0) {
+        player.hp = 0; // 防止負血量
+        if (player.totems > 0) { 
+            player.totems--; player.hp = player.maxHp / 2; player.invincible = 180; 
+            triggerExplosion(player.x, player.y, 400, 50, true); 
+            announce("👼 不死圖騰觸發！", "#ffff00"); 
+        } 
+        else if (currentMode === 'normal') {
+            // 一般模式：扣除50%資源並重生
+            trashCurrency = Math.floor(trashCurrency / 2);
+            totalTrash = Math.floor(totalTrash / 2);
+            for(let i=0; i<27; i++) {
+                if(inventory[i] !== null && Math.random() < 0.5) inventory[i] = null;
+            }
+            for(let i=0; i<9; i++) {
+                if(hotbar[i] !== null && Math.random() < 0.5) {
+                    hotbar[i] = null;
+                }
+            }
+            renderWeaponUI();
+            player.hp = player.maxHp;
+            player.invincible = 180;
+            triggerExplosion(player.x, player.y, 500, 100, true); // 清空周圍殭屍
+            player.x = MAP_W/2; player.y = MAP_H/2; placePlayerInSafeZone();
+            combatHelper.x = player.x; combatHelper.y = player.y;
+            announce("💀 你死去了... 損失一半物資並重生", "#ff4444");
+            updateHUD(true);
+        } else {
+            // 極限模式：直接結束
+            gameRunning = false; localStorage.removeItem('zombie_save_v13');
+            let m = Math.floor(playTime / 60).toString().padStart(2, '0'); let s = Math.floor(playTime % 60).toString().padStart(2, '0');
+            document.getElementById('final-time').textContent = `${m}:${s}`;
+            document.getElementById('game-over').style.display = 'flex'; document.getElementById('final-wave').textContent = currentWave; document.getElementById('final-level').textContent = player.level; document.getElementById('final-kills').textContent = totalKills; document.getElementById('final-trash').textContent = totalTrash;
+        }
+    }
+}
+
+function updateHUD(force = false) {
+    let hpCeil = Math.ceil(player.hp);
+    if (force || hudCache.hp !== hpCeil || hudCache.maxHp !== player.maxHp) {
+        document.getElementById('hud-hp-text').textContent = `${hpCeil} / ${player.maxHp}`;
+        let hpRatio = player.hp / player.maxHp; 
+        document.getElementById('hud-hp-bar').style.width = `${Math.max(0, hpRatio*100)}%`; 
+        hudCache.hp = hpCeil; hudCache.maxHp = player.maxHp;
+    }
+    
+    if (force || hudCache.exp !== player.exp || hudCache.level !== player.level) {
+        document.getElementById('hud-lvl-text').textContent = `LV.${player.level} (${player.exp} / ${player.nextExp})`;
+        document.getElementById('hud-exp-bar').style.width = `${Math.min(100, (player.exp / player.nextExp)*100)}%`;
+        hudCache.exp = player.exp; hudCache.level = player.level;
+    }
+
+    let stamFloor = Math.floor(stamina);
+    if (force || hudCache.stamina !== stamFloor) {
+        document.getElementById('hud-stamina-bar').style.width = `${Math.max(0, (stamina/maxStamina)*100)}%`;
+        hudCache.stamina = stamFloor;
+    }
+    
+    let timeStr = `${Math.floor(playTime / 60).toString().padStart(2, '0')}:${Math.floor(playTime % 60).toString().padStart(2, '0')}`;
+    if (force || hudCache.timeStr !== timeStr) { document.getElementById('hud-time').textContent = `⏱️ 時間：${timeStr}`; hudCache.timeStr = timeStr; }
+
+    let statsStr = `🛡️ 護盾: ${player.shield} | 👼 圖騰: ${player.totems} | 👟 速度: ${player.speed.toFixed(1)} | R 技能: ${specialCooldown > 0 ? Math.ceil(specialCooldown / 60) + 's' : '就緒'}`;
+    if (force || hudCache.statsStr !== statsStr) { document.getElementById('hud-stats').textContent = statsStr; hudCache.statsStr = statsStr; }
+    if (force || hudCache.wave !== currentWave) { document.getElementById('hud-wave').textContent = `🌊 波次：${currentWave}`; hudCache.wave = currentWave; }
+    if (force || hudCache.kills !== totalKills) { document.getElementById('hud-score').textContent = `💀 擊殺：${totalKills}`; hudCache.kills = totalKills; }
+    if (force || hudCache.trash !== trashCurrency) { document.getElementById('hud-trash').textContent = `🗑️ 垃圾幣：${trashCurrency}`; hudCache.trash = trashCurrency; }
+
+    let hpRatio = player.hp / player.maxHp; if (hpRatio < 0.2 && gameRunning && !isPaused && !isShopTime && !isInventoryOpen && !isPerkTime && document.getElementById('settings-screen').style.display !== 'flex' && Date.now() - lastHeartbeatTime > 600) { playSound('heartbeat'); lastHeartbeatTime = Date.now(); }
+}
+
+function announce(text, color = '#ffcc00') { let el = document.getElementById('center-announce'); el.textContent = text; el.style.color = color; el.style.opacity = 1; setTimeout(() => el.style.opacity = 0, 2000); }
+
+// ==================== 商店與天賦系統 ====================
+function openShop() { document.getElementById('pause-screen').style.display = 'none'; document.getElementById('shop-screen').style.display = 'flex'; isShopTime = true; lastKillTime = Date.now(); updateShopUI(); }
+function closeShop() { document.getElementById('shop-screen').style.display = 'none'; document.getElementById('pause-screen').style.display = 'flex'; isShopTime = false; lastKillTime = Date.now(); }
+function updateShopUI() {
+    document.getElementById('shop-trash').textContent = trashCurrency;
+    let setDis = (id, cond) => { let el = document.getElementById(id); if(el) el.disabled = cond; };
+    setDis('btn-shield', player.shield >= 3);
+    setDis('btn-grenade', player.grenades >= 3);
+    setDis('btn-totem', player.totems >= 1);
+    setDis('btn-magnet', player.hasMagnet);
+    setDis('btn-helper', player.hasHelper);
+    setDis('btn-helmet', player.helmet > 0);
+    setDis('btn-chest', player.chest > 0);
+    setDis('btn-legs', player.legs > 0);
+    setDis('btn-boots', player.boots > 0);
+    setDis('btn-speed', player.speed >= 10);
+    setDis('btn-maxhp', player.maxHp >= 100);
+    setDis('btn-crit', player.critChance >= 0.5);
+    setDis('btn-cd', player.cdMultiplier <= 0.2);
+    setDis('btn-homing', unlockedWeapons.includes(31));
+}
+function buyItem(type, cost) {
+    if(trashCurrency >= cost) {
+        trashCurrency -= cost; playSound('pickup');
+        if(type === 'hp') player.hp = Math.min(player.maxHp, player.hp + 5);
+        if(type === 'shield') player.shield++; if(type === 'grenade') player.grenades++; if(type === 'totem') player.totems++; 
+        if(type === 'magnet') { player.hasMagnet = true; renderWeaponUI(); } if(type === 'helper') { player.hasHelper = true; renderWeaponUI(); }
+        if(type === 'wpn_homing') {
+            if(!unlockedWeapons.includes(31)) {
+                unlockedWeapons.push(31);
+                let added = false; for(let j=0;j<9;j++){ if(hotbar[j]===null){hotbar[j]=31; added=true; break;} }
+                if(!added) { for(let j=0;j<27;j++){ if(inventory[j]===null){inventory[j]=31; break;} } }
+                renderWeaponUI(); announce("✨ 獲得追蹤槍！", "#00ff88");
+            }
+        }
+        if(type.startsWith('elem_')) { player.element = type; announce("✨ 獲得元素附魔！", "#00ff88"); }
+        if(type === 'helmet') player.helmet = 0.2; if(type === 'chest') player.chest = 0.3; if(type === 'legs') player.legs = 0.15; if(type === 'boots') player.boots = 0.1;
+        if(type === 'speed') player.speed += 0.5; if(type === 'maxhp') { player.maxHp += 5; player.hp += 5; } if(type === 'crit') player.critChance += 0.05; if(type === 'cd') player.cdMultiplier *= 0.9;
+        updateShopUI(); updateHUD(true); autoSave();
+    }
+}
+
+function openPerkScreen() { isPerkTime = true; document.getElementById('perk-screen').style.display = 'flex'; initAudio(); playSound('levelup'); }
+function selectPerk(type) {
+    if (type === 'speed') { player.speed += 0.25; announce("👟 速度提升！", "#00ff88"); }
+    if (type === 'cd') { player.cdMultiplier *= 0.95; announce("⚙️ 冷卻減少！", "#00ccff"); }
+    if (type === 'hp') { player.maxHp += 10; player.hp += 10; announce("❤️ 血量增加！", "#ff4444"); }
+    
+    currentWave++; zombiesToSpawn = Math.min(200, 12 + currentWave * 3); announce(`🌊 第 ${currentWave} 波開始！`, '#00ff88');
+    lastKillTime = Date.now(); updateHUD(true); autoSave(); 
+    document.getElementById('perk-screen').style.display = 'none'; isPerkTime = false;
+}
+
+// ==================== 遊戲主迴圈 (包含 dt) ====================
+function update(dt) {
+    if (!gameRunning || isPaused || isShopTime || isInventoryOpen || isPerkTime || document.getElementById('settings-screen').style.display === 'flex' || document.getElementById('layout-screen').style.display === 'flex') return;
+    if (hitStop > 0) { hitStop -= dt; return; }
+    
+    playTime += dt * 0.0166667; 
+    updateHUD(); 
+
+    let dx = 0, dy = 0;
+    if (keys[settings.keys.up]) dy -= 1; if (keys[settings.keys.down]) dy += 1;
+    if (keys[settings.keys.left]) dx -= 1; if (keys[settings.keys.right]) dx += 1;
+    if (joyL.active && joyL.maxR > 0) { dx = joyL.dx / joyL.maxR; dy = joyL.dy / joyL.maxR; }
+
+    let actualSpeed = player.speed; if (player.slowTimer > 0) { actualSpeed *= 0.55; player.slowTimer -= dt; }
+    if (currentWepIdx !== null && weapons[currentWepIdx] && weapons[currentWepIdx].type === 'minigun' && mouseDown) actualSpeed *= 0.4;
+    let isSprinting = (keys[settings.keys.sprint] || mobileSprinting) && (dx !== 0 || dy !== 0) && stamina > 5;
+    if (isSprinting) { actualSpeed *= 1.6; stamina = Math.max(0, stamina - sprintCost * dt); if (stamina <= 0 && mobileSprinting) toggleSprint(); } else { stamina = Math.min(maxStamina, stamina + sprintRegen * dt); }
+
+    let nextX = player.x, nextY = player.y;
+    if (dx !== 0 || dy !== 0) { let len = Math.hypot(dx, dy); nextX += (dx/len) * actualSpeed * dt; nextY += (dy/len) * actualSpeed * dt; }
+    if (terrainFeatures.some(o => o.type === 'mud' && getDistSq(nextX, nextY, o.x, o.y) < (o.r + player.size)**2)) { actualSpeed *= 0.55; if (dx !== 0 || dy !== 0) { let len = Math.hypot(dx, dy); nextX = player.x + (dx/len) * actualSpeed * dt; nextY = player.y + (dy/len) * actualSpeed * dt; } }
+
+    if (!isCollidingWithWall(nextX, nextY)) { player.x = nextX; player.y = nextY; } 
+    else { if (!isCollidingWithWall(nextX, player.y)) player.x = nextX; else if (!isCollidingWithWall(player.x, nextY)) player.y = nextY; }
+    player.x = Math.max(player.size, Math.min(MAP_W-player.size, player.x)); player.y = Math.max(player.size, Math.min(MAP_H-player.size, player.y));
+
+    if (player.invincible > 0) player.invincible -= dt;
+    if (player.shootCooldown > 0) player.shootCooldown -= dt;
+    if (specialCooldown > 0) specialCooldown -= dt;
+    if (mouseDown) shoot();
+
+    // 磁鐵牽引邏輯，同樣加上邊界防護
+    if (player.hasMagnet) { 
+        trashItems.forEach(t => { 
+            if (!t.isMedkit && getDistSq(t.x, t.y, player.x, player.y) < 22500 && checkLOS(player.x, player.y, t.x, t.y)) { 
+                t.x += (player.x - t.x) * 0.15 * dt; 
+                t.y += (player.y - t.y) * 0.15 * dt;
+                t.x = Math.max(14, Math.min(MAP_W - 14, t.x));
+                t.y = Math.max(14, Math.min(MAP_H - 14, t.y));
+            } 
+        }); 
+    }
+
+    // 【修正 3】戰鬥幫手 (AI 獨立行動邏輯)
+    if (player.hasHelper) {
+        let distToPlayer = Math.sqrt(getDistSq(combatHelper.x, combatHelper.y, player.x, player.y));
+        let hw = combatHelper.weaponIdx !== null ? weapons[combatHelper.weaponIdx] : null;
+        let target = null;
+        let minDistSq = 90000; // 索敵半徑 300
+        
+        zombies.forEach(z => { 
+            let dSq = getDistSq(z.x, z.y, combatHelper.x, combatHelper.y); 
+            if(dSq < minDistSq && checkLOS(combatHelper.x, combatHelper.y, z.x, z.y)) { minDistSq = dSq; target = z; } 
+        });
+
+        let targetX = player.x, targetY = player.y;
+        let helperSpd = player.speed * 1.1;
+
+        if (distToPlayer > 400) {
+            targetX = player.x; targetY = player.y; // 離玩家太遠優先回歸
+        } else if (target) {
+            let distToTarget = Math.sqrt(minDistSq);
+            let optimalRange = hw ? (hw.range || 150) : 50;
+            
+            if (distToTarget > optimalRange) {
+                targetX = target.x; targetY = target.y; // 接近敵人
+            } else if (distToTarget < optimalRange - 50) {
+                // 太近則拉打後退 (Kiting)
+                targetX = combatHelper.x - (target.x - combatHelper.x);
+                targetY = combatHelper.y - (target.y - combatHelper.y);
+            } else {
+                targetX = combatHelper.x; targetY = combatHelper.y; // 保持距離
+            }
+        } else {
+            // 無目標時繞著玩家盤旋
+            targetX = player.x + Math.cos(Date.now() / 1000) * 100;
+            targetY = player.y + Math.sin(Date.now() / 1000) * 100;
+        }
+
+        let hdx = targetX - combatHelper.x, hdy = targetY - combatHelper.y;
+        let hDist = Math.hypot(hdx, hdy);
+        if (hDist > 5) {
+            let nHx = combatHelper.x + (hdx / hDist) * helperSpd * dt;
+            let nHy = combatHelper.y + (hdy / hDist) * helperSpd * dt;
+            if(!isEntityCollidingWithWall(nHx, nHy, 15)) {
+                combatHelper.x = nHx; combatHelper.y = nHy;
+            }
+        }
+
+        combatHelper.shootTimer -= dt;
+        if (target && hw) {
+            combatHelper.angle = Math.atan2(target.y - combatHelper.y, target.x - combatHelper.x);
+            if (combatHelper.shootTimer <= 0) {
+                spawnProjectile(combatHelper.x, combatHelper.y, combatHelper.angle, hw, player.element);
+                combatHelper.shootTimer = hw.cd * player.cdMultiplier;
+                playSound('shoot'); 
+            }
+        } else if (hDist > 5) {
+            combatHelper.angle = Math.atan2(hdy, hdx);
+        }
+    }
+
+    // 撿垃圾 (經驗與升級系統)
+    for (let i = trashItems.length - 1; i >= 0; i--) {
+        let t = trashItems[i];
+        if (getDistSq(t.x, t.y, player.x, player.y) < 2500) { 
+            trashItems.splice(i, 1);
+            if (t.isMedkit) { player.hp = Math.min(player.maxHp, player.hp + 5); playSound('pickup'); } 
+            else {
+                totalTrash++; trashCurrency++; player.exp++; playSound('pickup');
+                while (player.exp >= player.nextExp) {
+                    player.exp -= player.nextExp; player.level++;
+                    player.nextExp = Math.floor(10 + player.level * 5 + player.level * player.level * 0.5);
+                    playSound('levelup');
+                    
+                    if (player.level - 1 < weapons.length && !unlockedWeapons.includes(player.level - 1)) {
+                        unlockedWeapons.push(player.level - 1);
+                        let nextWep = weapons[player.level - 1];
+                        if (nextWep) {
+                            let addedToHotbar = false;
+                            for (let j = 0; j < 9; j++) { if (hotbar[j] === null) { hotbar[j] = nextWep.id - 1; addedToHotbar = true; break; } }
+                            if (!addedToHotbar) { for (let j = 0; j < 27; j++) { if (inventory[j] === null) { inventory[j] = nextWep.id - 1; break; } } }
+                            renderWeaponUI(); triggerExplosion(player.x, player.y, 400, 50, true); announce(`🎉 升級！解鎖: ${nextWep.name}!`, '#00eeff');
+                        }
+                    } else { announce(`⭐ 升級至 LV.${player.level}!`, '#f1c40f'); }
+                }
+            }
+        }
+    }
+
+    // 子彈邏輯
+    for (let i = bullets.length - 1; i >= 0; i--) {
+        let b = bullets[i];
+        if (b.pierce && !b.hitSet) b.hitSet = new Set();
+        if (b.type === 'boomerang') { if (b.life < b.maxLife / 2) { let angle = Math.atan2(player.y - b.y, player.x - b.x); b.vx = Math.cos(angle) * 20; b.vy = Math.sin(angle) * 20; b.hitSet.clear(); if (getDistSq(player.x, player.y, b.x, b.y) < 900) { bullets.splice(i, 1); continue; } } }
+        else if (b.type === 'homing') {
+            // 【修正 1】追蹤彈無視牆壁障礙且轉向更靈敏
+            let closest = null, cDist = 800;
+            for (let z of zombies) { let d = Math.hypot(z.x - b.x, z.y - b.y); if (d < cDist) { cDist = d; closest = z; } }
+            if (closest) {
+                let targetAngle = Math.atan2(closest.y - b.y, closest.x - b.x); let currentAngle = Math.atan2(b.vy, b.vx);
+                let diff = targetAngle - currentAngle; while (diff <= -Math.PI) diff += Math.PI * 2; while (diff > Math.PI) diff -= Math.PI * 2;
+                let turnSpeed = 0.25 * dt; let newAngle = currentAngle + Math.max(-turnSpeed, Math.min(turnSpeed, diff));
+                let speed = Math.hypot(b.vx, b.vy); b.vx = Math.cos(newAngle) * speed; b.vy = Math.sin(newAngle) * speed;
+            }
+        }
+
+        b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
+        
+        if (isEntityCollidingWithWall(b.x, b.y, b.size)) { if (b.type === 'rocket' || b.type === 'fireball' || b.type === 'square') triggerExplosion(b.x, b.y, b.radius || 200, b.dmg); if (b.type === 'grenade') triggerExplosion(b.x, b.y, b.radius, b.dmg, true); bullets.splice(i, 1); continue; }
+        if (b.type === 'rocket' || b.type === 'fireball' || b.type === 'square') particles.push({ x: b.x, y: b.y, vx: 0, vy: 0, life: 10, color: '#ff6600', size: 5 });
+        if (b.type === 'sniper') particles.push({ x: b.x, y: b.y, vx: 0, vy: 0, life: 5, color: '#00eeff', size: 3 });
+        if (b.type === 'molotov' && b.life <= 0) { firePuddles.push({ x: b.x, y: b.y, r: 80, life: 100, dmg: b.dmg, tickAccum: 0 }); bullets.splice(i, 1); continue; }
+        if (b.x < 0 || b.x > MAP_W || b.y < 0 || b.y > MAP_H || b.life <= 0) { if (b.type === 'rocket' || b.type === 'fireball' || b.type === 'square') triggerExplosion(b.x, b.y, b.radius || 200, b.dmg); if (b.type === 'grenade') triggerExplosion(b.x, b.y, b.radius, b.dmg, true); if (b.type !== 'boomerang') { bullets.splice(i, 1); continue; } }
+
+        let hit = false;
+        for (let z of zombies) {
+            if (getDistSq(z.x, z.y, b.x, b.y) < (z.size + b.size)**2) {
+                if (b.type === 'rocket' || b.type === 'square') { hit = true; triggerExplosion(b.x, b.y, b.radius || 200, b.dmg); break; }
+                if (b.pierce || b.type === 'boomerang') { if (!b.hitSet) b.hitSet = new Set(); if (!b.hitSet.has(z)) { b.hitSet.add(z); dealDamage(z, b.dmg, Math.atan2(b.vy, b.vx), 10, b.element); } } 
+                else { dealDamage(z, b.dmg, Math.atan2(b.vy, b.vx), b.type==='flame'||b.type==='poison'?1:8, b.element); hit = true; break; }
+            }
+        }
+        if (hit) bullets.splice(i, 1);
+    }
+
+    let margin = 400; 
+    for (let i = zombies.length - 1; i >= 0; i--) {
+        let z = zombies[i];
+        if (z.x < -margin) z.x = -margin; if (z.x > MAP_W + margin) z.x = MAP_W + margin; if (z.y < -margin) z.y = -margin; if (z.y > MAP_H + margin) z.y = MAP_H + margin;
+        
+        if (z.dot > 0) { 
+            z.dot -= dt; z.hp -= (z.dotType === 'poison' ? 0.3 : 0.1) * dt; 
+            if(Math.random()<0.2) particles.push({x:z.x, y:z.y, vx:0, vy:-2, life:10, color: z.dotType==='poison'?'#00ff00':'#ff6600', size:3}); 
+            if(z.hp <= 0) checkPlayerDeath(); // 確保 DOT 殺死怪物
+        }
+        if (z.hp <= 0) { if(z.type === 'bomber') triggerExplosion(z.x, z.y, 150, 20); zombies.splice(i, 1); continue; }
+
+        let distSqToPlayer = getDistSq(player.x, player.y, z.x, z.y); let distToPlayer = Math.sqrt(distSqToPlayer);
+        if (z.invisible > 0) z.invisible -= dt; 
+        if (z.slowPlayer > 0) { z.slowPlayer -= dt; if (distSqToPlayer < 22500) player.slowTimer = Math.max(player.slowTimer || 0, 30); } 
+        if (z.fireAura > 0 && distSqToPlayer < 2500) { z.fireAura -= dt; player.hp -= 0.1 * dt; if(player.hp <= 0) checkPlayerDeath(); } 
+        if (z.electricChain > 0 && distSqToPlayer < 10000) { let chainTargets = zombies.filter(zz => zz !== z && getDistSq(zz.x, zz.y, z.x, z.y) < 22500); chainTargets.forEach(zz => dealDamage(zz, 5, 0, 0)); z.electricChain -= dt; }
+
+        let angleToPlayer = Math.atan2(player.y - z.y, player.x - z.x); let moveAngle = angleToPlayer; let currentSpd = z.speed;
+        if(z.dotType === 'poison') currentSpd *= 0.7;
+        if(z.iceSlow > 0) { currentSpd *= 0.5; z.iceSlow -= dt; }
+
+        if (z.type === 'spider') { z.dashTimer -= dt; if (z.dashTimer <= 0) { z.dashTimer = 150; z.isDashing = 15; z.dashAngle = angleToPlayer; } if (z.isDashing > 0) { z.isDashing -= dt; moveAngle = z.dashAngle; currentSpd = 12; } else currentSpd = 1.5; }
+        else if (z.type === 'wolf' || z.type === 'fast') { let flankForce = Math.min(1, 200 / Math.max(10, distToPlayer)); moveAngle += z.flankDir * (1 - flankForce) * 1.5; }
+        else if (z.type === 'bomber') { if (distSqToPlayer < 14400 && checkLOS(player.x, player.y, z.x, z.y)) { currentSpd *= 1.8; z.color = '#ff0000'; z.size = 25 + Math.sin(Date.now()/50)*5; } }
+        else if (z.type === 'invisible') { z.color = z.invisible <= 0 ? '#888888' : 'rgba(136,136,136,0.3)'; }
+        else if (z.type === 'blackhole') { if (distSqToPlayer < 40000 && checkLOS(player.x, player.y, z.x, z.y)) { player.x += (z.x - player.x) * 0.01 * dt; player.y += (z.y - player.y) * 0.01 * dt; } }
+        else if (z.type === 'boss') {
+            z.skillTimer = (z.skillTimer || 180) - dt;
+            if (z.skillTimer <= 0) {
+                z.skillTimer = 200;
+                if (Math.random() < 0.55) { zombies.forEach(zz => { if (getDistSq(zz.x, zz.y, z.x, z.y) < 32400 && zz !== z) dealDamage(zz, 18, 0, 15); }); if (distSqToPlayer < 32400) { player.hp -= 8; screenShake = 20; if(player.hp <= 0) checkPlayerDeath(); } } 
+                else { for (let j = 0; j < 3; j++) { let a = Math.random()*Math.PI*2, distOff = 60 + Math.random()*40; zombies.push({ x: z.x + Math.cos(a)*distOff, y: z.y + Math.sin(a)*distOff, hp: 15, maxHp: 15, speed: 2.6, size: 16, damage: 1, color:'#ff8800', emoji:'👾', type:'boss_minion', vx:0, vy:0, dot:0, dotType:'', dashTimer: Math.random()*100+50, isDashing:0, dashAngle:0, flankDir:(Math.random()>0.5?1:-1), invisible:0, iceSlow:0, fireAura:0, electricChain:0, armor:0, toxic:0, crystalShard:0, stuckTimer:0, stuckAngle:0 }); } }
+            }
+        }
+        else if (z.type === 'armored') { currentSpd *= 0.7; }
+        else if (z.type === 'toxic') { if (distSqToPlayer < 22500 && z.toxic > 0 && checkLOS(player.x, player.y, z.x, z.y)) { z.toxic -= dt; for(let p=0; p<2; p++) particles.push({ x: z.x + (Math.random()-0.5)*30, y: z.y + (Math.random()-0.5)*30, vx: (Math.random()-0.5)*1, vy: (Math.random()-0.5)*1, life: 20, color: '#00dd00', size: 4 }); if(distSqToPlayer < 6400) { player.hp -= 0.05 * dt; if(player.hp <= 0) checkPlayerDeath(); } } }
+        else if (z.type === 'crystal') { if (z.crystalShard > 0) z.crystalShard -= dt; }
+        else if (z.type === 'void') { if (distSqToPlayer < 62500 && checkLOS(player.x, player.y, z.x, z.y)) { z.hp = Math.min(z.maxHp, z.hp + 0.1 * dt); player.hp -= 0.05 * dt; if(player.hp <= 0) checkPlayerDeath(); } }
+        else if (z.type === 'corrupted') { z.dashTimer = (z.dashTimer || 100) - dt; if (z.dashTimer <= 0) { z.dashTimer = 150; z.isDashing = 20; } if (z.isDashing > 0) { z.isDashing -= dt; currentSpd *= 1.5; } }
+
+        z.vx = Math.cos(moveAngle) * currentSpd; z.vy = Math.sin(moveAngle) * currentSpd;
+
+        let sepX = 0, sepY = 0;
+        for (let j = 0; j < zombies.length; j++) {
+            if (i === j) continue; let z2 = zombies[j], dxVec = z2.x - z.x, dyVec = z2.y - z.y, repelDist = z.size + z2.size + 15;
+            if (Math.abs(dxVec) > repelDist || Math.abs(dyVec) > repelDist) continue;
+            let dSq = dxVec * dxVec + dyVec * dyVec; if (dSq < repelDist * repelDist && dSq > 0) { let d = Math.sqrt(dSq); let force = (repelDist - d) / repelDist; sepX -= (dxVec / d) * force * 1.5; sepY -= (dyVec / d) * force * 1.5; if(d < z.size + z2.size) { let p = ((z.size + z2.size) - d) / 2; z.x -= (dxVec/d) * p; z.y -= (dyVec/d) * p; } }
+        }
+        z.vx += sepX; z.vy += sepY;
+        let nextZx = z.x + z.vx * dt; let nextZy = z.y + z.vy * dt;
+        
+        if (!isEntityCollidingWithWall(nextZx, nextZy, z.size)) { z.x = nextZx; z.y = nextZy; z.stuckTimer -= dt; } 
+        else if (!isEntityCollidingWithWall(nextZx, z.y, z.size)) { z.x = nextZx; z.stuckTimer -= dt; } else if (!isEntityCollidingWithWall(z.x, nextZy, z.size)) { z.y = nextZy; z.stuckTimer -= dt; } 
+        else {
+            let wallStuck = isEntityCollidingWithWall(z.x, z.y, z.size);
+            if (wallStuck) {
+                let resolved = false; if (z.stuckTimer > 0) { let testX = z.x + Math.cos(z.stuckAngle) * currentSpd * 0.8 * dt; let testY = z.y + Math.sin(z.stuckAngle) * currentSpd * 0.8 * dt; if (!isEntityCollidingWithWall(testX, testY, z.size)) { z.x = testX; z.y = testY; z.stuckTimer -= dt; resolved = true; } else { z.stuckTimer = 0; } }
+                if (!resolved) {
+                    let found = false, angles = []; for (let aIdx = 0; aIdx < 12; aIdx++) angles.push(moveAngle + (aIdx - 6) * Math.PI / 12); angles.sort((a, b) => Math.abs(a - moveAngle) - Math.abs(b - moveAngle));
+                    for (let testAngle of angles) { let testX = z.x + Math.cos(testAngle) * currentSpd * 0.8 * dt; let testY = z.y + Math.sin(testAngle) * currentSpd * 0.8 * dt; if (!isEntityCollidingWithWall(testX, testY, z.size)) { z.x = testX; z.y = testY; z.stuckAngle = testAngle; z.stuckTimer = 30; found = true; break; } }
+                    if (!found) { for (let aIdx = 0; aIdx < 8; aIdx++) { let rAng = Math.random() * Math.PI * 2; let testX = z.x + Math.cos(rAng) * currentSpd * dt; let testY = z.y + Math.sin(rAng) * currentSpd * dt; if (!isEntityCollidingWithWall(testX, testY, z.size)) { z.x = testX; z.y = testY; found = true; break; } } }
+                    if (!found) { z.x -= Math.cos(moveAngle) * currentSpd * dt; z.y -= Math.sin(moveAngle) * currentSpd * dt; }
+                }
+            } else {
+                for (let aIdx = 0; aIdx < 6; aIdx++) { let testAngle = moveAngle + (Math.random() - 0.5) * Math.PI; let testX = z.x + Math.cos(testAngle) * currentSpd * dt; let testY = z.y + Math.sin(testAngle) * currentSpd * dt; if (!isEntityCollidingWithWall(testX, testY, z.size)) { z.x = testX; z.y = testY; break; } }
+            }
+        }
+
+        if (distSqToPlayer < (z.size + player.size)**2 && player.invincible <= 0) {
+            if (z.type === 'bomber') { triggerExplosion(z.x, z.y, 150, 20); z.hp = 0; } else if (player.shield > 0) { player.shield--; playSound('hit'); triggerExplosion(player.x, player.y, 150, 10); player.invincible = 40; } else { let damage = z.damage * (1 - player.helmet) * (1 - player.chest) * (1 - player.legs) * (1 - player.boots); player.hp -= damage; playSound('hurt'); screenShake = 15; player.invincible = 40; document.getElementById('game-container').style.boxShadow = 'inset 0 0 100px red'; setTimeout(()=> document.getElementById('game-container').style.boxShadow = 'none', 200); } checkPlayerDeath();
+        }
+    }
+
+    for(let i=damageTexts.length-1; i>=0; i--) { 
+        let t = damageTexts[i]; t.y -= 1 * dt; t.life -= dt; if(t.life <= 0) { damageTexts.splice(i, 1); } 
+    }
+
+    for(let i=particles.length-1; i>=0; i--) { let p = particles[i]; p.x+=p.vx*dt; p.y+=p.vy*dt; p.life-=dt; if(p.life<=0) particles.splice(i,1); }
+    if(particles.length > 200) particles.splice(0, particles.length - 200); if(bullets.length > 300) bullets.splice(0, bullets.length - 300); 
+    for(let i=casings.length-1; i>=0; i--) { let c = casings[i]; c.x+=c.vx*dt; c.y+=c.vy*dt; c.vx*=Math.pow(0.9,dt); c.vy*=Math.pow(0.9,dt); c.life-=dt; if(c.life<=0) casings.splice(i,1); }
+    
+    for (let i = firePuddles.length - 1; i >= 0; i--) {
+        let puddle = firePuddles[i]; puddle.tickAccum += dt; if (puddle.tickAccum >= 8) { puddle.tickAccum -= 8; zombies.forEach(z => { if (getDistSq(z.x, z.y, puddle.x, puddle.y) < (puddle.r + z.size)**2) dealDamage(z, puddle.dmg * 0.18, 0, 0); }); }
+        for (let p = 0; p < 2; p++) particles.push({ x: puddle.x + (Math.random()-0.5)*puddle.r*1.2, y: puddle.y + (Math.random()-0.5)*puddle.r*1.2, vx: 0, vy: 0, life: 10, color: '#ff8800', size: 4 }); puddle.life -= dt; if (puddle.life <= 0) firePuddles.splice(i, 1);
+    }
+
+    if (zombiesToSpawn > 0 && !isPaused && !isShopTime && !isInventoryOpen && !isPerkTime && document.getElementById('settings-screen').style.display !== 'flex' && document.getElementById('layout-screen').style.display !== 'flex') { waveTimer += dt; if (waveTimer >= Math.max(10, 40 - currentWave * 2)) { waveTimer = 0; spawnZombie(); zombiesToSpawn--; } } 
+    else if (zombies.length === 0 && !isPaused && !isShopTime && !isInventoryOpen && !isPerkTime && document.getElementById('settings-screen').style.display !== 'flex' && document.getElementById('layout-screen').style.display !== 'flex') { openPerkScreen(); }
+
+    let sx = 0, sy = 0; 
+    if(settings.screenShake && screenShake > 0) { sx = (Math.random()-0.5)*screenShake; sy = (Math.random()-0.5)*screenShake; }
+    if(screenShake > 0) { screenShake *= Math.pow(0.8, dt); if(screenShake<0.5) screenShake=0; }
+    
+    let zoom = settings.cameraZoom || 1.0;
+    camera.x = player.x - (W/2)/zoom + sx; camera.y = player.y - (H/2)/zoom + sy;
+}
+
+function draw(dt) {
+    ctx.clearRect(0, 0, W, H); ctx.save();
+    let zoom = settings.cameraZoom || 1.0;
+    ctx.scale(zoom, zoom); ctx.translate(-camera.x, -camera.y);
+    
+    ctx.strokeStyle = themeGridColor; ctx.lineWidth = 1; let sx = Math.floor(camera.x/80)*80, sy = Math.floor(camera.y/80)*80;
+    for (let x=sx; x<camera.x+W/zoom+80; x+=80) { ctx.beginPath(); ctx.moveTo(x, camera.y); ctx.lineTo(x, camera.y+H/zoom); ctx.stroke(); }
+    for (let y=sy; y<camera.y+H/zoom+80; y+=80) { ctx.beginPath(); ctx.moveTo(camera.x, y); ctx.lineTo(camera.x+W/zoom, y); ctx.stroke(); }
+    ctx.strokeStyle = '#ff4444'; ctx.lineWidth = 4; ctx.strokeRect(0, 0, MAP_W, MAP_H);
+
+    terrainFeatures.forEach(o => { ctx.fillStyle = o.color; if (o.type === 'wall') { ctx.fillRect(o.x, o.y, o.w, o.h); } else { ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, Math.PI*2); ctx.fill(); } });
+    bloodStains.forEach(b => { ctx.fillStyle = b.color; ctx.globalAlpha = 0.6; ctx.beginPath(); ctx.arc(b.x, b.y, b.size, 0, Math.PI*2); ctx.fill(); }); ctx.globalAlpha = 1;
+    firePuddles.forEach(f => { ctx.fillStyle = 'rgba(255,140,0,0.12)'; ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, Math.PI*2); ctx.fill(); }); casings.forEach(c => { ctx.fillStyle = '#ffcc00'; ctx.fillRect(c.x, c.y, 4, 2); });
+
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '24px Arial'; let time = Date.now()/200;
+    trashItems.forEach(t => { ctx.fillStyle = t.isMedkit ? '#ff4444' : '#00ff88'; if(t.isMedkit) { ctx.shadowColor = '#ff4444'; ctx.shadowBlur = 15; } else { ctx.shadowColor = '#00ff88'; ctx.shadowBlur = 10; } ctx.fillText(t.emoji, t.x, t.y + Math.sin(time+t.bob)*5); ctx.shadowBlur = 0; });
+
+    let w = (currentWepIdx !== null && weapons[currentWepIdx]) ? weapons[currentWepIdx] : null;
+    let pAngle;
+    if (joyR.active) { pAngle = Math.atan2(joyR.dy, joyR.dx); } 
+    else { let aimX = mouseX/zoom + camera.x, aimY = mouseY/zoom + camera.y; pAngle = Math.atan2(aimY - player.y, aimX - player.x); }
+
+    if (w && ['sniper', 'rocket', 'laser'].includes(w.type)) { ctx.beginPath(); ctx.moveTo(player.x, player.y); ctx.lineTo(player.x + Math.cos(pAngle)*1500, player.y + Math.sin(pAngle)*1500); ctx.strokeStyle = w.type === 'sniper' ? 'rgba(0,238,255,0.2)' : w.type === 'laser' ? 'rgba(255,0,255,0.2)' : 'rgba(255,0,0,0.2)'; ctx.lineWidth = w.type === 'laser' ? 5 : 2; ctx.stroke(); }
+
+    zombies.forEach(z => {
+        ctx.fillStyle = themeGridColor; ctx.fillRect(z.x-z.size, z.y-z.size-10, z.size*2, 4); ctx.fillStyle = z.hp/z.maxHp > 0.5 ? '#55cc55' : '#ff4444'; ctx.fillRect(z.x-z.size, z.y-z.size-10, z.size*2*(Math.max(0, z.hp/z.maxHp)), 4);
+        ctx.font = `${z.size*2}px Arial`; ctx.fillText(z.emoji, z.x, z.y);
+        if(z.dot > 0) { ctx.font = '16px Arial'; ctx.fillStyle = themeTextColor; ctx.fillText(z.dotType==='poison'?'☠️':'🔥', z.x, z.y-z.size); }
+        if(z.type === 'spider' && z.isDashing > 0) { ctx.globalAlpha = 0.5; ctx.fillText(z.emoji, z.x - z.vx*2, z.y - z.vy*2); ctx.globalAlpha = 1; }
+    });
+
+    bullets.forEach(b => {
+        if (b.type === 'laser') { ctx.strokeStyle = b.element === 'elem_poison'?'#00ff00':(b.element==='elem_fire'?'#ff4400':(b.element==='elem_ice'?'#00ccff':'#ff00ff')); ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx*2, b.y - b.vy*2); ctx.stroke(); } 
+        else if (b.type === 'ray') { ctx.strokeStyle = b.element === 'elem_poison'?'#00ff00':(b.element==='elem_fire'?'#ff4400':(b.element==='elem_ice'?'#00ccff':'#ff0000')); ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx*2, b.y - b.vy*2); ctx.stroke(); } 
+        else if (b.type === 'boomerang') { ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(Date.now()/50); ctx.font = '24px Arial'; ctx.fillText('🪚', 0, 0); ctx.restore(); } 
+        else { ctx.fillStyle = b.element === 'elem_poison'?'#00ff00':(b.element==='elem_ice'?'#00ccff':(b.type === 'rocket' ? '#ff4400' : b.type === 'sniper' ? '#00eeff' : b.type === 'flame' ? '#ff8800' : b.type === 'poison' ? '#00ff00' : '#ffff00')); ctx.beginPath(); ctx.arc(b.x, b.y, b.size, 0, Math.PI*2); ctx.fill(); }
+    });
+
+    for(let i=explosions.length-1; i>=0; i--) { let ex = explosions[i]; ex.r += (ex.maxR - ex.r) * 0.3 * dt; ctx.fillStyle = `rgba(255, ${60 + ex.life*10}, 0, ${Math.max(0, ex.life/ex.maxLife)})`; ctx.beginPath(); ctx.arc(ex.x, ex.y, ex.r, 0, Math.PI*2); ctx.fill(); ex.life -= dt; if(ex.life <= 0) explosions.splice(i, 1); }
+    particles.forEach(p => { ctx.globalAlpha = Math.max(0, p.life/30); ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill(); }); ctx.globalAlpha = 1;
+
+    if (player.invincible > 0 && Math.floor(player.invincible/4)%2===0) ctx.globalAlpha = 0.4;
+    ctx.font = '36px Arial'; ctx.fillText('🧑', player.x, player.y);
+    if (player.shield > 0) { ctx.strokeStyle = '#00eeff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(player.x, player.y, 30, 0, Math.PI*2); ctx.stroke(); }
+    
+    if (player.hasHelper) {
+        let px = combatHelper.x, py = combatHelper.y;
+        ctx.font = '20px Arial'; ctx.fillText('🤖', px, py);
+    }
+    
+    if (w) { ctx.font = '20px Arial'; ctx.fillText(w.emoji, player.x + Math.cos(pAngle)*30, player.y + Math.sin(pAngle)*30); ctx.globalAlpha = 1; }
+
+    if (settings.damageNumbers) {
+        damageTexts.forEach(dtxt => {
+            ctx.fillStyle = dtxt.isCrit ? '#ffcc00' : themeTextColor;
+            ctx.globalAlpha = Math.max(0, dtxt.life / 40);
+            ctx.font = dtxt.isCrit ? 'bold 24px Arial' : 'bold 18px Arial';
+            ctx.shadowColor = dtxt.isCrit ? '#ff0000' : '#000'; ctx.shadowBlur = dtxt.isCrit ? 5 : 2;
+            ctx.fillText(dtxt.text, dtxt.x, dtxt.y); ctx.shadowBlur = 0;
+        });
+        ctx.globalAlpha = 1;
+    }
+
+    ctx.restore();
+    let hpRatio = player.hp / player.maxHp; if (hpRatio < 0.2) { let redAlpha = Math.max(0.1, (0.2 - hpRatio) / 0.2 * 0.4); ctx.fillStyle = `rgba(255, 0, 0, ${redAlpha})`; ctx.fillRect(0, 0, W, H); }
+
+    minimapTimer += dt;
+    if (minimapTimer >= 2) { 
+        minimapTimer %= 2; mCtx.clearRect(0, 0, minimap.width, minimap.height); let mmScaleX = minimap.width / MAP_W, mmScaleY = minimap.height / MAP_H, mmScale = Math.min(mmScaleX, mmScaleY); mCtx.fillStyle = '#1a1a1a'; mCtx.fillRect(0, 0, MAP_W * mmScale, MAP_H * mmScale); mCtx.strokeStyle = '#555'; mCtx.lineWidth = 1; mCtx.strokeRect(0, 0, MAP_W * mmScale, MAP_H * mmScale);
+        trashItems.forEach(t => { if (!t.isMedkit) { mCtx.fillStyle = '#00ff88'; mCtx.fillRect(t.x * mmScale - 1, t.y * mmScale - 1, 3, 3); } }); trashItems.forEach(t => { if (t.isMedkit) { mCtx.fillStyle = '#ffff00'; mCtx.beginPath(); mCtx.arc(t.x * mmScale, t.y * mmScale, 2, 0, Math.PI*2); mCtx.fill(); } });
+        zombies.forEach(z => { if (z.type === 'boss' || z.type === 'boss_minion' || z.type.includes('boss')) { mCtx.fillStyle = '#9933ff'; mCtx.beginPath(); mCtx.arc(z.x * mmScale, z.y * mmScale, 3, 0, Math.PI*2); mCtx.fill(); } else { mCtx.fillStyle = '#ff4444'; mCtx.fillRect(z.x * mmScale - 2, z.y * mmScale - 2, 4, 4); } });
+        if(player.hasHelper) { mCtx.fillStyle = '#f1c40f'; mCtx.beginPath(); mCtx.arc(combatHelper.x * mmScale, combatHelper.y * mmScale, 3, 0, Math.PI*2); mCtx.fill(); }
+        mCtx.fillStyle = '#00eeff'; mCtx.beginPath(); mCtx.arc(player.x * mmScale, player.y * mmScale, 4, 0, Math.PI*2); mCtx.fill(); mCtx.strokeStyle = 'rgba(255,255,255,0.3)'; mCtx.lineWidth = 1; mCtx.strokeRect(camera.x * mmScale, camera.y * mmScale, (W/zoom) * mmScale, (H/zoom) * mmScale);
+    }
+    
+    if (navigator.maxTouchPoints > 0) { 
+        ctx.save();
+        ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.beginPath(); ctx.arc(joyL.baseX, joyL.baseY, joyL.maxR, 0, Math.PI*2); ctx.fill(); 
+        ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.beginPath(); ctx.arc(joyL.baseX + joyL.dx, joyL.baseY + joyL.dy, 25, 0, Math.PI*2); ctx.fill(); 
+        ctx.fillStyle = 'rgba(255,100,100,0.1)'; ctx.beginPath(); ctx.arc(joyR.baseX, joyR.baseY, joyR.maxR, 0, Math.PI*2); ctx.fill(); 
+        ctx.fillStyle = 'rgba(255,100,100,0.5)'; ctx.beginPath(); ctx.arc(joyR.baseX + joyR.dx, joyR.baseY + joyR.dy, 25, 0, Math.PI*2); ctx.fill(); 
+        ctx.restore();
+    }
+}
+
+function gameLoop(currentTime) {
+    if (!lastFrameTime) { lastFrameTime = currentTime; requestAnimationFrame(gameLoop); return; }
+    let dtMs = currentTime - lastFrameTime; lastFrameTime = currentTime; let dt = dtMs / 16.6667; if (dt > 3) dt = 3; 
+    update(dt); draw(dt); requestAnimationFrame(gameLoop);
+}
+gameLoop();
+</script>
+</body>
+</html>

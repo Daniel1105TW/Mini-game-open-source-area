@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智慧之塔：學霸挑戰賽</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
+    <!-- 引入彩帶特效套件 -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            color: #f8fafc;
+            overflow-x: hidden;
+            touch-action: manipulation; /* 改善 iOS 點擊體驗 */
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+        .animate-bounce-custom { animation: bounce 0.5s ease-in-out; }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-10px); }
+            40%, 80% { transform: translateX(10px); }
+        }
+        .animate-shake { animation: shake 0.5s; }
+
+        .btn-option {
+            background-color: #1e293b;
+            color: #f1f5f9;
+            border: 2px solid #334155;
+            transition: all 0.2s;
+        }
+        .btn-option:hover {
+            background-color: #334155;
+            border-color: #475569;
+            transform: scale(1.02);
+        }
+        .btn-option:active { transform: scale(0.98); }
+
+        .tower-bg {
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.03) 2px, transparent 2px),
+                linear-gradient(90deg, rgba(255,255,255,0.03) 2px, transparent 2px);
+            background-size: 40px 40px;
+        }
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <!-- 遊戲主容器 -->
+    <div id="game-container" class="w-full max-w-md bg-gray-900/80 backdrop-blur-md rounded-3xl shadow-2xl border border-gray-700 overflow-hidden relative tower-bg">
+        
+        <!-- ================= 畫面 1：開始畫面 ================= -->
+        <div id="screen-start" class="p-8 flex flex-col items-center justify-center min-h-[650px] text-center">
+            <div class="text-6xl mb-4 drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]">🏰</div>
+            <h1 class="text-4xl font-black mb-2 text-yellow-400 drop-shadow-md">智慧之塔</h1>
+            <h2 class="text-xl font-bold mb-8 text-gray-300">學霸挑戰賽</h2>
+            <div class="mb-8 text-gray-300 leading-relaxed bg-black/40 p-5 rounded-xl border border-gray-700 text-sm">
+                題庫隨機抽取 <span class="text-yellow-400 font-bold">50 題</span><br>
+                你有 <span class="text-red-400">❤️❤️❤️</span> 三次機會<br>
+                最快登頂並獲得高分，挑戰排行榜！
+            </div>
+            <button onclick="startGame()" class="w-full mb-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold py-4 px-8 rounded-full text-xl shadow-[0_0_20px_rgba(79,70,229,0.4)] hover:scale-105 transition-transform">
+                開始挑戰 🚀
+            </button>
+            <button onclick="showLeaderboard()" class="w-full bg-gray-800 text-yellow-400 font-bold py-3 px-8 rounded-full shadow-lg border border-gray-600 hover:bg-gray-700 transition-colors">
+                🏆 查看排行榜
+            </button>
+        </div>
+
+        <!-- ================= 畫面 2：遊戲進行中 ================= -->
+        <div id="screen-game" class="hidden flex flex-col min-h-[650px]">
+            <!-- 頂部狀態列 -->
+            <div class="bg-black/60 p-3 flex justify-between items-center border-b border-gray-700 text-sm">
+                <div class="flex flex-col items-start gap-1">
+                    <button onclick="goHome()" class="text-gray-400 hover:text-white transition flex items-center gap-1 text-xs">
+                        🏠 首頁
+                    </button>
+                    <!-- 實體愛心血條 -->
+                    <span id="lives-display" class="text-lg tracking-widest text-red-500">❤️❤️❤️</span>
+                </div>
+                <div class="flex flex-col items-center">
+                    <span class="font-black text-3xl text-yellow-400 drop-shadow-sm" id="floor-display">1F</span>
+                    <span id="timer-display" class="font-mono text-blue-300 font-bold">⏱️ 00:00</span>
+                </div>
+                <div class="flex flex-col items-end">
+                    <span class="text-xs text-gray-400">分數</span>
+                    <span id="score-display" class="font-bold text-green-400 text-xl">0</span>
+                </div>
+            </div>
+
+            <!-- 進度條 -->
+            <div class="w-full h-1.5 bg-gray-800">
+                <div id="progress-bar" class="h-full bg-gradient-to-r from-blue-400 to-purple-500 transition-all duration-500 shadow-[0_0_10px_rgba(168,85,247,0.8)]" style="width: 0%;"></div>
+            </div>
+
+            <!-- 題目區 -->
+            <div class="flex-1 p-6 flex flex-col">
+                <div class="flex justify-between items-start mb-4">
+                    <span id="subject-badge" class="px-3 py-1 rounded-full text-sm font-bold shadow-sm flex items-center gap-1"></span>
+                    <span id="level-badge" class="text-gray-300 text-xs font-bold bg-gray-800 border border-gray-600 px-2 py-1 rounded"></span>
+                </div>
+                
+                <h3 id="question-text" class="text-2xl font-bold mb-6 leading-snug min-h-[80px] text-gray-100">
+                    <!-- 題目內容 -->
+                </h3>
+
+                <!-- 選項區 -->
+                <div id="options-container" class="grid grid-cols-1 gap-3 mt-auto mb-4">
+                    <!-- 動態生成 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= 畫面 3：遊戲結束/結算 ================= -->
+        <div id="screen-result" class="hidden p-8 flex flex-col items-center justify-center min-h-[650px] text-center">
+            <div id="result-icon" class="text-7xl mb-2">💀</div>
+            <h1 id="result-title" class="text-4xl font-black mb-4">遊戲結束</h1>
+            
+            <div class="bg-gray-800/80 p-5 rounded-2xl w-full mb-6 border border-gray-600 shadow-inner grid grid-cols-2 gap-4">
+                <div class="col-span-2">
+                    <p class="text-sm text-gray-400">最終樓層</p>
+                    <p class="text-4xl font-black text-yellow-400" id="final-floor">15F</p>
+                </div>
+                <div class="bg-gray-900 rounded-xl p-3 border border-gray-700">
+                    <p class="text-xs text-gray-400 mb-1">總分</p>
+                    <p class="text-2xl font-bold text-green-400" id="final-score">1500</p>
+                </div>
+                <div class="bg-gray-900 rounded-xl p-3 border border-gray-700">
+                    <p class="text-xs text-gray-400 mb-1">時間</p>
+                    <p class="text-2xl font-mono text-blue-300" id="final-time">02:30</p>
+                </div>
+            </div>
+
+            <!-- 登記排行榜區塊 -->
+            <div id="submit-section" class="w-full mb-6">
+                <input type="text" id="player-name" placeholder="輸入你的暱稱..." class="w-full bg-gray-900 border border-gray-600 text-white px-4 py-3 rounded-xl mb-3 focus:outline-none focus:border-blue-500 text-center">
+                <p id="system-msg" class="text-sm text-red-400 mb-2 hidden"></p>
+                <button onclick="submitScore()" id="btn-submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-xl transition-colors">
+                    📝 登記分數到排行榜
+                </button>
+                <p id="submit-msg" class="text-sm text-green-400 mt-2 hidden">✅ 成績已上傳！</p>
+            </div>
+
+            <div class="flex w-full gap-3">
+                <button onclick="goHome()" class="flex-1 bg-gray-700 text-white font-bold py-3 rounded-xl hover:bg-gray-600 transition-colors">
+                    🏠 首頁
+                </button>
+                <button onclick="startGame()" class="flex-1 bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold py-3 rounded-xl hover:scale-105 transition-transform shadow-[0_0_15px_rgba(249,115,22,0.4)]">
+                    🔄 再戰一次
+                </button>
+            </div>
+        </div>
+
+        <!-- ================= 畫面 4：排行榜 ================= -->
+        <div id="screen-leaderboard" class="hidden flex flex-col min-h-[650px] max-h-[650px]">
+            <div class="p-6 bg-gray-900 border-b border-gray-700 flex justify-between items-center shrink-0">
+                <h2 class="text-2xl font-black text-yellow-400">🏆 英雄榜</h2>
+                <button onclick="goHome()" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm border border-gray-600 hover:bg-gray-700 transition">首頁</button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4 bg-gray-900/50 relative">
+                <div id="loading-leaderboard" class="absolute inset-0 flex items-center justify-center text-gray-400 animate-pulse">
+                    讀取資料中...
+                </div>
+                <div id="leaderboard-list" class="flex flex-col gap-2">
+                    <!-- 排行榜動態生成 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= 對錯回饋與解析覆蓋層 ================= -->
+        <div id="feedback-overlay" class="absolute inset-0 bg-gray-900/95 flex items-center justify-center flex-col z-50 hidden opacity-0 transition-opacity duration-300 p-6 text-center backdrop-blur-md">
+            <div id="feedback-icon" class="text-7xl mb-4 transform scale-50 transition-transform duration-300"></div>
+            <h2 id="feedback-text" class="text-3xl font-black mb-2 text-white"></h2>
+            
+            <!-- 解析區塊 (答錯時顯示) -->
+            <div id="feedback-explanation" class="hidden bg-gray-800 border border-gray-600 p-5 rounded-xl w-full max-w-sm mt-4 text-left shadow-lg">
+                <p class="text-sm text-gray-400 mb-1">正確答案：</p>
+                <p id="correct-ans-text" class="text-lg font-bold text-green-400 mb-3"></p>
+                <p class="text-sm text-gray-400 mb-1">💡 解析提示：</p>
+                <p id="hint-explanation-text" class="text-gray-200 leading-relaxed"></p>
+            </div>
+
+            <!-- 手動跳下一題按鈕 -->
+            <button id="btn-next-question" onclick="nextQuestion()" class="hidden mt-8 bg-gradient-to-r from-blue-600 to-blue-500 text-white font-bold py-3 px-10 rounded-full text-lg shadow-[0_0_15px_rgba(59,130,246,0.5)] hover:scale-105 transition">
+                繼續挑戰 ➡️
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        // ========================================================
+        // 🚨 GAS 網址 (保留你原有的設定)
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbyd2-qBrAOlhwXg4LubylFiACT6OVZZ1S3XO29FeMvzk_7105LD5NeQMExyPxsnP5mX/exec";
+        // ========================================================
+
+        // ================= 音效合成器 (Web Audio API) =================
+        // 這個做法不需依賴外部 MP3 檔案，且能在 iOS 上順利播放
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioContext();
+
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            const now = audioCtx.currentTime;
+            
+            if (type === 'correct') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, now); // C5
+                osc.frequency.setValueAtTime(659.25, now + 0.1); // E5
+                gainNode.gain.setValueAtTime(0, now);
+                gainNode.gain.linearRampToValueAtTime(0.3, now + 0.05);
+                gainNode.gain.linearRampToValueAtTime(0, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (type === 'wrong') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.linearRampToValueAtTime(100, now + 0.3);
+                gainNode.gain.setValueAtTime(0, now);
+                gainNode.gain.linearRampToValueAtTime(0.3, now + 0.05);
+                gainNode.gain.linearRampToValueAtTime(0, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (type === 'win') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.setValueAtTime(554.37, now + 0.15);
+                osc.frequency.setValueAtTime(659.25, now + 0.3);
+                osc.frequency.setValueAtTime(880, now + 0.45);
+                gainNode.gain.setValueAtTime(0.3, now);
+                gainNode.gain.linearRampToValueAtTime(0, now + 1.0);
+                osc.start(now);
+                osc.stop(now + 1.0);
+            } else if (type === 'lose') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.exponentialRampToValueAtTime(50, now + 0.8);
+                gainNode.gain.setValueAtTime(0.2, now);
+                gainNode.gain.linearRampToValueAtTime(0, now + 0.8);
+                osc.start(now);
+                osc.stop(now + 0.8);
+            }
+        }
+
+        // ================= 完整 200 題題庫 (已移除年級前綴) =================
+        const allQuestions = [
+            // === 數學 (34題) ===
+            { subject: "math", level: 1, question: "一個「周角」等於多少度？", options: ["90度", "180度", "270度", "360度"], answer: 3, hint: "周角代表繞圓一整圈的角度喔！" },
+            { subject: "math", level: 1, question: "1公斤（kg）等於多少公克（g）？", options: ["10公克", "100公克", "1000公克", "10000公克"], answer: 2, hint: "Kilo 這個字首有 1000 的意思。" },
+            { subject: "math", level: 2, question: "下列哪一個數字是「質數」？", options: ["9", "11", "15", "21"], answer: 1, hint: "質數是只有 1 和自己兩個因數的數字。" },
+            { subject: "math", level: 2, question: "三角形的面積公式是什麼？", options: ["長 × 寬", "底 × 高", "底 × 高 ÷ 2", "邊長 × 邊長"], answer: 2, hint: "三角形面積是平行四邊形面積的一半。" },
+            { subject: "math", level: 2, question: "分數 1/2 加上 1/4 的結果是多少？", options: ["2/6", "3/4", "1/8", "1/6"], answer: 1, hint: "要先通分喔！1/2 可以變成 2/4。" },
+            { subject: "math", level: 3, question: "圓周率（π）大約等於多少？", options: ["3.14", "3.41", "3.04", "4.13"], answer: 0, hint: "這是圓周長除以直徑的固定比值。" },
+            { subject: "math", level: 3, question: "汽車 2 小時開了 120 公里，它的「時速」是多少？", options: ["60公里", "120公里", "240公里", "100公里"], answer: 0, hint: "速率 = 距離 ÷ 時間。" },
+            { subject: "math", level: 3, question: "地圖上 1 公分代表實際距離 1000 公分，比例尺為？", options: ["1:100", "1:1000", "1:10000", "1:10"], answer: 1, hint: "比例尺就是地圖距離與實際距離的比值。" },
+            { subject: "math", level: 3, question: "半徑 10 公分的圓，面積大約是多少平方公分？", options: ["31.4", "62.8", "314", "3140"], answer: 2, hint: "圓面積 = 半徑 × 半徑 × 3.14。" },
+            { subject: "math", level: 4, question: "如果 2x + 5 = 15，那麼 x 等於多少？", options: ["4", "5", "10", "20"], answer: 1, hint: "先將 15 減去 5，再除以 2。" },
+            { subject: "math", level: 1, question: "正方形的邊長是 5 公分，周長是多少？", options: ["10公分", "15公分", "20公分", "25公分"], answer: 2, hint: "正方形有四個一樣長的邊。" },
+            { subject: "math", level: 1, question: "一天有幾分鐘？", options: ["60分鐘", "1440分鐘", "3600分鐘", "86400分鐘"], answer: 1, hint: "24 小時 × 60 分鐘。" },
+            { subject: "math", level: 2, question: "長方體的體積公式是？", options: ["長+寬+高", "長×寬×高", "底×高÷2", "(長+寬)×2"], answer: 1, hint: "三個維度相乘。" },
+            { subject: "math", level: 2, question: "小數 0.75 化成分數是多少？", options: ["1/4", "1/2", "3/4", "4/5"], answer: 2, hint: "75/100 約分後是多少？" },
+            { subject: "math", level: 2, question: "12 和 18 的最大公因數是？", options: ["2", "3", "6", "36"], answer: 2, hint: "找找能同時整除它們的最大的數。" },
+            { subject: "math", level: 2, question: "4 和 6 的最小公倍數是？", options: ["12", "24", "2", "10"], answer: 0, hint: "找找它們共同的倍數中最小的。" },
+            { subject: "math", level: 3, question: "3/4 乘以 4/5 等於多少？", options: ["12/20", "3/5", "7/9", "以上皆是"], answer: 1, hint: "分子乘分子，分母乘分母，然後約分。" },
+            { subject: "math", level: 3, question: "將 20% 化為小數是？", options: ["2.0", "0.2", "0.02", "20.0"], answer: 1, hint: "百分比除以 100。" },
+            { subject: "math", level: 3, question: "圓柱的體積怎麼算？", options: ["底面積 × 高", "圓周長 × 高", "半徑 × 高", "底面積 ÷ 高"], answer: 0, hint: "就像疊硬幣一樣，把底面積疊高。" },
+            { subject: "math", level: 4, question: "直角三角形中，已知兩股為 3 和 4，斜邊長為何？", options: ["5", "6", "7", "25"], answer: 0, hint: "畢氏定理：a² + b² = c²" },
+            { subject: "math", level: 2, question: "一盒巧克力有 24 顆，平分給 8 個人，每人得幾顆？", options: ["2", "3", "4", "6"], answer: 1, hint: "24 除以 8。" },
+            { subject: "math", level: 1, question: "1 公升等於多少毫升 (ml)？", options: ["10", "100", "1000", "10000"], answer: 2, hint: "和公斤變公克一樣的倍數。" },
+            { subject: "math", level: 2, question: "梯形的面積公式是？", options: ["底×高", "(上底+下底)×高÷2", "長×寬", "對角線相乘÷2"], answer: 1, hint: "要把上底和下底加起來喔。" },
+            { subject: "math", level: 3, question: "一輛車時速 60 公里，開了 30 分鐘，移動了多遠？", options: ["30公里", "60公里", "120公里", "1800公里"], answer: 0, hint: "30 分鐘是半小時。" },
+            { subject: "math", level: 3, question: "某商品定價 500 元，打八折後是多少錢？", options: ["480元", "420元", "400元", "350元"], answer: 2, hint: "500 乘以 0.8。" },
+            { subject: "math", level: 3, question: "3 個蘋果 150 元，5 個蘋果多少元？", options: ["200", "250", "300", "350"], answer: 1, hint: "先算 1 個蘋果多少錢。" },
+            { subject: "math", level: 4, question: "超綱題：-5 加上 8 的結果是？", options: ["-13", "-3", "3", "13"], answer: 2, hint: "欠 5 元，還了 8 元，還剩多少？" },
+            { subject: "math", level: 4, question: "超綱題：2³ (2的3次方) 等於多少？", options: ["5", "6", "8", "9"], answer: 2, hint: "2 × 2 × 2。" },
+            { subject: "math", level: 3, question: "一個圓的直徑是 10，它的周長大約是多少？", options: ["15.7", "31.4", "78.5", "314"], answer: 1, hint: "直徑 × 3.14。" },
+            { subject: "math", level: 2, question: "5/8 和 3/4 哪一個比較大？", options: ["5/8", "3/4", "一樣大", "無法比較"], answer: 1, hint: "通分後比較，3/4 = 6/8。" },
+            { subject: "math", level: 1, question: "一個平角是多少度？", options: ["90度", "180度", "270度", "360度"], answer: 1, hint: "一條直線的角度。" },
+            { subject: "math", level: 2, question: "15 的因數有幾個？", options: ["2個", "3個", "4個", "5個"], answer: 2, hint: "1, 3, 5, 15。" },
+            { subject: "math", level: 3, question: "速率、距離、時間的關係式，哪一個是錯的？", options: ["距離 = 速率 × 時間", "時間 = 距離 ÷ 速率", "速率 = 距離 ÷ 時間", "速率 = 時間 ÷ 距離"], answer: 3, hint: "速率是單位時間內走的距離。" },
+            { subject: "math", level: 4, question: "超綱題：若 x/3 = 12，則 x 等於？", options: ["4", "9", "36", "48"], answer: 2, hint: "兩邊同乘 3。" },
+
+            // === 國語 (34題) ===
+            { subject: "chinese", level: 1, question: "下列哪個字形完全正確？", options: ["辛福", "辛苦", "幸苦", "辛運"], answer: 1, hint: "「辛」與「幸」很容易搞混喔！" },
+            { subject: "chinese", level: 1, question: "「一隻馬」的正確量詞應該是什麼？", options: ["條", "頭", "匹", "口"], answer: 2, hint: "古人計算馬匹數量的特殊單位。" },
+            { subject: "chinese", level: 2, question: "形容人死板不變通，等著不勞而獲。是哪個成語？", options: ["守株待兔", "拔苗助長", "刻舟求劍", "畫蛇添足"], answer: 0, hint: "有個農夫看著兔子撞死在樹上，就天天在樹下等。" },
+            { subject: "chinese", level: 2, question: "「太陽公公露出了微笑」是使用了哪一種修辭法？", options: ["譬喻法", "擬人法", "排比法", "誇飾法"], answer: 1, hint: "把沒有生命的事物當作人來描寫。" },
+            { subject: "chinese", level: 2, question: "「強詞奪理」的「強」字注音為何？", options: ["ㄑㄧㄤˊ", "ㄑㄧㄤˇ", "ㄐㄧㄤˋ", "ㄑㄧㄤ"], answer: 1, hint: "這裡的意思是「勉強、硬要」。" },
+            { subject: "chinese", level: 3, question: "形容下定決心，不顧一切堅持到底的成語是？", options: ["半途而廢", "破釜沉舟", "得寸進尺", "朝三暮四"], answer: 1, hint: "項羽打破鍋子、弄沉船隻，表示決不後退。" },
+            { subject: "chinese", level: 3, question: "用來表示語意轉折、聲音延續或補充說明的標點符號是？", options: ["破折號(——)", "刪節號(……)", "分號(；)", "夾注號( )"], answer: 0, hint: "它是一條長長的直線。" },
+            { subject: "chinese", level: 3, question: "「只要天下雨，我們就不去郊遊。」屬於哪種複句？", options: ["並列複句", "假設複句", "條件複句", "因果複句"], answer: 2, hint: "有一個前提發生，就會導致結果。" },
+            { subject: "chinese", level: 3, question: "被後人稱為「詩仙」的唐代著名詩人是誰？", options: ["杜甫", "白居易", "李白", "王維"], answer: 2, hint: "他寫過《靜夜思》，個性浪漫愛喝酒。" },
+            { subject: "chinese", level: 4, question: "「學而時習之，不亦說乎」出自哪一本經典著作？", options: ["《孟子》", "《論語》", "《莊子》", "《老子》"], answer: 1, hint: "這是孔子與其弟子的語錄。" },
+            { subject: "chinese", level: 1, question: "「白雲像棉花糖一樣」使用了什麼修辭？", options: ["擬人", "譬喻", "誇飾", "排比"], answer: 1, hint: "有「像」這個關鍵字。" },
+            { subject: "chinese", level: 2, question: "下列哪一個成語的意思是「做事沒有恆心」？", options: ["持之以恆", "半途而廢", "滴水穿石", "堅持不懈"], answer: 1, hint: "走到一半就放棄了。" },
+            { subject: "chinese", level: 2, question: "「落花流水」的「落」注音為何？", options: ["ㄌㄨㄛˋ", "ㄌㄠˋ", "ㄌㄚˋ", "ㄌㄜˋ"], answer: 0, hint: "掉下來的意思。" },
+            { subject: "chinese", level: 3, question: "「怒髮衝冠」使用了什麼修辭？", options: ["譬喻", "擬人", "誇飾", "借代"], answer: 2, hint: "生氣到頭髮把帽子頂起來，太誇張了。" },
+            { subject: "chinese", level: 3, question: "被稱為「詩聖」的詩人是誰？", options: ["李白", "杜甫", "王維", "蘇軾"], answer: 1, hint: "寫實派詩人，關心國家社會。" },
+            { subject: "chinese", level: 1, question: "圖書館裡的書，正確的量詞是？", options: ["一張", "一冊", "一輛", "一棟"], answer: 1, hint: "書本的專用單位。" },
+            { subject: "chinese", level: 2, question: "超綱題：「買櫝還珠」比喻什麼？", options: ["眼光獨到", "取捨不當", "愛物惜物", "貪小便宜"], answer: 1, hint: "買了裝珍珠的盒子，卻把珍珠還給賣家。" },
+            { subject: "chinese", level: 3, question: "下列哪一個字沒有錯別字？", options: ["不徑而走", "按步就班", "名列前茅", "再接再勵"], answer: 2, hint: "是不脛而走、按部就班、再接再厲。" },
+            { subject: "chinese", level: 3, question: "超綱題：《三國演義》的作者是誰？", options: ["施耐庵", "吳承恩", "羅貫中", "曹雪芹"], answer: 2, hint: "他寫了關於劉備、曹操、孫權的故事。" },
+            { subject: "chinese", level: 4, question: "「三人行，必有我師焉」是誰說的？", options: ["孔子", "孟子", "老子", "莊子"], answer: 0, hint: "至聖先師說的。" },
+            { subject: "chinese", level: 2, question: "「手不釋卷」形容什麼？", options: ["力氣很大", "非常生氣", "勤奮好學", "手很黏"], answer: 2, hint: "手裡一直拿著書本。" },
+            { subject: "chinese", level: 3, question: "「沉魚落雁」通常用來形容什麼？", options: ["風景美麗", "女子容貌極美", "力氣極大", "非常悲傷"], answer: 1, hint: "美到魚沉下去，大雁掉下來。" },
+            { subject: "chinese", level: 1, question: "「高興」的相反詞是？", options: ["快樂", "悲傷", "生氣", "激動"], answer: 1, hint: "心情不好的意思。" },
+            { subject: "chinese", level: 2, question: "「畫蛇添足」的故事告訴我們什麼？", options: ["畫畫要仔細", "蛇有腳", "多此一舉反而弄巧成拙", "喝酒要快"], answer: 2, hint: "本來沒有腳，硬要畫上去。" },
+            { subject: "chinese", level: 3, question: "「床前明月光」的下一句是？", options: ["疑是地上霜", "舉頭望明月", "低頭思故鄉", "春風吹又生"], answer: 0, hint: "李白的《靜夜思》。" },
+            { subject: "chinese", level: 4, question: "「出師未捷身先死」描寫的是三國時期的哪位人物？", options: ["周瑜", "曹操", "諸葛亮", "關羽"], answer: 2, hint: "蜀漢的丞相。" },
+            { subject: "chinese", level: 2, question: "「迫不及待」的「迫」意思是？", options: ["逼迫", "接近", "急切", "害怕"], answer: 2, hint: "急得不能再等了。" },
+            { subject: "chinese", level: 3, question: "「狐假虎威」中，狐狸藉著誰的威風？", options: ["獅子", "老虎", "大象", "狼"], answer: 1, hint: "成語裡就有答案囉。" },
+            { subject: "chinese", level: 3, question: "超綱題：《西遊記》中，孫悟空的武器是？", options: ["青龍偃月刀", "丈八蛇矛", "金箍棒", "方天畫戟"], answer: 2, hint: "可以變大變小的棒子。" },
+            { subject: "chinese", level: 1, question: "寫信給長輩時，結尾的敬辭應該用？", options: ["敬上", "上", "收", "啟"], answer: 0, hint: "表示尊敬的說法。" },
+            { subject: "chinese", level: 2, question: "超綱題：「指鹿為馬」的人是誰？", options: ["曹操", "趙高", "秦始皇", "董卓"], answer: 1, hint: "秦朝的宦官。" },
+            { subject: "chinese", level: 4, question: "「己所不欲，勿施於人」的意思是？", options: ["自己想要的，也不給別人", "自己不想要的，不要加在別人身上", "別人不要的，自己留著", "自己不想要的，就丟掉"], answer: 1, hint: "要有同理心。" },
+            { subject: "chinese", level: 3, question: "超綱題：「囫圇吞棗」比喻什麼？", options: ["食量很大", "吃東西很快", "理解事物含糊不清", "喜歡吃水果"], answer: 2, hint: "沒有咀嚼就吞下去，比喻沒有理解就接受。" },
+            { subject: "chinese", level: 2, question: "「守信」的相反詞是？", options: ["食言", "坦誠", "誠實", "欺騙"], answer: 0, hint: "把說過的話吃掉。" },
+
+            // === 英文 (33題) ===
+            { subject: "english", level: 1, question: "「星期三」的英文是？", options: ["Monday", "Tuesday", "Wednesday", "Thursday"], answer: 2, hint: "縮寫是 Wed." },
+            { subject: "english", level: 1, question: "在醫院裡照顧病人的「護士」怎麼說？", options: ["doctor", "teacher", "farmer", "nurse"], answer: 3, hint: "字首是 N。" },
+            { subject: "english", level: 2, question: "詢問「在哪裡」要用哪一個疑問詞？", options: ["What", "When", "Where", "Who"], answer: 2, hint: "W-h-e-r-e." },
+            { subject: "english", level: 2, question: "He _______ a book right now.", options: ["read", "is reading", "reads", "reading"], answer: 1, hint: "現在進行式：be動詞 + V-ing。" },
+            { subject: "english", level: 2, question: "秋天的英文是 Fall，還有哪一個字也是秋天？", options: ["spring", "summer", "autumn", "winter"], answer: 2, hint: "字首是 A。" },
+            { subject: "english", level: 3, question: "動詞 \"go\" (去) 的過去式是什麼？", "options": ["goes", "going", "goed", "went"], answer: 3, hint: "這是不規則動詞變化喔！" },
+            { subject: "english", level: 3, question: "_______ I go to the restroom, please?", options: ["Am", "Do", "May", "Are"], answer: 2, hint: "表示請求允許的助動詞。" },
+            { subject: "english", level: 3, question: "Tom is _______ than John. (Tom比John高)", options: ["tall", "taller", "tallest", "more tall"], answer: 1, hint: "單音節形容詞的比較級通常在字尾加 er。" },
+            { subject: "english", level: 3, question: "在特定的星期幾前面，要用哪個介系詞？", "options": ["in", "at", "on", "of"], answer: 2, hint: "___ Monday." },
+            { subject: "english", level: 4, question: "I _______ to Japan three times. (去過三次)", options: ["have been", "am going", "will go", "was"], answer: 0, hint: "表達經驗的「現在完成式」：have + p.p." },
+            { subject: "english", level: 1, question: "「黃色」的英文是？", options: ["Red", "Blue", "Yellow", "Green"], answer: 2, hint: "香蕉的顏色。" },
+            { subject: "english", level: 1, question: "「蘋果」的英文拼法是？", options: ["Apel", "Apple", "Appel", "Aple"], answer: 1, hint: "A-P-P-L-E." },
+            { subject: "english", level: 2, question: "There _______ an apple on the desk.", options: ["is", "are", "am", "be"], answer: 0, hint: "單數名詞用 is。" },
+            { subject: "english", level: 2, question: "詢問「多少錢」要用？", options: ["How many", "How much", "How old", "How long"], answer: 1, hint: "錢是不可數名詞。" },
+            { subject: "english", level: 2, question: "I go to school _______ bus.", options: ["in", "on", "by", "with"], answer: 2, hint: "搭乘交通工具的介系詞。" },
+            { subject: "english", level: 3, question: "動詞 \"eat\" 的過去式是？", options: ["eated", "ate", "eating", "eaten"], answer: 1, hint: "這是不規則動詞。" },
+            { subject: "english", level: 3, question: "This is _______ umbrella.", options: ["a", "an", "the", "some"], answer: 1, hint: "母音開頭的單數名詞前面要加什麼？" },
+            { subject: "english", level: 3, question: "He doesn't _______ to school on Sundays.", options: ["go", "goes", "going", "went"], answer: 0, hint: "助動詞後面接原形動詞。" },
+            { subject: "english", level: 4, question: "If it rains tomorrow, I _______ at home.", options: ["stay", "will stay", "stayed", "am staying"], answer: 1, hint: "條件句第一型，未來式。" },
+            { subject: "english", level: 1, question: "「狗」的英文是？", options: ["Cat", "Bird", "Dog", "Fish"], answer: 2, hint: "汪汪！" },
+            { subject: "english", level: 2, question: "It's cold. Please put _______ your coat.", options: ["in", "on", "off", "up"], answer: 1, hint: "穿上的片語。" },
+            { subject: "english", level: 3, question: "_______ time is it?", options: ["What", "When", "How", "Where"], answer: 0, hint: "問時間的開頭。" },
+            { subject: "english", level: 3, question: "My birthday is _______ October.", options: ["in", "on", "at", "of"], answer: 0, hint: "月份前面用哪個介系詞？" },
+            { subject: "english", level: 2, question: "The elephant is _______ than the mouse.", options: ["big", "bigger", "biggest", "more big"], answer: 1, hint: "比較級，記得重複字尾。" },
+            { subject: "english", level: 3, question: "Listen! The birds _______ in the tree.", options: ["sing", "are singing", "sang", "sings"], answer: 1, hint: "有 Listen 代表動作正在進行。" },
+            { subject: "english", level: 4, question: "He is the _______ boy in our class.", options: ["tall", "taller", "tallest", "most tall"], answer: 2, hint: "最高級，因為有 the。" },
+            { subject: "english", level: 1, question: "「眼睛」的英文是？", options: ["Ear", "Nose", "Eye", "Mouth"], answer: 2, hint: "E-Y-E。" },
+            { subject: "english", level: 2, question: "I like _______ play basketball.", options: ["to", "in", "for", "at"], answer: 0, hint: "like 後面接不定詞。" },
+            { subject: "english", level: 3, question: "She _______ her homework yesterday.", options: ["does", "do", "did", "doing"], answer: 2, hint: "yesterday 表示過去式。" },
+            { subject: "english", level: 3, question: "Would you like _______ water?", options: ["any", "some", "many", "few"], answer: 1, hint: "請求或邀請時，用 some。" },
+            { subject: "english", level: 4, question: "The book was _______ by JK Rowling.", options: ["write", "wrote", "written", "writing"], answer: 2, hint: "被動語態：be動詞 + p.p." },
+            { subject: "english", level: 1, question: "「早安」的英文是？", options: ["Good night", "Good evening", "Good afternoon", "Good morning"], answer: 3, hint: "Morning 是早上的意思。" },
+            { subject: "english", level: 2, question: "I have _______ apples.", options: ["two", "second", "too", "to"], answer: 0, hint: "數字 2 的英文。" },
+
+            // === 自然 (34題) ===
+            { subject: "science", level: 1, question: "判斷是不是「昆蟲」的主要特徵之一是看牠有幾隻腳？", options: ["4隻", "6隻", "8隻", "10隻"], answer: 1, hint: "蜘蛛有8隻腳，所以蜘蛛不是昆蟲。" },
+            { subject: "science", level: 1, question: "水的三態變化中，氣態的水稱為什麼？", options: ["冰", "水", "水蒸氣", "雲"], answer: 2, hint: "水煮開時冒出的白煙中含有看不見的氣體。" },
+            { subject: "science", level: 2, question: "植物進行「光合作用」時，會吸收空氣中的哪一種氣體？", options: ["氧氣", "氮氣", "二氧化碳", "氫氣"], answer: 2, hint: "這是造成地球溫室效應的主要氣體。" },
+            { subject: "science", level: 2, question: "在夜晚的星空中，能夠幫助我們辨識正北方的是哪一顆星？", options: ["天狼星", "北極星", "北斗七星", "織女星"], answer: 1, hint: "它位在小熊座的尾巴。" },
+            { subject: "science", level: 2, question: "燃燒需要「三要素」，包含可燃物、達到燃點以及什麼？", options: ["二氧化碳", "水", "助燃物(氧氣)", "風"], answer: 2, hint: "把蠟燭蓋上玻璃杯，火會熄滅，就是因為少了它。" },
+            { subject: "science", level: 3, question: "把兩個燈泡連接在同一條通路上，其中一個壞掉，另一個也不會亮，這是哪種電路？", options: ["串聯", "並聯", "短路", "斷路"], answer: 0, hint: "像糖葫蘆一樣串在一起。" },
+            { subject: "science", level: 3, question: "槓桿原理中，施力臂大於抗力臂時，會產生什麼效果？", options: ["費力", "省力", "不省力也不費力", "省時"], answer: 1, hint: "例如開瓶器、胡桃鉗。" },
+            { subject: "science", level: 3, question: "臺灣用來表示地震釋放能量大小的單位叫做？", options: ["地震震度", "芮氏規模", "震源深度", "牛頓"], answer: 1, hint: "每次地震只有一個，通常用小數表示（如 7.2）。" },
+            { subject: "science", level: 3, question: "鋼絲絨球在哪種環境下最容易生鏽？", options: ["乾燥無氧", "乾燥有氧", "潮濕無氧", "潮濕有氧"], answer: 3, hint: "生鏽需要水分和氧氣同時存在。" },
+            { subject: "science", level: 4, question: "化學基礎：「碳」的化學元素符號是什麼？", options: ["H", "C", "O", "N"], answer: 1, hint: "Carbon 的字首。" },
+            { subject: "science", level: 1, question: "磁鐵的哪兩極會互相吸引？", options: ["N極和N極", "S極和S極", "N極和S極", "不會吸引"], answer: 2, hint: "異極相吸。" },
+            { subject: "science", level: 1, question: "彩虹通常出現在什麼時候？", options: ["大晴天", "雨後有太陽時", "晚上下雨", "陰天"], answer: 1, hint: "需要水滴和陽光。" },
+            { subject: "science", level: 2, question: "植物的哪一個部位主要負責吸收水分？", options: ["葉子", "莖", "根", "花"], answer: 2, hint: "長在土裡的部分。" },
+            { subject: "science", level: 2, question: "地球自轉一圈大約需要多少時間？", options: ["1小時", "1天", "1個月", "1年"], answer: 1, hint: "造成晝夜交替的時間。" },
+            { subject: "science", level: 2, question: "冰融化成水，是什麼狀態變化？", options: ["固態變液態", "液態變氣態", "氣態變液態", "固態變氣態"], answer: 0, hint: "冰是硬的，水是流動的。" },
+            { subject: "science", level: 3, question: "食物鏈中，綠色植物通常扮演什麼角色？", options: ["生產者", "初級消費者", "次級消費者", "分解者"], answer: 0, hint: "自己製造養分。" },
+            { subject: "science", level: 3, question: "月亮本身會發光嗎？", options: ["會", "不會，是反射太陽光", "會，是反射地球光", "會，裡面有火"], answer: 1, hint: "月亮就像一面鏡子。" },
+            { subject: "science", level: 3, question: "聲音在以下哪種介質中傳播最快？", options: ["空氣", "水", "鋼鐵(固體)", "真空"], answer: 2, hint: "分子越緊密，傳播越快。" },
+            { subject: "science", level: 4, question: "人體的呼吸系統中，氣體交換的主要器官是？", options: ["心臟", "胃", "肺", "肝臟"], answer: 2, hint: "在胸腔裡，像氣球一樣。" },
+            { subject: "science", level: 1, question: "青蛙小時候叫什麼？", options: ["小青蛙", "蝌蚪", "青蛙卵", "毛毛蟲"], answer: 1, hint: "有長長的尾巴，住在水裡。" },
+            { subject: "science", level: 2, question: "電池平平的那一端是正極還是負極？", options: ["正極", "負極", "沒有極性", "不一定"], answer: 1, hint: "凸起來的是正極。" },
+            { subject: "science", level: 3, question: "指南針為什麼能指方向？", options: ["有魔法", "受地球磁場影響", "受風力影響", "受太陽影響"], answer: 1, hint: "地球本身就是個大磁鐵。" },
+            { subject: "science", level: 3, question: "黴菌喜歡生長在什麼樣的環境？", options: ["乾燥寒冷", "溫暖潮濕", "炎熱乾燥", "真空"], answer: 1, hint: "梅雨季東西容易發霉。" },
+            { subject: "science", level: 4, question: "物質由液態直接變成氣態的過程稱為？", options: ["凝結", "凝固", "蒸發", "昇華"], answer: 2, hint: "水變成水蒸氣。" },
+            { subject: "science", level: 2, question: "我們呼吸時，呼出來的氣體主要增加了什麼？", options: ["氧氣", "二氧化碳", "氮氣", "氫氣"], answer: 1, hint: "植物行光合作用需要的氣體。" },
+            { subject: "science", level: 3, question: "滑石、石英、鑽石，哪一個硬度最高？", options: ["滑石", "石英", "鑽石", "一樣硬"], answer: 2, hint: "世界上最硬的天然物質。" },
+            { subject: "science", level: 1, question: "麻雀是屬於哪一類動物？", options: ["哺乳類", "鳥類", "爬蟲類", "兩棲類"], answer: 1, hint: "有羽毛，會飛。" },
+            { subject: "science", level: 2, question: "氣溫通常用什麼儀器測量？", options: ["氣壓計", "濕度計", "溫度計", "風向計"], answer: 2, hint: "裡面有紅色液體或水銀。" },
+            { subject: "science", level: 3, question: "下列哪一種是再生能源？", options: ["煤炭", "石油", "太陽能", "天然氣"], answer: 2, hint: "不會用完的能源。" },
+            { subject: "science", level: 3, question: "溶解在水中的物質，我們稱為什麼？", options: ["溶劑", "溶質", "溶液", "沉澱物"], answer: 1, hint: "例如糖水中的糖。" },
+            { subject: "science", level: 4, question: "光在真空中的傳播速度大約是每秒幾萬公里？", options: ["3萬", "30萬", "300萬", "無限大"], answer: 1, hint: "一秒鐘可以繞地球七圈半。" },
+            { subject: "science", level: 2, question: "仙人掌的葉子退化成針狀，是為了適應什麼環境？", options: ["寒冷", "多雨", "乾燥缺水", "強風"], answer: 2, hint: "減少水分散失。" },
+            { subject: "science", level: 3, question: "造成鐵釘生鏽的主要原因是鐵和什麼結合？", options: ["氮氣", "二氧化碳", "水和氧氣", "氫氣"], answer: 2, hint: "需要兩個條件同時存在。" },
+            { subject: "science", level: 1, question: "白天我們能看見東西，主要的光源是？", options: ["月亮", "星星", "路燈", "太陽"], answer: 3, hint: "天上最大最亮的那顆。" },
+
+            // === 社會 (34題) ===
+            { subject: "social", level: 1, question: "原住民族會在農作物收成後舉辦祭典，例如阿美族的？", options: ["飛魚祭", "打耳祭", "豐年祭", "矮靈祭"], answer: 2, hint: "慶祝農作豐收的祭典。" },
+            { subject: "social", level: 1, question: "如果在路上撿到錢包，應該交給哪個機構最適合？", options: ["消防局", "警察局", "衛生所", "區公所"], answer: 1, hint: "維護治安、處理遺失物的機關。" },
+            { subject: "social", level: 2, question: "台灣島上最高的主峰是哪一座山？", options: ["雪山", "阿里山", "陽明山", "玉山"], answer: 3, hint: "海拔 3952 公尺。" },
+            { subject: "social", level: 2, question: "荷蘭人統治台灣時期，在台南建立的行政中心是？", options: ["紅毛城", "熱蘭遮城(安平古堡)", "億載金城", "赤崁樓"], answer: 1, hint: "位於今天的安平區。" },
+            { subject: "social", level: 2, question: "台灣氣候以哪一條緯線分為熱帶與副熱帶季風氣候？", options: ["赤道", "北回歸線", "南回歸線", "本初子午線"], answer: 1, hint: "經過嘉義水上鄉與花蓮瑞穗鄉。" },
+            { subject: "social", level: 3, question: "中華民國政府中，負責「審查法案與預算」的機關是？", options: ["行政院", "立法院", "司法院", "監察院"], answer: 1, hint: "由立法委員組成的院。" },
+            { subject: "social", level: 3, question: "世界上共有五大洋，其中面積最大的是哪一個？", options: ["大西洋", "印度洋", "太平洋", "北極洋"], answer: 2, hint: "台灣東邊緊鄰的海洋。" },
+            { subject: "social", level: 3, question: "下列關於「投資理財」的觀念，何者正確？", options: ["一定會賺錢", "報酬越高風險也越高", "把錢藏床下最聰明", "借錢投資最安全"], answer: 1, hint: "天下沒有白吃的午餐。" },
+            { subject: "social", level: 3, question: "我國人民年滿幾歲才具有「總統選舉」的投票權？", options: ["18歲", "20歲", "23歲", "25歲"], answer: 1, hint: "公投是18歲，選舉權是這個歲數。" },
+            { subject: "social", level: 4, question: "第二次世界大戰在哪一年正式結束？", options: ["1911", "1939", "1945", "1980"], answer: 2, hint: "同一年台灣結束日治時期。" },
+            { subject: "social", level: 1, question: "台灣最長的河流是哪一條？", options: ["淡水河", "大甲溪", "濁水溪", "高屏溪"], answer: 2, hint: "水看起來濁濁的。" },
+            { subject: "social", level: 2, question: "清朝時期，誰在台灣建了第一條鐵路？", options: ["鄭成功", "劉銘傳", "沈葆楨", "八田與一"], answer: 1, hint: "台灣建省後的第一任巡撫。" },
+            { subject: "social", level: 2, question: "達悟族主要居住在哪個外島，並以捕飛魚聞名？", options: ["綠島", "蘭嶼", "金門", "馬祖"], answer: 1, hint: "有傳統的拼板舟。" },
+            { subject: "social", level: 3, question: "負責解釋憲法、統一解釋法律及命令的機關是？", options: ["考試院", "監察院", "行政院", "司法院"], answer: 3, hint: "大法官所屬的院。" },
+            { subject: "social", level: 3, question: "台灣的地形主體主要是哪一種？", options: ["平原", "盆地", "山地", "台地"], answer: 2, hint: "中央山脈佔了很大的面積。" },
+            { subject: "social", level: 4, question: "聯合國的總部設立在哪個城市？", options: ["倫敦", "巴黎", "紐約", "日內瓦"], answer: 2, hint: "美國的大城市，有自由女神像。" },
+            { subject: "social", level: 1, question: "我們常說的「雙十節」是紀念哪一個歷史事件？", options: ["台灣光復", "武昌起義", "抗戰勝利", "開國紀念"], answer: 1, hint: "國慶日的由來。" },
+            { subject: "social", level: 2, question: "地球表面，海洋與陸地的面積比例大約是多少？", options: ["5:5", "7:3", "3:7", "9:1"], answer: 1, hint: "地球是一顆「水」的星球。" },
+            { subject: "social", level: 3, question: "「需求法則」指出，當商品價格上漲時，需求量通常會？", options: ["增加", "減少", "不變", "無法確定"], answer: 1, hint: "東西變貴了，想買的人就變少了。" },
+            { subject: "social", level: 3, question: "明鄭時期，鄭成功趕走哪國人收復台灣？", options: ["西班牙人", "葡萄牙人", "荷蘭人", "日本人"], answer: 2, hint: "紅毛城、熱蘭遮城的建造者。" },
+            { subject: "social", level: 2, question: "遇到火災時，應該撥打哪一支緊急電話？", options: ["110", "119", "165", "113"], answer: 1, hint: "找消防隊。" },
+            { subject: "social", level: 3, question: "世界上人口最多的國家是？(截至2023年)", options: ["美國", "中國", "印度", "俄羅斯"], answer: 2, hint: "近期超越中國的南亞國家。" },
+            { subject: "social", level: 4, question: "我國憲法規定，國民的基本義務不包含下列何者？", options: ["納稅", "服兵役", "受國民教育", "選舉"], answer: 3, hint: "選舉是權利，不是強制的義務。" },
+            { subject: "social", level: 1, question: "台灣位於地球的哪半球？", options: ["東半球、北半球", "西半球、北半球", "東半球、南半球", "西半球、南半球"], answer: 0, hint: "在赤道以北，本初子午線以東。" },
+            { subject: "social", level: 2, question: "下列哪一個節日有吃粽子、划龍舟的習俗？", options: ["春節", "清明節", "端午節", "中秋節"], answer: 2, hint: "紀念屈原的節日。" },
+            { subject: "social", level: 3, question: "負責彈劾違法失職公務員的機關是？", options: ["行政院", "立法院", "司法院", "監察院"], answer: 3, hint: "國家的防腐劑。" },
+            { subject: "social", level: 3, question: "嘉南大圳主要是誰設計建造的？", options: ["劉銘傳", "八田與一", "後藤新平", "沈葆楨"], answer: 1, hint: "日治時期的水利工程師。" },
+            { subject: "social", level: 4, question: "「機會成本」的意思是？", options: ["買東西的錢", "選擇一項而放棄的其他選項中價值最高的", "投資賺的錢", "生產東西的成本"], answer: 1, hint: "有得必有失。" },
+            { subject: "social", level: 2, question: "台灣有幾個直轄市（六都）？", options: ["4個", "5個", "6個", "7個"], answer: 2, hint: "北北桃中南高。" },
+            { subject: "social", level: 3, question: "下列哪一個不是台灣國家公園？", options: ["墾丁", "太魯閣", "阿里山", "玉山"], answer: 2, hint: "阿里山是國家風景區，不是國家公園。" },
+            { subject: "social", level: 2, question: "防範詐騙的專線電話是？", options: ["110", "119", "165", "113"], answer: 2, hint: "反詐騙專線。" },
+            { subject: "social", level: 3, question: "台灣氣候夏天常有的天然災害是？", options: ["暴風雪", "颱風", "沙塵暴", "海嘯"], answer: 1, hint: "會帶來強風豪雨。" },
+            { subject: "social", level: 1, question: "太陽是從哪邊升起？", options: ["東邊", "西邊", "南邊", "北邊"], answer: 0, hint: "日出東方。" },
+            { subject: "social", level: 4, question: "工業革命最早起源於哪一個國家？", options: ["美國", "法國", "德國", "英國"], answer: 3, hint: "瓦特改良蒸汽機的地方。" },
+
+            // === 科技/資訊 (33題) ===
+            { subject: "tech", level: 1, question: "滑鼠的「左鍵快速點擊兩下（雙擊）」通常代表什麼？", options: ["開啟檔案", "刪除檔案", "顯示右鍵選單", "關機"], answer: 0, hint: "就像敲兩下門一樣把門打開。" },
+            { subject: "tech", level: 1, question: "為了保護視力，使用電腦時應該遵守哪種原則？", options: ["關燈看螢幕", "看30分休息10分", "螢幕越亮越好", "貼近螢幕"], answer: 1, hint: "眼睛也需要下課休息！" },
+            { subject: "tech", level: 2, question: "設定網路密碼時，下列哪一種設定最不安全？", options: ["加數字", "使用自己的生日", "超過8個字元", "加上特殊符號"], answer: 1, hint: "駭客最容易猜到的就是公開個人資料。" },
+            { subject: "tech", level: 2, question: "超綱題：在微軟 Office 軟體中，「Word」主要是做什麼的？", "options": ["畫圖", "上網", "文書處理", "剪輯影片"], answer: 2, hint: "它的圖示是一個藍色的 W。" },
+            { subject: "tech", level: 2, question: "收到「免費送貼圖點這個連結」的訊息，正確做法是？", options: ["趕快點擊", "轉傳給好友", "查證是否為詐騙", "輸入密碼領取"], answer: 2, hint: "網路上來路不明的好康通常是陷阱。" },
+            { subject: "tech", level: 3, question: "在 Scratch 中，「重複無限次」積木屬於什麼？", options: ["條件判斷", "迴圈", "變數", "事件"], answer: 1, hint: "讓程式不斷繞圈圈執行。" },
+            { subject: "tech", level: 3, question: "超綱題：電腦容量單位中，1GB 大約等於多少 MB？", options: ["10", "100", "1024", "10000"], answer: 2, hint: "在電腦二進位世界裡，通常是 1024 倍。" },
+            { subject: "tech", level: 3, question: "超綱題：負責進行所有運算，被稱為「電腦大腦」的硬體是？", options: ["螢幕", "滑鼠", "中央處理器(CPU)", "硬碟"], answer: 2, hint: "Central Processing Unit 的縮寫。" },
+            { subject: "tech", level: 3, question: "網路上搜尋到的圖片，可以直接印在商品上賣嗎？", options: ["可以，免費的", "不行，侵犯著作權", "改個顏色就可以", "不被發現就好"], answer: 1, hint: "別人的心血創作受法律保護。" },
+            { subject: "tech", level: 4, question: "電腦最底層運作只看得懂哪兩個數字組合的「二進位」？", options: ["1和2", "0和1", "9和10", "A和B"], answer: 1, hint: "代表電路的「開」與「關」。" },
+            { subject: "tech", level: 1, question: "鍵盤上用來把字刪除的按鍵是？", options: ["Enter", "Shift", "Backspace", "Space"], answer: 2, hint: "向後退的按鍵。" },
+            { subject: "tech", level: 1, question: "用來輸入文字的設備是？", options: ["滑鼠", "鍵盤", "螢幕", "印表機"], answer: 1, hint: "上面有很多字母按鍵。" },
+            { subject: "tech", level: 2, question: "超綱題：要將畫面上的字變大或變小，可以按住Ctrl加上滑鼠的？", options: ["左鍵", "右鍵", "滾輪", "側鍵"], answer: 2, hint: "在滑鼠中間可以轉動的零件。" },
+            { subject: "tech", level: 2, question: "做簡報最常用的軟體是？", options: ["Word", "Excel", "Canva", "小畫家"], answer: 2, hint: "圖示是橘紅色的 P。" },
+            { subject: "tech", level: 3, question: "超綱題：儲存資料，關機後資料不會消失的硬體是？", options: ["CPU", "RAM (記憶體)", "硬碟 (HDD/SSD)", "顯示卡"], answer: 2, hint: "像是電腦的長期記憶區。" },
+            { subject: "tech", level: 3, question: "超綱題：網址前面常常有 https，那個 's' 代表什麼？", options: ["Super", "Secure (安全)", "System", "Speed"], answer: 1, hint: "表示資料傳輸有加密保護。" },
+            { subject: "tech", level: 3, question: "在寫程式時，用來存儲會改變的數值（如分數）的東西叫？", options: ["迴圈", "判斷式", "變數", "函數"], answer: 2, hint: "一個可以改變內容的箱子。" },
+            { subject: "tech", level: 4, question: "AI 的全名翻譯是什麼？", options: ["人工智慧", "自動互聯網", "進階介面", "防毒軟體"], answer: 0, hint: "Artificial Intelligence。" },
+            { subject: "tech", level: 1, question: "想要把電腦畫面印在紙上，需要什麼設備？", options: ["掃描器", "投影機", "印表機", "數據機"], answer: 2, hint: "可以噴墨或雷射列印。" },
+            { subject: "tech", level: 2, question: "Ctrl + C 的快捷鍵功能是？", options: ["貼上", "剪下", "複製", "存檔"], answer: 2, hint: "Copy 的字首。" },
+            { subject: "tech", level: 2, question: "Ctrl + V 的快捷鍵功能是？", options: ["貼上", "剪下", "複製", "存檔"], answer: 0, hint: "通常跟複製搭配使用。" },
+            { subject: "tech", level: 3, question: "「雲端硬碟」是指把檔案存在哪裡？", options: ["天上的雲裡", "自己的隨身碟", "網路上的伺服器", "電腦螢幕裡"], answer: 2, hint: "透過網路連接的儲存空間。" },
+            { subject: "tech", level: 3, question: "遇到網路霸凌時，應該怎麼做？", options: ["罵回去", "默默忍受", "截圖存證並告訴師長", "刪除帳號逃避"], answer: 2, hint: "保護自己，尋求大人幫助。" },
+            { subject: "tech", level: 4, question: "電腦網路中，IP 位址的作用類似於現實生活中的？", options: ["身分證字號", "門牌號碼", "電話號碼", "銀行帳號"], answer: 1, hint: "告訴別人資料要送到哪裡。" },
+            { subject: "tech", level: 2, question: "要重新整理網頁，通常按鍵盤上的哪個鍵？", options: ["F1", "F5", "Esc", "Enter"], answer: 1, hint: "在鍵盤最上排。" },
+            { subject: "tech", level: 3, question: "影片檔案常見的副檔名是哪一個？", options: [".jpg", ".mp3", ".mp4", ".txt"], answer: 2, hint: "包含影像和聲音的格式。" },
+            { subject: "tech", level: 3, question: "超綱題：如果電腦突然當機沒有反應，可以嘗試按什麼組合鍵叫出工作管理員？", options: ["Ctrl+Alt+Del", "Shift+Enter", "Alt+F4", "Windows+D"], answer: 0, hint: "經典的強制中斷組合鍵。" },
+            { subject: "tech", level: 4, question: "超綱題：HTML 主要是用來製作什麼的語言？", options: ["手機APP", "網頁結構", "3D遊戲", "資料庫"], answer: 1, hint: "瀏覽器看得懂的標籤語言。" },
+            { subject: "tech", level: 1, question: "關閉視窗右上角的 'X' 按鈕，顏色通常是？", options: ["綠色", "藍色", "黃色", "紅色"], answer: 3, hint: "代表警告或停止的顏色。" },
+            { subject: "tech", level: 2, question: "超綱題：要計算全班成績平均，最適合用哪套軟體？", options: ["Word", "PowerPoint", "Excel", "小畫家"], answer: 2, hint: "綠色圖示的試算表軟體。" },
+            { subject: "tech", level: 3, question: "哪一種軟體可以保護電腦不被病毒破壞？", options: ["防毒軟體", "瀏覽器", "壓縮軟體", "影音播放器"], answer: 0, hint: "幫電腦戴口罩打疫苗的軟體。" },
+            { subject: "tech", level: 3, question: "我們平常上網看網頁使用的軟體叫做？", options: ["作業系統", "瀏覽器", "編輯器", "驅動程式"], answer: 1, hint: "例如 Chrome, Edge, Safari。" },
+            { subject: "tech", level: 4, question: "超綱題：在程式設計中，If...Else 代表什麼結構？", options: ["迴圈", "條件判斷", "陣列", "函式"], answer: 1, hint: "如果下雨就帶傘，否則不帶傘。" }
+        ];
+
+        // 各科目的視覺風格
+        const subjectStyles = {
+            "math": { icon: "🧮", name: "數學", color: "bg-blue-600/30 border-blue-500 text-blue-200 border" },
+            "chinese": { icon: "📖", name: "國語", color: "bg-red-600/30 border-red-500 text-red-200 border" },
+            "english": { icon: "🔤", name: "英文", color: "bg-yellow-600/30 border-yellow-500 text-yellow-200 border" },
+            "science": { icon: "🔬", name: "自然", color: "bg-green-600/30 border-green-500 text-green-200 border" },
+            "social": { icon: "🌍", name: "社會", color: "bg-orange-600/30 border-orange-500 text-orange-200 border" },
+            "tech": { icon: "💻", name: "資訊", color: "bg-purple-600/30 border-purple-500 text-purple-200 border" }
+        };
+
+        // ================= 遊戲變數與 DOM 元素 =================
+        let currentQuestions = [];
+        let currentQuestionIndex = 0;
+        let floor = 1;
+        let lives = 3;
+        const maxLives = 3;
+        let score = 0;
+        let isAnswering = false;
+        const TOTAL_QUESTIONS = 50; // 隨機抽選 50 題
+        
+        let timerInterval;
+        let secondsElapsed = 0;
+
+        const els = {
+            screens: {
+                start: document.getElementById('screen-start'),
+                game: document.getElementById('screen-game'),
+                result: document.getElementById('screen-result'),
+                leaderboard: document.getElementById('screen-leaderboard')
+            },
+            lives: document.getElementById('lives-display'),
+            floor: document.getElementById('floor-display'),
+            score: document.getElementById('score-display'),
+            timer: document.getElementById('timer-display'),
+            progressBar: document.getElementById('progress-bar'),
+            subjectBadge: document.getElementById('subject-badge'),
+            levelBadge: document.getElementById('level-badge'),
+            questionText: document.getElementById('question-text'),
+            optionsContainer: document.getElementById('options-container'),
+            feedbackOverlay: document.getElementById('feedback-overlay'),
+            feedbackIcon: document.getElementById('feedback-icon'),
+            feedbackText: document.getElementById('feedback-text'),
+            feedbackExplanation: document.getElementById('feedback-explanation'),
+            correctAnsText: document.getElementById('correct-ans-text'),
+            hintText: document.getElementById('hint-explanation-text'),
+            btnNext: document.getElementById('btn-next-question'),
+            systemMsg: document.getElementById('system-msg')
+        };
+
+        // ================= 遊戲核心邏輯 =================
+        
+        // 洗牌演算法
+        function shuffle(array) {
+            let currentIndex = array.length, randomIndex;
+            while (currentIndex != 0) {
+                randomIndex = Math.floor(Math.random() * currentIndex);
+                currentIndex--;
+                [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+            }
+            return array;
+        }
+
+        function showScreen(name) {
+            Object.values(els.screens).forEach(s => s.classList.add('hidden'));
+            els.screens[name].classList.remove('hidden');
+        }
+
+        function goHome() {
+            clearInterval(timerInterval);
+            showScreen('start');
+        }
+
+        function startGame() {
+            // 解鎖 iOS 音效限制
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            // 洗牌並只抽取 50 題
+            const shuffledBank = shuffle([...allQuestions]);
+            currentQuestions = shuffledBank.slice(0, TOTAL_QUESTIONS);
+            
+            currentQuestionIndex = 0;
+            floor = 1;
+            lives = maxLives;
+            score = 0;
+            secondsElapsed = 0;
+            
+            document.getElementById('submit-msg').classList.add('hidden');
+            document.getElementById('btn-submit').classList.remove('hidden');
+            document.getElementById('btn-submit').disabled = false;
+            document.getElementById('btn-submit').innerHTML = "📝 登記分數到排行榜";
+            document.getElementById('player-name').value = "";
+            els.systemMsg.classList.add('hidden');
+
+            updateUI();
+            startTimer();
+            loadQuestion();
+            showScreen('game');
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            els.timer.textContent = "⏱️ 00:00";
+            timerInterval = setInterval(() => {
+                secondsElapsed++;
+                const m = String(Math.floor(secondsElapsed / 60)).padStart(2, '0');
+                const s = String(secondsElapsed % 60).padStart(2, '0');
+                els.timer.textContent = `⏱️ ${m}:${s}`;
+            }, 1000);
+        }
+
+        function updateUI() {
+            els.lives.innerHTML = '❤️'.repeat(lives) + '<span class="opacity-20 filter grayscale">❤️</span>'.repeat(maxLives - lives);
+            els.floor.textContent = floor + "F";
+            els.score.textContent = score;
+            const progress = (floor / TOTAL_QUESTIONS) * 100;
+            els.progressBar.style.width = `${progress}%`;
+        }
+
+        function loadQuestion() {
+            if (currentQuestionIndex >= currentQuestions.length || lives <= 0) {
+                endGame();
+                return;
+            }
+
+            isAnswering = false;
+            const q = currentQuestions[currentQuestionIndex];
+            const style = subjectStyles[q.subject] || { icon: "❓", name: "綜合", color: "bg-gray-700 text-gray-200" };
+
+            els.subjectBadge.className = `px-3 py-1 rounded-full text-sm font-bold shadow-sm flex items-center gap-1 ${style.color}`;
+            els.subjectBadge.innerHTML = `<span>${style.icon}</span> ${style.name}`;
+            els.levelBadge.textContent = q.level === 4 ? "超綱 🌟" : `L${q.level}`;
+            els.questionText.textContent = q.question;
+            
+            els.optionsContainer.innerHTML = '';
+            q.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = "btn-option w-full font-bold text-lg py-4 px-6 rounded-2xl text-left focus:outline-none flex gap-3";
+                btn.innerHTML = `<span class="text-blue-400 font-black">${String.fromCharCode(65 + idx)}.</span> <span>${opt}</span>`;
+                btn.onclick = () => checkAnswer(idx, btn);
+                els.optionsContainer.appendChild(btn);
+            });
+            
+            if (floor > 1) {
+                document.getElementById('game-container').classList.add('animate-bounce-custom');
+                setTimeout(() => document.getElementById('game-container').classList.remove('animate-bounce-custom'), 500);
+            }
+        }
+
+        function checkAnswer(selectedIndex, btnElement) {
+            if (isAnswering) return;
+            isAnswering = true;
+
+            const q = currentQuestions[currentQuestionIndex];
+            const isCorrect = (selectedIndex === q.answer);
+
+            if (isCorrect) {
+                playSound('correct'); // 播放答對音效
+                
+                btnElement.style.backgroundColor = "#16a34a";
+                btnElement.style.borderColor = "#4ade80";
+                
+                score += (q.level * 100);
+                
+                confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#facc15', '#4ade80', '#60a5fa'] });
+
+                setTimeout(() => {
+                    floor++;
+                    currentQuestionIndex++;
+                    updateUI();
+                    loadQuestion();
+                }, 1000);
+
+            } else {
+                playSound('wrong'); // 播放答錯音效
+                
+                btnElement.style.backgroundColor = "#dc2626";
+                btnElement.style.borderColor = "#f87171";
+                document.getElementById('game-container').classList.add('animate-shake');
+                
+                lives--;
+                updateUI();
+                
+                els.feedbackOverlay.classList.remove('hidden');
+                setTimeout(() => {
+                    els.feedbackOverlay.classList.remove('opacity-0');
+                    els.feedbackIcon.classList.remove('scale-50');
+                    els.feedbackIcon.classList.add('scale-100');
+                }, 10);
+
+                els.feedbackIcon.textContent = "❌";
+                els.feedbackText.textContent = lives > 0 ? "喔不，答錯了！" : "生命值耗盡！";
+                
+                els.correctAnsText.textContent = q.options[q.answer];
+                els.hintText.textContent = q.hint;
+                els.feedbackExplanation.classList.remove('hidden');
+                els.btnNext.classList.remove('hidden');
+            }
+        }
+
+        function nextQuestion() {
+            document.getElementById('game-container').classList.remove('animate-shake');
+            
+            els.feedbackOverlay.classList.add('opacity-0');
+            els.feedbackIcon.classList.remove('scale-100');
+            els.feedbackIcon.classList.add('scale-50');
+            
+            setTimeout(() => {
+                els.feedbackOverlay.classList.add('hidden');
+                els.feedbackExplanation.classList.add('hidden');
+                els.btnNext.classList.add('hidden');
+                
+                if (lives <= 0) {
+                    endGame();
+                } else {
+                    currentQuestionIndex++;
+                    loadQuestion();
+                }
+            }, 300);
+        }
+
+        function endGame() {
+            clearInterval(timerInterval);
+            document.getElementById('final-floor').textContent = floor + "F";
+            document.getElementById('final-score').textContent = score;
+            
+            const m = String(Math.floor(secondsElapsed / 60)).padStart(2, '0');
+            const s = String(secondsElapsed % 60).padStart(2, '0');
+            document.getElementById('final-time').textContent = `${m}:${s}`;
+            
+            const rTitle = document.getElementById('result-title');
+            if (lives <= 0) {
+                playSound('lose'); // 播放失敗音效
+                document.getElementById('result-icon').textContent = "💥";
+                rTitle.textContent = "挑戰失敗";
+                rTitle.className = "text-4xl font-black mb-4 text-red-400";
+            } else {
+                playSound('win'); // 播放過關音效
+                document.getElementById('result-icon').textContent = "👑";
+                rTitle.textContent = "完全制霸！";
+                rTitle.className = "text-4xl font-black mb-4 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600";
+                confetti({ particleCount: 300, spread: 120, origin: { y: 0.6 }});
+            }
+
+            showScreen('result');
+        }
+
+        // ================= 排行榜串接 (GAS) =================
+        function showMessage(msg, isError = true) {
+            els.systemMsg.textContent = msg;
+            els.systemMsg.classList.remove('hidden');
+            if(isError) {
+                els.systemMsg.classList.replace('text-green-400', 'text-red-400');
+            } else {
+                els.systemMsg.classList.replace('text-red-400', 'text-green-400');
+            }
+        }
+
+        async function submitScore() {
+            const nameInput = document.getElementById('player-name').value.trim();
+            if (!nameInput) {
+                showMessage("請輸入你的暱稱再上傳喔！", true);
+                return;
+            }
+            if (GAS_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
+                showMessage("開發者提示：尚未設定 GAS_URL 變數，無法同步資料。", true);
+                return;
+            }
+
+            els.systemMsg.classList.add('hidden');
+            const btn = document.getElementById('btn-submit');
+            btn.innerHTML = "⏳ 資料上傳中...";
+            btn.disabled = true;
+
+            const payload = {
+                name: nameInput,
+                score: score,
+                time: secondsElapsed
+            };
+
+            try {
+                await fetch(GAS_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(payload),
+                    headers: {
+                        "Content-Type": "text/plain;charset=utf-8"
+                    }
+                });
+                
+                btn.classList.add('hidden');
+                document.getElementById('submit-msg').classList.remove('hidden');
+            } catch (error) {
+                console.error("上傳失敗", error);
+                showMessage("上傳失敗，請確認網路連線。", true);
+                btn.innerHTML = "📝 重新登記分數";
+                btn.disabled = false;
+            }
+        }
+
+        async function showLeaderboard() {
+            showScreen('leaderboard');
+            const listEl = document.getElementById('leaderboard-list');
+            const loading = document.getElementById('loading-leaderboard');
+            listEl.innerHTML = "";
+            loading.classList.remove('hidden');
+
+            if (GAS_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
+                loading.classList.add('hidden');
+                listEl.innerHTML = `<div class="text-center text-red-500 py-10">無法讀取：<br>尚未設定後端 Google Apps Script 網址。</div>`;
+                return;
+            }
+
+            try {
+                const response = await fetch(GAS_URL);
+                const data = await response.json();
+                
+                loading.classList.add('hidden');
+
+                if (data.length === 0) {
+                    listEl.innerHTML = `<div class="text-center text-gray-500 py-10">目前還沒有英雄登記喔！<br>趕快成為第一個吧！</div>`;
+                    return;
+                }
+
+                data.forEach((row, index) => {
+                    let rankStyle = "bg-gray-800 border-gray-700 text-gray-300";
+                    let rankIcon = `#${index + 1}`;
+                    if (index === 0) { rankStyle = "bg-yellow-900/40 border-yellow-500 text-yellow-300"; rankIcon = "🥇"; }
+                    if (index === 1) { rankStyle = "bg-gray-400/20 border-gray-400 text-gray-300"; rankIcon = "🥈"; }
+                    if (index === 2) { rankStyle = "bg-orange-900/40 border-orange-500 text-orange-300"; rankIcon = "🥉"; }
+
+                    const m = String(Math.floor(row.time / 60)).padStart(2, '0');
+                    const s = String(row.time % 60).padStart(2, '0');
+
+                    listEl.innerHTML += `
+                        <div class="flex items-center justify-between p-4 rounded-xl border ${rankStyle} hover:bg-gray-700/50 transition">
+                            <div class="flex items-center gap-4">
+                                <span class="text-2xl font-black w-8 text-center">${rankIcon}</span>
+                                <span class="font-bold text-lg">${row.name}</span>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-xl font-black text-green-400">${row.score} <span class="text-xs font-normal text-gray-400">分</span></div>
+                                <div class="text-xs text-blue-300 font-mono tracking-wider">⏱️ ${m}:${s}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch (error) {
+                loading.classList.add('hidden');
+                listEl.innerHTML = `<div class="text-center text-red-500 py-10">讀取排行榜失敗，請重新整理或確認網路。</div>`;
+            }
+        }
+    </script>
+</body>
+</html>

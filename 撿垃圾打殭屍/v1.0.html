@@ -1,0 +1,1242 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🗑️ 撿垃圾打殭屍 🧟</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #1a1a2e;
+            color: #fff;
+            font-family: 'Microsoft JhengHei', Arial, sans-serif;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        #intro-screen {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .intro-box {
+            background: rgba(0,0,0,0.7);
+            border: 2px solid #00ff88;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 700px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 0 30px rgba(0,255,136,0.3);
+        }
+
+        .intro-box h1 {
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            color: #00ff88;
+            text-shadow: 0 0 20px rgba(0,255,136,0.5);
+        }
+
+        .intro-box h2 {
+            color: #ffcc00;
+            margin: 20px 0 10px;
+            font-size: 1.3em;
+            border-bottom: 1px solid #ffcc0055;
+            padding-bottom: 5px;
+        }
+
+        .intro-box p, .intro-box li {
+            font-size: 1em;
+            line-height: 1.8;
+            color: #ddd;
+        }
+
+        .intro-box ul {
+            padding-left: 20px;
+        }
+
+        .intro-box li {
+            margin: 5px 0;
+        }
+
+        .weapon-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+
+        .weapon-table th, .weapon-table td {
+            border: 1px solid #555;
+            padding: 8px 12px;
+            text-align: center;
+        }
+
+        .weapon-table th {
+            background: #333;
+            color: #ffcc00;
+        }
+
+        .weapon-table td {
+            background: #222;
+        }
+
+        .weapon-table tr.sniper-row td {
+            background: #1a1a00;
+            color: #00eeff;
+        }
+
+        .emoji-icon {
+            font-size: 1.5em;
+        }
+
+        #start-btn {
+            display: block;
+            margin: 30px auto 0;
+            padding: 15px 60px;
+            font-size: 1.5em;
+            font-weight: bold;
+            background: linear-gradient(45deg, #00ff88, #00cc6a);
+            color: #000;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+
+        #start-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 30px rgba(0,255,136,0.6);
+        }
+
+        #game-container {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        canvas {
+            display: block;
+            background: #2d2d44;
+        }
+
+        #hud {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .hud-left, .hud-right, .hud-center {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .hud-center {
+            align-items: center;
+        }
+
+        .hud-item {
+            background: rgba(0,0,0,0.7);
+            padding: 5px 15px;
+            border-radius: 10px;
+            font-size: 1em;
+            white-space: nowrap;
+        }
+
+        .health-bar-container {
+            width: 200px;
+            height: 20px;
+            background: #333;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px solid #555;
+        }
+
+        .health-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #ff0000, #ff4444);
+            transition: width 0.3s;
+            border-radius: 10px;
+        }
+
+        .health-bar.high { background: linear-gradient(90deg, #00ff88, #00cc6a); }
+        .health-bar.mid  { background: linear-gradient(90deg, #ffcc00, #ff9900); }
+        .health-bar.low  { background: linear-gradient(90deg, #ff0000, #ff4444); }
+
+        #wave-announce {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3em;
+            font-weight: bold;
+            color: #ff4444;
+            text-shadow: 0 0 30px rgba(255,0,0,0.7);
+            z-index: 20;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+
+        #game-over {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            flex-direction: column;
+        }
+
+        #game-over h1 {
+            font-size: 4em;
+            color: #ff0000;
+            text-shadow: 0 0 30px red;
+            margin-bottom: 20px;
+        }
+
+        #game-over p {
+            font-size: 1.5em;
+            margin: 5px 0;
+        }
+
+        #restart-btn {
+            margin-top: 30px;
+            padding: 15px 50px;
+            font-size: 1.3em;
+            background: linear-gradient(45deg, #ff4444, #cc0000);
+            color: #fff;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        #restart-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 20px rgba(255,0,0,0.6);
+        }
+
+        .upgrade-popup {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            border: 2px solid #ffcc00;
+            border-radius: 15px;
+            padding: 20px 40px;
+            font-size: 1.5em;
+            color: #ffcc00;
+            z-index: 50;
+            pointer-events: none;
+            animation: popupAnim 2s forwards;
+        }
+
+        /* 狙擊槍升級用特殊顏色 */
+        .upgrade-popup.sniper {
+            border-color: #00eeff;
+            color: #00eeff;
+            box-shadow: 0 0 30px rgba(0,238,255,0.5);
+        }
+
+        @keyframes popupAnim {
+            0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+            20%  { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+            30%  { transform: translate(-50%, -50%) scale(1); }
+            80%  { opacity: 1; }
+            100% { opacity: 0; transform: translate(-50%, -60%) scale(1); }
+        }
+
+        .damage-number {
+            position: absolute;
+            font-weight: bold;
+            font-size: 1.2em;
+            pointer-events: none;
+            z-index: 30;
+            animation: floatUp 1s forwards;
+        }
+
+        /* 狙擊大傷害數字 */
+        .damage-number.sniper-dmg {
+            font-size: 2em;
+            text-shadow: 0 0 10px #00eeff;
+        }
+
+        @keyframes floatUp {
+            0%   { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-60px); }
+        }
+
+        #game-container.armed {
+            cursor: crosshair;
+        }
+
+        /* 狙擊瞄準線提示 */
+        #sniper-hint {
+            position: absolute;
+            bottom: 170px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,238,255,0.15);
+            border: 1px solid #00eeff;
+            border-radius: 10px;
+            padding: 6px 18px;
+            color: #00eeff;
+            font-size: 0.95em;
+            pointer-events: none;
+            display: none;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+
+<!-- ===== 遊戲說明畫面 ===== -->
+<div id="intro-screen">
+    <div class="intro-box">
+        <h1>🗑️ 撿垃圾打殭屍 🧟</h1>
+
+        <h2>📖 遊戲背景</h2>
+        <p>末日來臨，殭屍橫行！你是最後的倖存者，必須在廢墟中撿拾垃圾來製造武器，抵抗一波又一波的殭屍攻擊！</p>
+
+        <h2>🎮 操作方式</h2>
+        <ul>
+            <li><b>WASD / 方向鍵</b>：移動角色</li>
+            <li><b>滑鼠點擊</b>：撿拾垃圾 / 射擊殭屍</li>
+            <li>靠近垃圾後會自動撿起</li>
+        </ul>
+
+        <h2>📋 遊戲規則</h2>
+        <ul>
+            <li>你的血量只有 <b style="color:#ff4444">10 滴</b>，被殭屍碰到會扣血！</li>
+            <li>撿拾垃圾可以升級武器，武器越強傷害越高！</li>
+            <li>殭屍血量為 <b style="color:#ff4444">10 滴</b>（高階殭屍更多）</li>
+            <li>隨著波次推進，殭屍會越來越強！</li>
+        </ul>
+
+        <h2>🔫 武器升級表</h2>
+        <table class="weapon-table">
+            <tr>
+                <th>累計垃圾</th>
+                <th>武器</th>
+                <th>傷害</th>
+                <th>射速</th>
+                <th>特殊效果</th>
+            </tr>
+            <tr>
+                <td>0</td>
+                <td><span class="emoji-icon">��</span> 拳頭</td>
+                <td>1</td>
+                <td>慢</td>
+                <td>近戰攻擊</td>
+            </tr>
+            <tr>
+                <td>10</td>
+                <td><span class="emoji-icon">🔫</span> 小手槍</td>
+                <td>2</td>
+                <td>普通</td>
+                <td>遠程單發</td>
+            </tr>
+            <tr>
+                <td>25</td>
+                <td><span class="emoji-icon">💥</span> 散彈槍</td>
+                <td>3</td>
+                <td>較慢</td>
+                <td>扇形散射 ×5</td>
+            </tr>
+            <tr>
+                <td>45</td>
+                <td><span class="emoji-icon">🔥</span> 衝鋒槍</td>
+                <td>2</td>
+                <td>極快</td>
+                <td>按住連射</td>
+            </tr>
+            <tr>
+                <td>70</td>
+                <td><span class="emoji-icon">��</span> 火箭砲</td>
+                <td>10</td>
+                <td>慢</td>
+                <td>範圍爆炸</td>
+            </tr>
+            <tr class="sniper-row">
+                <td>110</td>
+                <td><span class="emoji-icon">🎯</span> 狙擊槍</td>
+                <td>20</td>
+                <td>很慢</td>
+                <td>穿透全部殭屍＋雷射瞄準線</td>
+            </tr>
+        </table>
+
+        <h2>🧟 殭屍種類</h2>
+        <ul>
+            <li><span style="color:#55cc55">🧟 普通殭屍</span> — 速度普通，血量 10</li>
+            <li><span style="color:#ff6666">🏃 快速殭屍</span> — 速度極快，血量 8（第 3 波出現）</li>
+            <li><span style="color:#aa66ff">🛡️ 坦克殭屍</span> — 速度慢，血量 25（第 5 波出現）</li>
+            <li><span style="color:#ff0000">👹 BOSS 殭屍</span> — 巨大、血厚 80、傷害高（每 10 波）</li>
+        </ul>
+
+        <h2>💡 小提示</h2>
+        <ul>
+            <li>優先撿垃圾升級武器，拳頭打殭屍很危險！</li>
+            <li>小心快速殭屍，牠們會繞到你背後！</li>
+            <li>坦克殭屍移動慢，保持距離慢慢磨</li>
+            <li><span style="color:#00eeff">🎯 狙擊槍可穿透所有殭屍，一槍解決整排！</span></li>
+            <li>撿到垃圾不會消耗，是累計計算！</li>
+        </ul>
+
+        <button id="start-btn" onclick="startGame()">⚔️ 開始遊戲 ⚔️</button>
+    </div>
+</div>
+
+<!-- ===== 遊戲主畫面 ===== -->
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="hud">
+        <div class="hud-left">
+            <div class="hud-item" id="hud-hp">
+                ❤️ 血量：10 / 10
+                <div class="health-bar-container">
+                    <div class="health-bar high" id="health-bar" style="width:100%"></div>
+                </div>
+            </div>
+            <div class="hud-item" id="hud-weapon">🔫 武器：👊 拳頭（傷害：1）</div>
+        </div>
+        <div class="hud-center">
+            <div class="hud-item" id="hud-wave">🌊 波次：1</div>
+            <div class="hud-item" id="hud-score">💀 擊殺：0</div>
+        </div>
+        <div class="hud-right">
+            <div class="hud-item" id="hud-trash">🗑️ 垃圾：0</div>
+            <div class="hud-item" id="hud-next">📦 下次升級：10 個垃圾</div>
+        </div>
+    </div>
+
+    <div id="wave-announce"></div>
+    <div id="sniper-hint">🎯 狙擊模式：雷射瞄準線穿透所有殭屍</div>
+</div>
+
+<!-- ===== 遊戲結束 ===== -->
+<div id="game-over">
+    <h1>☠️ 你死了 ☠️</h1>
+    <p id="final-score">擊殺殭屍：0</p>
+    <p id="final-wave">存活波次：1</p>
+    <p id="final-trash">撿拾垃圾：0</p>
+    <button id="restart-btn" onclick="restartGame()">🔄 重新開始</button>
+</div>
+
+<script>
+// ==================== 畫布 ====================
+const canvas = document.getElementById('gameCanvas');
+const ctx    = canvas.getContext('2d');
+
+let W, H;
+function resizeCanvas() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+// ==================== 遊戲狀態 ====================
+let gameRunning = false;
+
+let player     = {};
+let keys       = {};
+let trashItems = [];
+let bullets    = [];
+let zombies    = [];
+let explosions = [];
+let particles  = [];
+
+let totalTrash    = 0;
+let totalKills    = 0;
+let currentWave   = 1;
+let waveTimer     = 0;
+let zombiesInWave = 0;
+let zombiesSpawned = 0;
+let waveDelay     = 0;
+let betweenWaves  = false;
+
+let shootCooldown = 0;
+let mouseX = 0, mouseY = 0;
+let mouseDown = false;
+
+let camera = { x: 0, y: 0 };
+
+const MAP_W = 3000;
+const MAP_H = 3000;
+
+// ==================== 武器定義 ====================
+// 新增狙擊槍：需累計 110 個垃圾，傷害 20，可穿透
+const weapons = [
+    { name: '👊 拳頭',   damage: 1,  cooldown: 30, type: 'melee',   range: 50,  trashNeeded: 0   },
+    { name: '🔫 小手槍', damage: 2,  cooldown: 20, type: 'pistol',  speed: 10,  trashNeeded: 10  },
+    { name: '💥 散彈槍', damage: 3,  cooldown: 35, type: 'shotgun', speed: 10,  spread: 5, trashNeeded: 25 },
+    { name: '🔥 衝鋒槍', damage: 2,  cooldown: 6,  type: 'smg',     speed: 12,  trashNeeded: 45  },
+    { name: '💀 火箭砲', damage: 10, cooldown: 60, type: 'rocket',  speed: 7,   radius: 100, trashNeeded: 70 },
+    { name: '🎯 狙擊槍', damage: 20, cooldown: 90, type: 'sniper',  speed: 25,  trashNeeded: 110 },
+];
+
+let currentWeaponIndex = 0;
+function getCurrentWeapon() { return weapons[currentWeaponIndex]; }
+
+// ==================== 殭屍類型 ====================
+const zombieTypes = {
+    normal: { emoji: '🧟', hp: 10, speed: 1.5, size: 20, damage: 1, color: '#55cc55' },
+    fast:   { emoji: '🏃', hp: 8,  speed: 3.5, size: 18, damage: 1, color: '#ff6666' },
+    tank:   { emoji: '🛡️', hp: 25, speed: 0.8, size: 28, damage: 2, color: '#aa66ff' },
+    boss:   { emoji: '👹', hp: 80, speed: 1.2, size: 45, damage: 3, color: '#ff0000' },
+};
+
+const trashEmojis = ['🥫','📦','🔧','⚙️','🔩','🗞️','🧱','🪵','🔋','💡','🧲','🪛','🗜️','📎','🧪'];
+
+// ==================== 初始化 ====================
+function initGame() {
+    player = {
+        x: MAP_W / 2, y: MAP_H / 2,
+        size: 18, hp: 10, maxHp: 10,
+        speed: 4, invincible: 0,
+    };
+
+    trashItems = []; bullets = []; zombies = [];
+    explosions = []; particles = [];
+    totalTrash = 0; totalKills = 0;
+    currentWave = 1; waveTimer = 0;
+    zombiesInWave = 0; zombiesSpawned = 0;
+    waveDelay = 180; betweenWaves = true;
+    shootCooldown = 0; currentWeaponIndex = 0;
+
+    for (let i = 0; i < 30; i++) spawnTrash();
+    updateHUD();
+}
+
+// ==================== 生成垃圾 ====================
+function spawnTrash() {
+    trashItems.push({
+        x: Math.random() * (MAP_W - 100) + 50,
+        y: Math.random() * (MAP_H - 100) + 50,
+        emoji: trashEmojis[Math.floor(Math.random() * trashEmojis.length)],
+        bobOffset: Math.random() * Math.PI * 2,
+    });
+}
+
+// ==================== 生成殭屍 ====================
+function spawnZombie() {
+    let type = 'normal';
+    let rand = Math.random();
+    if      (currentWave >= 10 && rand < 0.08) type = 'boss';
+    else if (currentWave >= 5  && rand < 0.25) type = 'tank';
+    else if (currentWave >= 3  && rand < 0.40) type = 'fast';
+
+    let zt    = zombieTypes[type];
+    let angle = Math.random() * Math.PI * 2;
+    let dist  = Math.max(W, H) / 2 + 100;
+    let sx    = Math.max(0, Math.min(MAP_W, player.x + Math.cos(angle) * dist));
+    let sy    = Math.max(0, Math.min(MAP_H, player.y + Math.sin(angle) * dist));
+    let mult  = 1 + (currentWave - 1) * 0.1;
+
+    zombies.push({
+        x: sx, y: sy,
+        hp: Math.floor(zt.hp * mult),
+        maxHp: Math.floor(zt.hp * mult),
+        speed:  zt.speed + (currentWave - 1) * 0.05,
+        size:   zt.size,
+        damage: zt.damage,
+        color:  zt.color,
+        emoji:  zt.emoji,
+        type:   type,
+        hitFlash: 0,
+    });
+}
+
+// ==================== 射擊 ====================
+function shoot() {
+    let weapon = getCurrentWeapon();
+    if (shootCooldown > 0) return;
+    shootCooldown = weapon.cooldown;
+
+    let wx = mouseX + camera.x;
+    let wy = mouseY + camera.y;
+    let angle = Math.atan2(wy - player.y, wx - player.x);
+
+    if (weapon.type === 'melee') {
+        // 近戰
+        for (let z of zombies) {
+            let dx = z.x - player.x, dy = z.y - player.y;
+            if (Math.sqrt(dx*dx + dy*dy) < weapon.range + z.size) damageZombie(z, weapon.damage);
+        }
+        for (let i = 0; i < 5; i++) {
+            particles.push({
+                x: player.x + Math.cos(angle) * 30,
+                y: player.y + Math.sin(angle) * 30,
+                vx: Math.cos(angle + (Math.random()-0.5)) * 3,
+                vy: Math.sin(angle + (Math.random()-0.5)) * 3,
+                life: 15, maxLife: 15, color: '#ffcc00', size: 4,
+            });
+        }
+
+    } else if (weapon.type === 'shotgun') {
+        for (let i = 0; i < weapon.spread; i++) {
+            let a = angle + (Math.random()-0.5) * 0.5;
+            bullets.push({
+                x: player.x, y: player.y,
+                vx: Math.cos(a)*weapon.speed, vy: Math.sin(a)*weapon.speed,
+                damage: weapon.damage, type: 'shotgun',
+                life: 30, size: 4, piercing: false,
+            });
+        }
+
+    } else if (weapon.type === 'rocket') {
+        bullets.push({
+            x: player.x, y: player.y,
+            vx: Math.cos(angle)*weapon.speed, vy: Math.sin(angle)*weapon.speed,
+            damage: weapon.damage, type: 'rocket',
+            radius: weapon.radius, life: 120, size: 8, piercing: false,
+        });
+
+    } else if (weapon.type === 'sniper') {
+        // 狙擊槍子彈：穿透、超快速、射程極遠
+        bullets.push({
+            x: player.x, y: player.y,
+            vx: Math.cos(angle)*weapon.speed, vy: Math.sin(angle)*weapon.speed,
+            damage: weapon.damage, type: 'sniper',
+            life: 120, size: 6,
+            piercing: true,       // 穿透標記
+            hitSet: new Set(),    // 記錄已打到的殭屍，避免重複傷害
+        });
+        // 射擊閃光粒子
+        for (let i = 0; i < 15; i++) {
+            particles.push({
+                x: player.x, y: player.y,
+                vx: Math.cos(angle + (Math.random()-0.5)*0.3) * (Math.random()*8+4),
+                vy: Math.sin(angle + (Math.random()-0.5)*0.3) * (Math.random()*8+4),
+                life: 20, maxLife: 20, color: '#00eeff', size: 4,
+            });
+        }
+
+    } else {
+        // 手槍、衝鋒槍
+        bullets.push({
+            x: player.x, y: player.y,
+            vx: Math.cos(angle)*weapon.speed, vy: Math.sin(angle)*weapon.speed,
+            damage: weapon.damage, type: weapon.type,
+            life: 60, size: 5, piercing: false,
+        });
+    }
+}
+
+// ==================== 傷害殭屍 ====================
+function damageZombie(zombie, damage, isSniper = false) {
+    zombie.hp      -= damage;
+    zombie.hitFlash = 8;
+
+    showDamageNumber(zombie.x, zombie.y - zombie.size, damage, isSniper ? '#00eeff' : '#ff4444', isSniper);
+
+    // 擊退
+    let dx = zombie.x - player.x, dy = zombie.y - player.y;
+    let d  = Math.sqrt(dx*dx + dy*dy) || 1;
+    zombie.x += (dx/d) * (isSniper ? 20 : 10);
+    zombie.y += (dy/d) * (isSniper ? 20 : 10);
+
+    if (zombie.hp <= 0) {
+        totalKills++;
+        for (let i = 0; i < 12; i++) {
+            particles.push({
+                x: zombie.x, y: zombie.y,
+                vx: (Math.random()-0.5)*6, vy: (Math.random()-0.5)*6,
+                life: 30, maxLife: 30, color: zombie.color, size: 5,
+            });
+        }
+        if (Math.random() < 0.3) {
+            trashItems.push({
+                x: zombie.x, y: zombie.y,
+                emoji: trashEmojis[Math.floor(Math.random()*trashEmojis.length)],
+                bobOffset: Math.random()*Math.PI*2,
+            });
+        }
+    }
+}
+
+// ==================== 傷害數字 ====================
+function showDamageNumber(worldX, worldY, damage, color, isSniper = false) {
+    let sx = worldX - camera.x;
+    let sy = worldY - camera.y;
+    let el = document.createElement('div');
+    el.className = 'damage-number' + (isSniper ? ' sniper-dmg' : '');
+    el.style.left  = sx + 'px';
+    el.style.top   = sy + 'px';
+    el.style.color = color;
+    el.textContent = '-' + damage;
+    document.getElementById('game-container').appendChild(el);
+    setTimeout(() => el.remove(), 1000);
+}
+
+// ==================== 爆炸 ====================
+function createExplosion(x, y, radius) {
+    explosions.push({ x, y, radius, maxRadius: radius, life: 20, maxLife: 20 });
+    for (let z of zombies) {
+        let dx = z.x - x, dy = z.y - y;
+        if (Math.sqrt(dx*dx + dy*dy) < radius + z.size) damageZombie(z, getCurrentWeapon().damage);
+    }
+    for (let i = 0; i < 30; i++) {
+        let a = Math.random()*Math.PI*2, spd = Math.random()*6+2;
+        particles.push({
+            x, y,
+            vx: Math.cos(a)*spd, vy: Math.sin(a)*spd,
+            life: 25, maxLife: 25,
+            color: Math.random()>0.5 ? '#ff6600' : '#ffcc00',
+            size: Math.random()*6+3,
+        });
+    }
+}
+
+// ==================== 武器升級 ====================
+function checkWeaponUpgrade() {
+    let newIndex = 0;
+    for (let i = weapons.length - 1; i >= 0; i--) {
+        if (totalTrash >= weapons[i].trashNeeded) { newIndex = i; break; }
+    }
+    if (newIndex > currentWeaponIndex) {
+        currentWeaponIndex = newIndex;
+        let w = getCurrentWeapon();
+
+        let popup = document.createElement('div');
+        popup.className = 'upgrade-popup' + (w.type === 'sniper' ? ' sniper' : '');
+        popup.innerHTML = `🎉 武器升級！<br>${w.name}<br>傷害：${w.damage}${w.type==='sniper' ? '<br>✨ 穿透全部殭屍！' : ''}`;
+        document.getElementById('game-container').appendChild(popup);
+        setTimeout(() => popup.remove(), 2500);
+
+        // 狙擊槍提示
+        document.getElementById('sniper-hint').style.display =
+            w.type === 'sniper' ? 'block' : 'none';
+    }
+}
+
+// ==================== HUD ====================
+function updateHUD() {
+    let w = getCurrentWeapon();
+    let hp = player.hp, maxHp = player.maxHp;
+    let pct = (hp / maxHp) * 100;
+
+    document.getElementById('hud-hp').innerHTML = `❤️ 血量：${hp} / ${maxHp}
+        <div class="health-bar-container">
+            <div class="health-bar ${pct>60?'high':pct>30?'mid':'low'}" style="width:${pct}%"></div>
+        </div>`;
+
+    document.getElementById('hud-weapon').textContent =
+        `🔫 武器：${w.name}（傷害：${w.damage}${w.type==='sniper'?' ⚡穿透':''}）`;
+
+    document.getElementById('hud-wave').textContent  = `🌊 波次：${currentWave}`;
+    document.getElementById('hud-score').textContent = `💀 擊殺：${totalKills}`;
+    document.getElementById('hud-trash').textContent = `🗑️ 垃圾：${totalTrash}`;
+
+    let next = weapons[currentWeaponIndex + 1];
+    document.getElementById('hud-next').textContent = next
+        ? `📦 下次升級：${next.trashNeeded - totalTrash} 個垃圾 → ${next.name}`
+        : `📦 已達最強武器！`;
+
+    let container = document.getElementById('game-container');
+    currentWeaponIndex > 0
+        ? container.classList.add('armed')
+        : container.classList.remove('armed');
+}
+
+// ==================== 波次提示 ====================
+function showWaveAnnounce(text) {
+    let el = document.getElementById('wave-announce');
+    el.textContent = text;
+    el.style.opacity = 1;
+    setTimeout(() => { el.style.opacity = 0; }, 2000);
+}
+
+// ==================== 遊戲結束 ====================
+function gameOver() {
+    gameRunning = false;
+    document.getElementById('game-over').style.display = 'flex';
+    document.getElementById('final-score').textContent = `擊殺殭屍：${totalKills}`;
+    document.getElementById('final-wave').textContent  = `存活波次：${currentWave}`;
+    document.getElementById('final-trash').textContent = `撿拾垃圾：${totalTrash}`;
+}
+
+// ==================== UPDATE ====================
+function update() {
+    if (!gameRunning) return;
+
+    // 玩家移動
+    let dx = 0, dy = 0;
+    if (keys['w'] || keys['arrowup'])    dy -= 1;
+    if (keys['s'] || keys['arrowdown'])  dy += 1;
+    if (keys['a'] || keys['arrowleft'])  dx -= 1;
+    if (keys['d'] || keys['arrowright']) dx += 1;
+    if (dx || dy) {
+        let len = Math.sqrt(dx*dx + dy*dy);
+        player.x += (dx/len) * player.speed;
+        player.y += (dy/len) * player.speed;
+    }
+    player.x = Math.max(player.size, Math.min(MAP_W-player.size, player.x));
+    player.y = Math.max(player.size, Math.min(MAP_H-player.size, player.y));
+
+    if (player.invincible > 0) player.invincible--;
+    if (shootCooldown > 0)     shootCooldown--;
+
+    // 連射（衝鋒槍）
+    if (mouseDown && getCurrentWeapon().type === 'smg') shoot();
+
+    // 撿垃圾（自動靠近撿起）
+    for (let i = trashItems.length - 1; i >= 0; i--) {
+        let t  = trashItems[i];
+        let tdx = t.x - player.x, tdy = t.y - player.y;
+        if (Math.sqrt(tdx*tdx + tdy*tdy) < 40) {
+            trashItems.splice(i, 1);
+            totalTrash++;
+            checkWeaponUpgrade();
+            for (let j = 0; j < 6; j++) {
+                particles.push({
+                    x: t.x, y: t.y,
+                    vx: (Math.random()-0.5)*4, vy: (Math.random()-0.5)*4,
+                    life: 20, maxLife: 20, color: '#00ff88', size: 4,
+                });
+            }
+        }
+    }
+    while (trashItems.length < 15 + currentWave * 2) spawnTrash();
+
+    // ---- 子彈更新 ----
+    for (let i = bullets.length - 1; i >= 0; i--) {
+        let b = bullets[i];
+        b.x += b.vx; b.y += b.vy; b.life--;
+
+        // 火箭拖尾
+        if (b.type === 'rocket') {
+            particles.push({
+                x: b.x, y: b.y,
+                vx: (Math.random()-0.5)*2, vy: (Math.random()-0.5)*2,
+                life: 10, maxLife: 10, color: '#ff6600', size: Math.random()*4+2,
+            });
+        }
+
+        // 狙擊拖尾（藍色）
+        if (b.type === 'sniper') {
+            particles.push({
+                x: b.x, y: b.y,
+                vx: (Math.random()-0.5)*1.5, vy: (Math.random()-0.5)*1.5,
+                life: 8, maxLife: 8, color: '#00eeff', size: 3,
+            });
+        }
+
+        // 超出地圖或生命耗盡
+        if (b.x < 0 || b.x > MAP_W || b.y < 0 || b.y > MAP_H || b.life <= 0) {
+            if (b.type === 'rocket') createExplosion(b.x, b.y, b.radius);
+            bullets.splice(i, 1);
+            continue;
+        }
+
+        // 碰殭屍
+        let shouldRemove = false;
+        for (let z of zombies) {
+            let zdx = z.x - b.x, zdy = z.y - b.y;
+            if (Math.sqrt(zdx*zdx + zdy*zdy) < z.size + b.size) {
+                if (b.type === 'rocket') {
+                    createExplosion(b.x, b.y, b.radius);
+                    shouldRemove = true;
+                    break;
+                } else if (b.type === 'sniper') {
+                    // 穿透：用 hitSet 避免重複傷害同一隻殭屍
+                    if (!b.hitSet.has(z)) {
+                        b.hitSet.add(z);
+                        damageZombie(z, b.damage, true);
+                        // 狙擊擊中粒子
+                        for (let p = 0; p < 8; p++) {
+                            particles.push({
+                                x: b.x, y: b.y,
+                                vx: (Math.random()-0.5)*5, vy: (Math.random()-0.5)*5,
+                                life: 15, maxLife: 15, color: '#00eeff', size: 3,
+                            });
+                        }
+                    }
+                    // 不移除，繼續穿透
+                } else {
+                    damageZombie(z, b.damage);
+                    shouldRemove = true;
+                    break;
+                }
+            }
+        }
+        if (shouldRemove) { bullets.splice(i, 1); continue; }
+    }
+
+    // ---- 殭屍更新 ----
+    for (let i = zombies.length - 1; i >= 0; i--) {
+        let z = zombies[i];
+        if (z.hp <= 0) { zombies.splice(i, 1); continue; }
+
+        let zdx = player.x - z.x, zdy = player.y - z.y;
+        let dist = Math.sqrt(zdx*zdx + zdy*zdy);
+        if (dist > 0) { z.x += (zdx/dist)*z.speed; z.y += (zdy/dist)*z.speed; }
+        z.x = Math.max(z.size, Math.min(MAP_W-z.size, z.x));
+        z.y = Math.max(z.size, Math.min(MAP_H-z.size, z.y));
+
+        // 殭屍互相推擠
+        for (let j = i+1; j < zombies.length; j++) {
+            let z2  = zombies[j];
+            let pdx = z2.x - z.x, pdy = z2.y - z.y;
+            let pd  = Math.sqrt(pdx*pdx + pdy*pdy);
+            let md  = z.size + z2.size;
+            if (pd < md && pd > 0) {
+                let push = (md - pd) / 2;
+                z.x  -= (pdx/pd)*push; z.y  -= (pdy/pd)*push;
+                z2.x += (pdx/pd)*push; z2.y += (pdy/pd)*push;
+            }
+        }
+
+        // 攻擊玩家
+        if (dist < z.size + player.size && player.invincible <= 0) {
+            player.hp     -= z.damage;
+            player.invincible = 45;
+            showDamageNumber(player.x, player.y - player.size, z.damage, '#ff0000');
+            if (dist > 0) { player.x -= (zdx/dist)*30; player.y -= (zdy/dist)*30; }
+            if (player.hp <= 0) { player.hp = 0; gameOver(); return; }
+        }
+
+        if (z.hitFlash > 0) z.hitFlash--;
+    }
+
+    // 爆炸更新
+    for (let i = explosions.length - 1; i >= 0; i--) {
+        if (--explosions[i].life <= 0) explosions.splice(i, 1);
+    }
+
+    // 粒子更新
+    for (let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i];
+        p.x += p.vx; p.y += p.vy;
+        if (--p.life <= 0) particles.splice(i, 1);
+    }
+
+    // ---- 波次管理 ----
+    if (betweenWaves) {
+        if (--waveDelay <= 0) {
+            betweenWaves   = false;
+            zombiesInWave  = 5 + currentWave * 3;
+            zombiesSpawned = 0;
+            showWaveAnnounce(`🌊 第 ${currentWave} 波！`);
+        }
+    } else {
+        if (zombiesSpawned < zombiesInWave) {
+            waveTimer++;
+            let rate = Math.max(15, 45 - currentWave * 2);
+            if (waveTimer >= rate) {
+                waveTimer = 0;
+                spawnZombie();
+                zombiesSpawned++;
+            }
+        }
+        if (zombiesSpawned >= zombiesInWave && zombies.length === 0) {
+            currentWave++;
+            betweenWaves = true;
+            waveDelay    = 180;
+            player.hp    = Math.min(player.maxHp, player.hp + 2);
+            showWaveAnnounce('✅ 波次完成！回復 2 HP');
+        }
+    }
+
+    // 攝影機
+    camera.x = player.x - W / 2;
+    camera.y = player.y - H / 2;
+
+    updateHUD();
+}
+
+// ==================== DRAW ====================
+function draw() {
+    ctx.clearRect(0, 0, W, H);
+    ctx.save();
+    ctx.translate(-camera.x, -camera.y);
+
+    // 背景格子
+    let gs = 80;
+    ctx.strokeStyle = '#3a3a55';
+    ctx.lineWidth   = 1;
+    let sx = Math.floor(camera.x / gs) * gs;
+    let sy = Math.floor(camera.y / gs) * gs;
+    for (let x = sx; x < camera.x + W + gs; x += gs) {
+        ctx.beginPath(); ctx.moveTo(x, camera.y); ctx.lineTo(x, camera.y+H); ctx.stroke();
+    }
+    for (let y = sy; y < camera.y + H + gs; y += gs) {
+        ctx.beginPath(); ctx.moveTo(camera.x, y); ctx.lineTo(camera.x+W, y); ctx.stroke();
+    }
+
+    // 地圖邊界
+    ctx.strokeStyle = '#ff4444'; ctx.lineWidth = 4;
+    ctx.strokeRect(0, 0, MAP_W, MAP_H);
+
+    // 垃圾
+    let time = Date.now() / 1000;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (let t of trashItems) {
+        let bob = Math.sin(time*2 + t.bobOffset) * 5;
+        ctx.font = '24px serif';
+        ctx.shadowColor = '#00ff88'; ctx.shadowBlur = 10;
+        ctx.fillText(t.emoji, t.x, t.y + bob);
+        ctx.shadowBlur = 0;
+    }
+
+    // ==== 狙擊雷射瞄準線 ====
+    if (getCurrentWeapon().type === 'sniper') {
+        let wx     = mouseX + camera.x;
+        let wy     = mouseY + camera.y;
+        let angle  = Math.atan2(wy - player.y, wx - player.x);
+        let laserLen = 2000;
+        let ex     = player.x + Math.cos(angle) * laserLen;
+        let ey     = player.y + Math.sin(angle) * laserLen;
+
+        // 外層光暈
+        ctx.beginPath();
+        ctx.moveTo(player.x, player.y);
+        ctx.lineTo(ex, ey);
+        ctx.strokeStyle = 'rgba(0,238,255,0.12)';
+        ctx.lineWidth   = 12;
+        ctx.stroke();
+
+        // 中層
+        ctx.beginPath();
+        ctx.moveTo(player.x, player.y);
+        ctx.lineTo(ex, ey);
+        ctx.strokeStyle = 'rgba(0,238,255,0.3)';
+        ctx.lineWidth   = 4;
+        ctx.stroke();
+
+        // 核心線
+        ctx.beginPath();
+        ctx.moveTo(player.x, player.y);
+        ctx.lineTo(ex, ey);
+        ctx.strokeStyle = 'rgba(0,238,255,0.9)';
+        ctx.lineWidth   = 1.5;
+        ctx.setLineDash([8, 6]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // 命中點（碰到第一隻殭屍）
+        for (let z of zombies) {
+            // 點到線段距離
+            let lx = ex - player.x, ly = ey - player.y;
+            let t2 = ((z.x-player.x)*lx + (z.y-player.y)*ly) / (lx*lx + ly*ly);
+            if (t2 < 0 || t2 > 1) continue;
+            let cx = player.x + t2*lx - z.x;
+            let cy = player.y + t2*ly - z.y;
+            if (Math.sqrt(cx*cx + cy*cy) < z.size + 6) {
+                ctx.beginPath();
+                ctx.arc(player.x + t2*lx, player.y + t2*ly, 8, 0, Math.PI*2);
+                ctx.fillStyle   = 'rgba(0,238,255,0.6)';
+                ctx.fill();
+            }
+        }
+    }
+
+    // 爆炸
+    for (let e of explosions) {
+        let prog  = 1 - e.life / e.maxLife;
+        let alpha = 1 - prog;
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.maxRadius*prog, 0, Math.PI*2);
+        ctx.fillStyle = `rgba(255,100,0,${alpha*0.5})`; ctx.fill();
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.maxRadius*prog*0.6, 0, Math.PI*2);
+        ctx.fillStyle = `rgba(255,200,0,${alpha*0.7})`; ctx.fill();
+    }
+
+    // 粒子
+    for (let p of particles) {
+        ctx.globalAlpha = p.life / p.maxLife;
+        ctx.fillStyle   = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * (p.life/p.maxLife), 0, Math.PI*2);
+        ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // 殭屍
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (let z of zombies) {
+        // 血條
+        let bw = z.size*2, bh = 4;
+        let bx = z.x - bw/2, by = z.y - z.size - 12;
+        ctx.fillStyle = '#333'; ctx.fillRect(bx, by, bw, bh);
+        ctx.fillStyle = z.hp/z.maxHp > 0.5 ? '#55cc55' : z.hp/z.maxHp > 0.25 ? '#ffcc00' : '#ff4444';
+        ctx.fillRect(bx, by, bw*(z.hp/z.maxHp), bh);
+
+        if (z.hitFlash > 0) { ctx.shadowColor = '#fff'; ctx.shadowBlur = 20; }
+        ctx.font = `${z.size*2}px serif`;
+        ctx.fillText(z.emoji, z.x, z.y);
+        ctx.shadowBlur = 0;
+    }
+
+    // 子彈
+    for (let b of bullets) {
+        if (b.type === 'rocket') {
+            ctx.fillStyle = '#ff4400';
+            ctx.beginPath(); ctx.arc(b.x, b.y, b.size, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#ffcc00';
+            ctx.beginPath(); ctx.arc(b.x, b.y, b.size*0.5, 0, Math.PI*2); ctx.fill();
+
+        } else if (b.type === 'sniper') {
+            // 狙擊子彈：亮藍長橢圓
+            ctx.save();
+            let ang = Math.atan2(b.vy, b.vx);
+            ctx.translate(b.x, b.y);
+            ctx.rotate(ang);
+            let grd = ctx.createLinearGradient(-15, 0, 15, 0);
+            grd.addColorStop(0,   'rgba(0,238,255,0)');
+            grd.addColorStop(0.5, 'rgba(0,238,255,1)');
+            grd.addColorStop(1,   'rgba(0,238,255,0)');
+            ctx.fillStyle = grd;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 16, 4, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 5, 2, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.restore();
+
+        } else if (b.type === 'shotgun') {
+            ctx.fillStyle = '#ffaa00';
+            ctx.beginPath(); ctx.arc(b.x, b.y, b.size, 0, Math.PI*2); ctx.fill();
+        } else {
+            ctx.fillStyle = '#ffff00';
+            ctx.beginPath(); ctx.arc(b.x, b.y, b.size, 0, Math.PI*2); ctx.fill();
+        }
+    }
+
+    // 玩家
+    if (player.invincible > 0 && Math.floor(player.invincible/4) % 2 === 0) ctx.globalAlpha = 0.4;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = '36px serif';
+    ctx.fillText('🧑', player.x, player.y);
+
+    // 武器圖示跟隨滑鼠方向
+    let aimAngle = Math.atan2(mouseY+camera.y - player.y, mouseX+camera.x - player.x);
+    let wdist    = 25;
+    let wpx      = player.x + Math.cos(aimAngle)*wdist;
+    let wpy      = player.y + Math.sin(aimAngle)*wdist;
+    ctx.font = '20px serif';
+    const weaponEmojis = ['✊','🔫','💥','🔥','💀','🎯'];
+    ctx.fillText(weaponEmojis[currentWeaponIndex] || '🔫', wpx, wpy);
+
+    ctx.globalAlpha = 1;
+
+    ctx.restore();
+
+    drawMinimap();
+}
+
+// ==================== 小地圖 ====================
+function drawMinimap() {
+    let mmW = 150, mmH = 150;
+    let mmX = W - mmW - 15, mmY = H - mmH - 15;
+    let scX = mmW / MAP_W, scY = mmH / MAP_H;
+
+    ctx.fillStyle   = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(mmX, mmY, mmW, mmH);
+    ctx.strokeStyle = '#555'; ctx.lineWidth = 2;
+    ctx.strokeRect(mmX, mmY, mmW, mmH);
+
+    ctx.fillStyle = '#00ff88';
+    for (let t of trashItems) ctx.fillRect(mmX + t.x*scX - 1, mmY + t.y*scY - 1, 2, 2);
+
+    for (let z of zombies) {
+        ctx.fillStyle = z.color;
+        let s = z.type === 'boss' ? 4 : 2;
+        ctx.fillRect(mmX + z.x*scX - s/2, mmY + z.y*scY - s/2, s, s);
+    }
+
+    ctx.fillStyle = '#00aaff';
+    ctx.beginPath();
+    ctx.arc(mmX + player.x*scX, mmY + player.y*scY, 3, 0, Math.PI*2);
+    ctx.fill();
+}
+
+// ==================== 遊戲循環 ====================
+function gameLoop() {
+    update();
+    draw();
+    requestAnimationFrame(gameLoop);
+}
+
+// ==================== 輸入 ====================
+window.addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; });
+window.addEventListener('keyup',   e => { keys[e.key.toLowerCase()] = false; });
+
+canvas.addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; });
+canvas.addEventListener('mousedown', e => {
+    if (!gameRunning) return;
+    mouseDown = true;
+    shoot();
+});
+canvas.addEventListener('mouseup', () => { mouseDown = false; });
+
+canvas.addEventListener('touchstart', e => {
+    e.preventDefault();
+    if (!gameRunning) return;
+    let t = e.touches[0];
+    mouseX = t.clientX; mouseY = t.clientY;
+    mouseDown = true; shoot();
+}, { passive: false });
+canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+    let t = e.touches[0];
+    mouseX = t.clientX; mouseY = t.clientY;
+}, { passive: false });
+canvas.addEventListener('touchend', e => { e.preventDefault(); mouseDown = false; }, { passive: false });
+
+// ==================== 開始 / 重啟 ====================
+function startGame() {
+    document.getElementById('intro-screen').style.display = 'none';
+    document.getElementById('game-container').style.display = 'block';
+    document.getElementById('game-over').style.display = 'none';
+    document.getElementById('sniper-hint').style.display = 'none';
+    resizeCanvas();
+    initGame();
+    gameRunning = true;
+    showWaveAnnounce('🗑️ 快撿垃圾獲得武器！');
+}
+
+function restartGame() {
+    document.getElementById('game-over').style.display = 'none';
+    document.getElementById('sniper-hint').style.display = 'none';
+    initGame();
+    gameRunning = true;
+    showWaveAnnounce('🗑️ 快撿垃圾獲得武器！');
+}
+
+gameLoop();
+</script>
+</body>
+</html>

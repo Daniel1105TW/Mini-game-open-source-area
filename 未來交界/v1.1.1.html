@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>未來交界 (Vertex & Horizon) - 1000代嵌入優化版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root { --ui-scale: 1; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        
+        @keyframes alert-pulse {
+            0%, 100% { background-color: rgba(220, 38, 38, 0.95); border-color: #f43f5e; box-shadow: 0 0 20px #ef4444; }
+            50% { background-color: rgba(127, 29, 29, 0.9); border-color: #be123c; box-shadow: 0 0 5px #b91c1c; }
+        }
+        .alert-active { animation: alert-pulse 0.8s infinite; }
+        .disaster-mode { filter: hue-rotate(90deg) brightness(0.6) contrast(1.2); }
+        .neon-text-cyan { text-shadow: 0 0 8px rgba(34, 211, 238, 0.8); }
+        
+        .iso-tile { position: absolute; transform-origin: bottom center; pointer-events: none; }
+        .building-graphic { pointer-events: none; }
+        .floor-polygon { transition: fill 0.15s ease, stroke 0.15s ease; }
+
+        /* UI 縮放 */
+        .scalable-ui { transform: scale(var(--ui-scale)); transform-origin: top left; }
+        .scalable-ui-center { transform: scale(var(--ui-scale)); transform-origin: center; }
+
+        /* 點擊光波特效 */
+        .click-ripple {
+            position: fixed; border-radius: 50%; pointer-events: none;
+            border: 2px solid #22d3ee; mix-blend-mode: screen; z-index: 9999;
+            transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+    </style>
+</head>
+<body id="game-body" class="bg-slate-950 text-slate-100 font-sans h-screen flex flex-col selection:bg-cyan-500/30 overflow-hidden select-none transition-all duration-1000">
+
+    <!-- 首頁介面 -->
+    <div id="home-screen" class="fixed inset-0 z-[100] bg-slate-950 flex flex-col items-center justify-center p-4">
+        <div class="max-w-xl w-full bg-slate-900 border border-cyan-500/30 p-8 rounded-2xl shadow-[0_0_50px_rgba(34,211,238,0.1)] text-center scalable-ui-center">
+            <h1 class="text-4xl font-black bg-gradient-to-r from-cyan-400 to-indigo-400 bg-clip-text text-transparent neon-text-cyan mb-2 font-mono">未來交界 v1.1.1</h1>
+            <h2 class="text-sm text-slate-400 font-bold mb-6 tracking-widest">VERTEX & HORIZON : 1000 ERAS</h2>
+            
+            <div class="bg-slate-950 p-4 rounded-lg border border-slate-800 text-left text-sm text-slate-300 space-y-2 mb-8 leading-relaxed h-44 overflow-y-auto">
+                <p class="text-cyan-400 font-bold">🌍 歡迎來到市長指揮中心。此版本已針對 Google Sites 嵌入進行優化！</p>
+                <p>1. 建造農場與工廠賺取信用點數。</p>
+                <p>2. 注意<b>電網負載</b>，發電廠超載有機率爆炸！</p>
+                <p>3. 維持<b>生態指數</b>，降至 0% 將引發酸雨災難，農產歸零 (種樹可救)。</p>
+                <p>4. 收集量子核心推進時代，遊戲內含 <b>1000 個世代</b>！</p>
+                <p>5. **每關解鎖新機器**：每一代都會解鎖全新的<b>「一般基礎機器」</b>與<b>「當代專屬科技體」</b>！</p>
+                <p>6. **後期凝聚科技**：Era 5 解鎖<b>「核心凝聚儀」</b>，可用大量加工成品凝聚珍稀的量子核心！</p>
+                <p>7. 點擊邊緣網格可隨機擴張不規則領地，支援拖曳與筆刷快速建造。</p>
+                <p>💡 <b>提示：遊戲中可按 [ESC] 鍵暫停與開啟設定。</b></p>
+            </div>
+
+            <div class="space-y-4">
+                <button onclick="startGame()" class="w-full py-4 bg-cyan-600 hover:bg-cyan-500 text-white font-black text-xl rounded-xl shadow-lg transition-all active:scale-95">
+                    🚀 創建新世界 (開始遊戲)
+                </button>
+                <div class="flex gap-2">
+                    <textarea id="save-input" placeholder="貼上存檔代碼..." class="flex-1 bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-slate-300 focus:border-cyan-500 outline-none resize-none h-12"></textarea>
+                    <button onclick="loadGame()" class="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-lg transition-all active:scale-95 text-xs">
+                        讀取存檔
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 暫停與設定介面 -->
+    <div id="pause-screen" class="fixed inset-0 z-[90] bg-slate-950/80 backdrop-blur-sm hidden">
+        <div class="flex items-center justify-center w-full h-full">
+            <div class="w-80 bg-slate-900 border border-slate-700 p-6 rounded-2xl shadow-2xl text-center space-y-4 scalable-ui-center">
+                <h2 class="text-2xl font-black text-white mb-2">⏸️ 系統選單</h2>
+                
+                <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-3 text-left">
+                    <h3 class="text-xs font-bold text-slate-400 uppercase">⚙️ 遊戲設定</h3>
+                    <div class="flex justify-between items-center text-sm">
+                        <span>音量大小</span>
+                        <input type="range" id="setting-vol" min="0" max="1" step="0.05" value="0.05" onchange="updateSettings()" class="w-24 accent-cyan-500">
+                    </div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span>介面縮放</span>
+                        <input type="range" id="setting-scale" min="0.6" max="1.5" step="0.1" value="1.0" onchange="updateSettings()" class="w-24 accent-cyan-500">
+                    </div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span>點擊特效</span>
+                        <input type="checkbox" id="setting-vfx" checked onchange="updateSettings()" class="w-4 h-4 accent-cyan-500">
+                    </div>
+                </div>
+
+                <button onclick="togglePause()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 rounded-lg font-bold transition-all shadow-lg text-sm">繼續遊戲</button>
+                <button onclick="exportSave()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 rounded-lg font-bold transition-all shadow-lg text-sm">📥 複製存檔代碼</button>
+                <div class="h-px bg-slate-800 my-2"></div>
+                <button onclick="location.reload()" class="w-full py-3 bg-slate-800 hover:bg-red-600 text-slate-300 hover:text-white rounded-lg font-bold transition-all text-sm">退回首頁</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 自訂安全系統通知彈窗 -->
+    <div id="custom-alert-modal" class="fixed inset-0 z-[110] bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="bg-slate-900 border-2 border-cyan-500/40 p-6 rounded-xl shadow-2xl max-w-sm w-full text-center space-y-4 scalable-ui-center">
+            <h3 id="alert-modal-title" class="text-base font-bold text-cyan-400">提示</h3>
+            <p id="alert-modal-text" class="text-xs text-slate-300 whitespace-pre-wrap leading-relaxed max-h-40 overflow-y-auto font-mono"></p>
+            <textarea id="alert-modal-textarea" class="hidden w-full h-20 bg-slate-950 border border-slate-800 p-2 text-[10px] text-cyan-300 rounded font-mono focus:outline-none" readonly></textarea>
+            <button onclick="closeCustomAlert()" class="w-full py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-lg text-xs transition-all">確認</button>
+        </div>
+    </div>
+
+    <!-- 頂部資源與指標列 -->
+    <header class="scalable-ui w-full bg-slate-900/95 border-b border-slate-800 p-3 shadow-2xl flex flex-wrap gap-3 justify-between items-center z-30 relative backdrop-blur-md">
+        <div class="flex items-center gap-3">
+            <div class="flex flex-col">
+                <h1 id="game-title" class="text-lg font-black bg-gradient-to-r from-cyan-400 to-indigo-400 bg-clip-text text-transparent neon-text-cyan transition-all duration-1000">未來交界</h1>
+                <span id="ui-era" class="text-[10px] text-cyan-400 font-mono font-bold">當前：Era 1/1000</span>
+            </div>
+            <button onclick="openTechProgressModal()" class="px-2 py-1.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 rounded text-[10px] font-bold shadow-lg transition-all active:scale-95">
+                🚀 躍遷科研所
+            </button>
+            <button onclick="togglePause()" class="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded text-[10px] transition-all font-bold">
+                ⚙️ 設定 / 存檔
+            </button>
+            <!-- ⏱️ 右上角/頂部遊玩時長統計 -->
+            <div class="flex items-center gap-1.5 px-2.5 py-1 bg-slate-950 border border-slate-800 rounded-lg text-[10px] font-mono text-cyan-300 shadow-inner">
+                <span id="ui-playtime">⏱️ 00:00:00</span>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-3 bg-slate-950/80 px-3 py-1.5 rounded-lg border border-slate-800 text-xs">
+            <div class="flex flex-col items-start w-24">
+                <span class="text-slate-400 font-semibold text-[10px]">⚡️ 電網</span>
+                <div class="w-full bg-slate-800 h-1.5 rounded-full mt-0.5 overflow-hidden"><div id="ui-power-bar" class="bg-cyan-400 h-full w-0 transition-all duration-500"></div></div>
+                <span id="ui-power-text" class="text-[9px] text-cyan-300 font-mono mt-0.5">0/0 W</span>
+            </div>
+            <div class="flex flex-col items-start w-24 border-l border-slate-800 pl-3">
+                <span class="text-slate-400 font-semibold text-[10px]">🍀 生態</span>
+                <div class="w-full bg-slate-800 h-1.5 rounded-full mt-0.5 overflow-hidden"><div id="ui-eco-bar" class="bg-emerald-500 h-full w-full transition-all duration-500"></div></div>
+                <span id="ui-eco-text" class="text-[9px] text-emerald-400 font-mono mt-0.5">100%</span>
+            </div>
+        </div>
+
+        <div class="flex gap-4 items-center bg-slate-950/60 p-2 rounded-lg border border-slate-850">
+            <div class="flex flex-col items-center"><span class="text-[9px] text-slate-400">信用</span><span id="ui-credits" class="text-sm font-mono font-bold text-cyan-300">💰 0</span></div>
+            <div class="flex flex-col items-center"><span class="text-[9px] text-slate-400">核心</span><span id="ui-cores" class="text-sm font-mono font-bold text-indigo-400">💎 0</span></div>
+            
+            <div class="flex items-center border-l border-slate-800 pl-2 gap-2">
+                <div class="flex flex-col items-center mr-1">
+                    <span class="text-[9px] text-slate-400">小麥/原物料</span>
+                    <span id="ui-wheat" class="text-sm font-mono font-bold text-emerald-400">🌾 0</span>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <button onclick="sellResource('wheat', 1)" class="px-1.5 py-0.5 bg-slate-700 hover:bg-slate-600 text-[8px] rounded">賣 1</button>
+                    <button onclick="sellResource('wheat', 'all')" class="px-1.5 py-0.5 bg-emerald-700 hover:bg-emerald-600 font-bold text-white text-[8px] rounded">全賣</button>
+                </div>
+            </div>
+
+            <div class="flex items-center border-l border-slate-800 pl-2 gap-2">
+                <div class="flex flex-col items-center mr-1">
+                    <span class="text-[9px] text-slate-400">營養膏/成品</span>
+                    <span id="ui-paste" class="text-sm font-mono font-bold text-amber-400">🥫 0</span>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <button onclick="sellResource('paste', 1)" class="px-1.5 py-0.5 bg-slate-700 hover:bg-slate-600 text-[8px] rounded">賣 1</button>
+                    <button onclick="sellResource('paste', 'all')" class="px-1.5 py-0.5 bg-amber-700 hover:bg-amber-600 font-bold text-white text-[8px] rounded">全賣</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主要內容區 -->
+    <main class="flex-1 flex overflow-hidden relative">
+        
+        <!-- 左側建造選單 -->
+        <aside class="scalable-ui w-64 bg-slate-900/90 border-r border-slate-800 p-3 flex flex-col gap-2 overflow-y-auto z-20 relative backdrop-blur-md">
+            
+            <div class="flex bg-slate-950 p-1 rounded-lg border border-slate-800 mb-1">
+                <button id="mode-pan" onclick="setInteractionMode('pan')" class="flex-1 py-1.5 text-xs font-bold rounded bg-cyan-600 text-white transition-all">🖐️ 拖曳視角</button>
+                <button id="mode-brush" onclick="setInteractionMode('brush')" class="flex-1 py-1.5 text-xs font-bold rounded text-slate-400 hover:bg-slate-800 transition-all">🖌️ 筆刷建造</button>
+            </div>
+            
+            <h2 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 mb-1">一般基礎建設</h2>
+            <!-- 基礎按鈕區，會動態附加當代普通機器與歷史解鎖清單 -->
+            <div class="flex flex-col gap-1.5" id="build-buttons-container"></div>
+
+            <h2 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2 mb-1 text-fuchsia-400">當代專屬科技體</h2>
+            <div id="era-tech-container" class="flex flex-col gap-1.5 border-l-2 border-fuchsia-500 pl-2"></div>
+
+            <div class="h-px bg-slate-800 my-1"></div>
+            
+            <button id="tool-demolish" onclick="selectTool('demolish')" class="tool-btn p-2 rounded-lg border-2 border-slate-800 bg-slate-950 hover:border-slate-600 text-left transition-all">
+                <span class="text-xs font-bold">🧨 拆除模式 (回收50%)</span>
+            </button>
+            <button id="tool-observe" onclick="selectTool(null)" class="tool-btn p-2 rounded-lg border-2 border-cyan-400 bg-slate-900 text-left transition-all shadow-[0_0_10px_rgba(34,211,238,0.2)]">
+                <span class="text-xs font-bold">👆 觀察 / 升級 / 超頻</span>
+            </button>
+
+        </aside>
+
+        <!-- 視圖區域 -->
+        <div id="viewport" class="flex-1 overflow-hidden relative bg-[#070b13] z-10">
+            <div id="disaster-overlay" class="absolute inset-0 bg-green-900/20 mix-blend-color pointer-events-none hidden transition-all duration-1000"></div>
+            <div class="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:20px_20px] opacity-20 pointer-events-none"></div>
+
+            <div id="iso-camera" class="absolute top-1/2 left-1/2 w-0 h-0 transition-transform duration-75" style="transform: translate(0px, 0px);">
+                <div id="iso-grid-canvas" class="relative"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 建築控制/升級面板 -->
+    <div id="building-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-slate-900 border-2 border-slate-800 p-5 rounded-xl shadow-2xl max-w-sm w-full mx-4 scalable-ui-center">
+            <div class="flex justify-between items-start mb-3">
+                <h3 id="modal-title" class="text-lg font-bold text-cyan-400">🏭 建築資訊</h3>
+                <button onclick="closeBuildingModal()" class="text-slate-400 hover:text-white font-bold">&times;</button>
+            </div>
+            <div class="space-y-3">
+                <div class="flex justify-between items-center bg-slate-950 p-2 rounded border border-slate-800">
+                    <span class="text-xs text-slate-400">當前等級：</span>
+                    <span id="modal-level" class="text-sm font-bold text-amber-400">Lv.1</span>
+                </div>
+                
+                <div class="bg-slate-950 p-3 rounded-lg border border-slate-850 space-y-1.5 text-xs font-mono">
+                    <div class="flex justify-between"><span class="text-slate-400">座標:</span><span id="modal-coord" class="text-slate-200">0, 0</span></div>
+                    <div class="flex justify-between"><span class="text-slate-400">產能/效能:</span><span id="modal-prod" class="text-emerald-300">x1</span></div>
+                    <div class="flex justify-between"><span class="text-slate-400">電力運作:</span><span id="modal-power" class="text-slate-200">0 W</span></div>
+                    <div class="flex justify-between"><span class="text-slate-400">環境影響:</span><span id="modal-pol" class="text-rose-400">0</span></div>
+                </div>
+
+                <button id="btn-upgrade" onclick="upgradeBuilding()" class="w-full py-2.5 bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-500 hover:to-yellow-400 text-slate-900 font-black rounded-lg shadow-lg transition-all active:scale-95">
+                    ⬆️ 升級建築 (需 💰 <span id="upgrade-cost">0</span>)
+                </button>
+
+                <div id="overclock-panel" class="p-2.5 bg-slate-950 rounded-lg border border-cyan-500/30 flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] font-bold text-cyan-300">⚡️ 超頻模式 (產量與污染倍增)</span>
+                        <p class="text-[8px] text-slate-500 mt-0.5">每週期有 25% 機率故障！</p>
+                    </div>
+                    <input type="checkbox" id="overclock-checkbox" onchange="toggleOverclock()" class="cursor-pointer w-5 h-5 accent-cyan-500">
+                </div>
+
+                <div class="flex gap-2">
+                    <button onclick="demolishFromModal()" class="flex-1 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-xs font-bold transition-colors">🧨 拆除</button>
+                    <button onclick="closeBuildingModal()" class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs transition-colors">關閉</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 科技樹面板 -->
+    <div id="tech-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-slate-900 border-2 border-amber-500/60 p-6 rounded-2xl max-w-lg w-full mx-4 flex flex-col max-h-[85vh] scalable-ui-center">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="text-xl font-black text-amber-400">🚀 超時空科研所</h3>
+                <button onclick="closeTechModal()" class="text-slate-400 hover:text-white font-bold text-xl">&times;</button>
+            </div>
+            
+            <div class="bg-slate-950 p-4 rounded-lg border border-slate-800 mb-4 text-sm shadow-inner">
+                <div class="font-bold text-amber-300 mb-1">目前的宇宙進度：<span id="tech-current-name" class="text-white"></span></div>
+                <div class="font-bold text-cyan-300 mt-2">➡️ 躍遷所需資源：</div>
+                <div class="font-mono text-cyan-100 pl-4 mt-1">💰 <span id="tech-req-credits"></span></div>
+                <div class="font-mono text-indigo-300 pl-4">💎 <span id="tech-req-cores"></span></div>
+            </div>
+            <button id="upgrade-era-btn" onclick="attemptEraUpgrade()" class="w-full py-3 mb-4 bg-gradient-to-r from-amber-500 to-orange-600 text-slate-900 font-black text-lg rounded-xl shadow-[0_0_15px_rgba(245,158,11,0.4)] transition-all active:scale-95">
+                啟動時空躍遷！
+            </button>
+            <div class="flex-1 overflow-y-auto bg-slate-950/60 p-3 rounded-lg border border-slate-850 space-y-1">
+                <div class="text-[10px] font-bold text-slate-400 uppercase mb-2 sticky top-0 bg-slate-950/90 pb-1 backdrop-blur z-10">🔬 歷史與未來里程碑 (共 1000 代)</div>
+                <div id="era-timeline" class="space-y-1.5 text-[11px] font-mono"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // === 0. 核心引擎與網格數據 ===
+        const GAME_SPEED = 2000; 
+        const TILE_WIDTH = 100;  
+        const TILE_HEIGHT = 50;
+
+        // === 1. 設定與音效系統 (防 Google Sites 崩潰包裹) ===
+        let settings = { vol: 0.05, uiScale: 1.0, vfx: true };
+        let audioCtx = null;
+        let audioEnabled = true;
+        
+        function initAudio() {
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx && audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+            } catch (e) {
+                console.warn("Google Sites iframe 禁用了音訊權限：", e);
+                audioEnabled = false;
+            }
+        }
+
+        function playTone(freq, type, duration, baseVol=1.0) {
+            if (settings.vol <= 0 || !audioCtx || !audioEnabled) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type; osc.frequency.value = freq;
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start();
+                gain.gain.setValueAtTime(settings.vol * baseVol, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+                osc.stop(audioCtx.currentTime + duration);
+            } catch(e) {
+                // 安全攔截，防止阻斷其餘程序
+            }
+        }
+        function sfxBuild() { playTone(600, 'sine', 0.1, 1); setTimeout(()=>playTone(800, 'sine', 0.15, 1), 50); }
+        function sfxDestroy() { playTone(150, 'sawtooth', 0.3, 1.5); }
+        function sfxError() { playTone(200, 'square', 0.3, 1.5); }
+        function sfxUpgrade() { playTone(400, 'sine', 0.1, 1); setTimeout(()=>playTone(600, 'sine', 0.1, 1), 100); setTimeout(()=>playTone(1000, 'sine', 0.3, 1.2), 200); }
+
+        function updateSettings() {
+            settings.vol = parseFloat(document.getElementById('setting-vol').value);
+            settings.uiScale = parseFloat(document.getElementById('setting-scale').value);
+            settings.vfx = document.getElementById('setting-vfx').checked;
+            document.documentElement.style.setProperty('--ui-scale', settings.uiScale);
+        }
+
+        // 點擊特效 (VFX)
+        document.addEventListener('click', (e) => {
+            if(!settings.vfx || isPaused) return;
+            const rip = document.createElement('div');
+            rip.className = 'click-ripple';
+            rip.style.left = `${e.clientX - 15}px`;
+            rip.style.top = `${e.clientY - 15}px`;
+            rip.style.width = '30px'; rip.style.height = '30px';
+            document.body.appendChild(rip);
+            requestAnimationFrame(() => {
+                rip.style.transform = 'scale(4)';
+                rip.style.opacity = '0';
+            });
+            setTimeout(() => rip.remove(), 400);
+        });
+
+        // ESC 快捷鍵
+        window.addEventListener('keydown', (e) => {
+            if(e.key === 'Escape' && document.getElementById('home-screen').classList.contains('hidden')) {
+                togglePause();
+            }
+        });
+
+        // 自訂安全系統通知彈窗
+        function showCustomAlert(title, text, showTextarea = false, rawText = "") {
+            document.getElementById('alert-modal-title').innerText = title;
+            document.getElementById('alert-modal-text').innerText = text;
+            
+            const txtArea = document.getElementById('alert-modal-textarea');
+            if(showTextarea && rawText) {
+                txtArea.classList.remove('hidden');
+                txtArea.value = rawText;
+            } else {
+                txtArea.classList.add('hidden');
+            }
+
+            const modal = document.getElementById('custom-alert-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeCustomAlert() {
+            const modal = document.getElementById('custom-alert-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        // === 2. 1000 代演算法與雙重機器生成 ===
+        const PREF = ["量子", "光子", "暗物質", "反物質", "時空", "星際", "奈米", "全息", "中微子", "超弦", "神識", "次元", "脈衝", "黑洞", "超維", "引力", "微晶", "極光", "星河", "太玄"];
+        const MIDD = ["重組", "能量", "共振", "栽培", "萃取", "編碼", "粒子", "折疊", "奇點", "糾纏", "冷凝", "泡沫", "裂解", "推進", "光譜"];
+        const B_MACH = ["栽培器", "合成器", "能量井", "反應槽", "淨化器", "聚合儀", "提取機", "增幅爐", "捕獲網", "冷卻塔"];
+        const T_MACH = ["終極巨構", "時空奇觀", "宏偉矩陣", "神識樞紐", "永恆引擎", "混沌核心", "維度主機", "不滅神殿", "恆星天梯", "二維裂縫"];
+        const ERA_NAMES = ["現代破口", "資訊網格", "自動化黎明", "生態共生體", "奈米微重構", "亞軌道交通", "超導電網", "全息智慧雲", "地熱核心泵", "重力剪切站"];
+
+        // BASE_BUILDINGS: 基礎建築。新增 Era 5 解鎖的「🌀 核心凝聚儀」解決後期量子核心難賺痛點
+        const BASE_BUILDINGS = {
+            farm: { type: 'farm', baseCost: 100, name: '基因農場', icon: '🌾', color: 'from-emerald-600 to-teal-800 border-emerald-400', pUse: 5, pGen: 0, pol: 0, pWheat: 1, pPaste: 0, cWheat: 0, desc: '產出基礎物資' },
+            factory: { type: 'factory', baseCost: 300, name: '合成廠', icon: '🏭', color: 'from-slate-700 to-slate-900 border-cyan-400', pUse: 15, pGen: 0, pol: 5, pWheat: 0, pPaste: 1, cWheat: 2, desc: '消耗2物資做1成品' },
+            coal: { type: 'coal', baseCost: 150, name: '燃煤電廠', icon: '💨', color: 'from-amber-800 to-orange-950 border-amber-600', pUse: 0, pGen: 40, pol: 15, pWheat: 0, pPaste: 0, cWheat: 0, desc: '提供電力，高污染' },
+            tree: { type: 'tree', baseCost: 100, name: '生態樹木', icon: '🌳', color: 'from-green-600 to-green-900 border-green-400', pUse: 0, pGen: 0, pol: -5, pWheat: 0, pPaste: 0, cWheat: 0, desc: '降低污染 (生態+5)' },
+            condenser: { 
+                type: 'condenser', baseCost: 1500, name: '核心凝聚儀', icon: '🌀', 
+                color: 'from-purple-800 to-indigo-950 border-purple-400', 
+                pUse: 100, pGen: 0, pol: 2, pWheat: 0, pPaste: 0, cWheat: 0, cPaste: 1000, pCore: 1, 
+                desc: '消耗 50 營養膏 ➡️ 1 量子核心', unlockEra: 5 
+            }
+        };
+
+        let erasConfig = [];
+        let ERA_BUILDINGS = {}; 
+        const TOTAL_ERAS = 1000;
+
+        const BASIC_ICONS = ["🚜", "⚙️", "🔧", "🔬", "🛰️", "🧪", "📡", "🔋", "💡", "🔌", "🔩", "🧱", "🎛️", "🔮", "🧬"];
+        const TECH_ICONS = ["💠", "🪐", "🌀", "🌌", "☄️", "🛸", "🗼", "🏛️", "🌋", "🎇", "🌠", "💎", "🚀", "🌞", "🏆"];
+
+        for (let i = 1; i <= TOTAL_ERAS; i++) {
+            let eName = i <= ERA_NAMES.length ? ERA_NAMES[i-1] : `${PREF[i % PREF.length]}${MIDD[(i+3) % MIDD.length]}`;
+            erasConfig.push({
+                era: i, name: eName,
+                reqCredits: 1000 + Math.floor(Math.pow(i, 1.65) * 450),
+                reqCores: i * 2,
+                desc: `解鎖第 ${i} 世代。解鎖全新一般機器與專屬奇觀。`
+            });
+
+            // 1. 每代專屬「普通機器」(era_basic_i) - 位於基礎建設分類下
+            let bName = `${PREF[(i + 2) % PREF.length]}${MIDD[i % MIDD.length]}${B_MACH[(i + 7) % B_MACH.length]}`;
+            let bIcon = BASIC_ICONS[i % BASIC_ICONS.length];
+            ERA_BUILDINGS[`era_basic_${i}`] = {
+                type: `era_basic_${i}`, baseCost: i * 200 + 100, name: bName, icon: bIcon,
+                color: 'from-blue-600 to-indigo-900 border-blue-400',
+                pUse: i * 3, pGen: 0, pol: Math.max(0, 4 - Math.floor(i/10)), 
+                pWheat: Math.ceil(i * 1.5), pPaste: 0, cWheat: 0,
+                desc: `[代${i}普通] 生產大量基礎小麥/物資`, unlockEra: i
+            };
+
+            // 2. 每代專屬「神級科技體」(era_tech_i) - 位於專屬科技分類下
+            let tName = `${PREF[(i + 5) % PREF.length]}${MIDD[(i + 2) % MIDD.length]}${T_MACH[i % T_MACH.length]}`;
+            let tIcon = TECH_ICONS[i % TECH_ICONS.length];
+            ERA_BUILDINGS[`era_tech_${i}`] = {
+                type: `era_tech_${i}`, baseCost: i * 1500 + 500, name: tName, icon: tIcon,
+                color: 'from-fuchsia-700 to-purple-900 border-fuchsia-400',
+                pUse: 0, pGen: i * 50 + 20, pol: -Math.min(50, 5 + Math.floor(i/5)), 
+                pWheat: 0, pPaste: Math.ceil(i * 2), cWheat: Math.ceil(i * 1.2),
+                desc: `[代${i}專屬] 發電、極限加工並自動淨化環境`, unlockEra: i
+            };
+        }
+
+        const MARKET_PRICES = { wheat: 10, paste: 50 };
+
+        // === 3. 狀態與初始化 ===
+        let isPaused = true;
+        let gameState = {
+            resources: { credits: 1500, cores: 2, wheat: 0, paste: 0 },
+            buildings: {}, 
+            unlockedTiles: { "0,0":true, "0,1":true, "1,0":true, "1,1":true, "0,-1":true, "-1,0":true }, 
+            tickCount: 0, currentEra: 1, ecoDisaster: false,
+            playTime: 0 // 新增儲存遊玩時長 (秒)
+        };
+
+        let selectedTool = null; 
+        let interactionMode = 'pan'; 
+        let activeGlitchTimer = {}; 
+        let activeModalKey = null; 
+        let gameInterval = null;
+        let playTimeInterval = null; // 獨立時長計時器
+
+        function formatPlayTime(seconds) {
+            const h = Math.floor(seconds / 3600).toString().padStart(2, '0');
+            const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
+            const s = (seconds % 60).toString().padStart(2, '0');
+            return `${h}:${m}:${s}`;
+        }
+
+        function startPlayTimer() {
+            if(playTimeInterval) clearInterval(playTimeInterval);
+            playTimeInterval = setInterval(() => {
+                if (isPaused) return;
+                if (!gameState.playTime) gameState.playTime = 0;
+                gameState.playTime++;
+                const ptEl = document.getElementById('ui-playtime');
+                if (ptEl) {
+                    ptEl.innerText = `⏱️ ${formatPlayTime(gameState.playTime)}`;
+                }
+            }, 1000);
+        }
+
+        function startGame() {
+            initAudio(); 
+            document.getElementById('home-screen').classList.add('hidden');
+            updateSettings();
+            isPaused = false;
+            initBuildMenu();
+            render2DCanvas();
+            startGameLoop();
+            startPlayTimer(); // 啟動遊玩時間計時
+        }
+
+        function togglePause() {
+            isPaused = !isPaused;
+            const ps = document.getElementById('pause-screen');
+            if (isPaused) {
+                ps.classList.remove('hidden');
+                ps.classList.add('flex');
+            } else {
+                ps.classList.add('hidden');
+                ps.classList.remove('flex');
+            }
+        }
+
+        function exportSave() {
+            try {
+                const saveStr = btoa(encodeURIComponent(JSON.stringify(gameState)));
+                if(navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(saveStr).then(() => {
+                        showCustomAlert("📥 存檔匯出成功", "代碼已自動複製到你的剪貼簿！下次可直接貼上讀取。\n\n代碼預覽：" + saveStr.substring(0, 30) + "...");
+                    }).catch(() => {
+                        showCustomAlert("📥 存檔匯出", "由於嵌入權限限制，無法自動複製。請手動複製下方文字框內的所有存檔代碼：", true, saveStr);
+                    });
+                } else {
+                    showCustomAlert("📥 存檔匯出", "由於瀏覽器權限限制，請手動選取並複製下方代碼：", true, saveStr);
+                }
+            } catch(e) {
+                showCustomAlert("⚠️ 匯出錯誤", "匯出存檔時發生錯誤：" + e);
+            }
+        }
+
+        function loadGame() {
+            const val = document.getElementById('save-input').value.trim();
+            if(!val) {
+                showCustomAlert("提示", "請在輸入框內貼上有效的存檔代碼。");
+                return;
+            }
+            try {
+                gameState = JSON.parse(decodeURIComponent(atob(val)));
+                startGame();
+                showCustomAlert("🎮 歡迎回來", "存檔讀取成功！即刻恢復市長權限。");
+            } catch(e) {
+                showCustomAlert("⚠️ 讀取失敗", "存檔代碼已毀損或無效。");
+            }
+        }
+
+        // 初始化選單 (已修正：動態新增 3 個最近代解鎖的普通基礎建設)
+        function initBuildMenu() {
+            const basicContainer = document.getElementById('build-buttons-container');
+            basicContainer.innerHTML = '';
+            
+            // 1. 永久基礎設施 (包含 Era 5 解鎖的核心凝聚儀)
+            Object.values(BASE_BUILDINGS).forEach(b => {
+                if (b.unlockEra && gameState.currentEra < b.unlockEra) return;
+                basicContainer.innerHTML += `
+                    <button id="tool-${b.type}" onclick="selectTool('${b.type}')" class="tool-btn p-2 rounded border-2 border-slate-800 bg-slate-950 hover:border-slate-600 text-left transition-all shadow">
+                        <div class="flex justify-between items-center"><span class="text-xs font-bold">${b.icon} ${b.name}</span><span class="text-[10px] font-mono text-cyan-300">💰${b.baseCost}</span></div>
+                        <p class="text-[8px] text-slate-400 mt-0.5">${b.desc}</p>
+                    </button>
+                `;
+            });
+            updateEraBuildMenu();
+        }
+
+        // 時代更新動態機器 (定期在一般基礎選單新增 3 台前代/當代普通機器，避免雜亂)
+        function updateEraBuildMenu() {
+            const basicContainer = document.getElementById('build-buttons-container');
+            const techCont = document.getElementById('era-tech-container');
+            
+            // 移除舊的當代普通機器與歷史普通機器的群組
+            const oldGroup = document.getElementById('tool-current-era-basics-group');
+            if(oldGroup) oldGroup.remove();
+
+            // 動態提取並列出最多「最近 3 代解鎖的普通機器」以維持選單簡潔並滿足「定期新增」
+            let basicMachinesList = [];
+            for (let i = 2; i <= gameState.currentEra; i++) {
+                let bMac = ERA_BUILDINGS[`era_basic_${i}`];
+                if(bMac) basicMachinesList.push(bMac);
+            }
+            // 取最近 3 代解鎖
+            let recentMachines = basicMachinesList.slice(-3);
+
+            if (recentMachines.length > 0) {
+                const tempDiv = document.createElement('div');
+                tempDiv.id = 'tool-current-era-basics-group';
+                
+                let htmlContent = `<div class="h-px bg-slate-800 my-1"></div>`;
+                htmlContent += `<span class="text-[9px] text-blue-400 font-bold uppercase tracking-wider block mb-1">近期解鎖基礎建設</span>`;
+                
+                recentMachines.forEach(b => {
+                    htmlContent += `
+                        <button id="tool-${b.type}" onclick="selectTool('${b.type}')" class="w-full tool-btn p-2 rounded border-2 border-slate-800 bg-slate-950 hover:border-blue-500 text-left transition-all shadow mb-1.5 relative overflow-hidden">
+                            <div class="flex justify-between items-center"><span class="text-xs font-bold text-blue-300">${b.icon} ${b.name}</span><span class="text-[10px] font-mono text-cyan-300">💰${b.baseCost}</span></div>
+                            <p class="text-[8px] text-slate-400 mt-0.5">${b.desc}</p>
+                        </button>
+                    `;
+                });
+                
+                tempDiv.innerHTML = htmlContent;
+                basicContainer.appendChild(tempDiv);
+            }
+            
+            // 2. 更新「當代專屬科技體」
+            techCont.innerHTML = '';
+            let t = ERA_BUILDINGS[`era_tech_${gameState.currentEra}`];
+            if(t) {
+                techCont.innerHTML = `
+                    <button id="tool-${t.type}" onclick="selectTool('${t.type}')" class="tool-btn p-2 rounded border-2 border-slate-800 bg-slate-950 hover:border-fuchsia-500 text-left transition-all shadow relative overflow-hidden">
+                        <div class="absolute inset-0 bg-gradient-to-r from-fuchsia-900/30 to-purple-900/30 pointer-events-none"></div>
+                        <div class="flex justify-between items-center relative"><span class="text-xs font-bold text-fuchsia-300">${t.icon} ${t.name}</span><span class="text-[10px] font-mono text-cyan-300">💰${t.baseCost}</span></div>
+                        <p class="text-[8px] text-slate-300 mt-0.5 relative">${t.desc}</p>
+                    </button>
+                `;
+            }
+        }
+
+        // === 4. 視角平移與拖曳 ===
+        const viewport = document.getElementById('viewport');
+        const isoCamera = document.getElementById('iso-camera');
+        const TILE_W_HALF = TILE_WIDTH / 2;
+        const TILE_H_HALF = TILE_HEIGHT / 2;
+        
+        let isDragging = false;
+        let startX, startY, translateX = 0, translateY = 150; 
+        isoCamera.style.transform = `translate(${translateX}px, ${translateY}px)`;
+
+        function setInteractionMode(mode) {
+            interactionMode = mode;
+            document.getElementById('mode-pan').className = mode === 'pan' ? 'flex-1 py-1.5 text-xs font-bold rounded bg-cyan-600 text-white transition-all' : 'flex-1 py-1.5 text-xs font-bold rounded text-slate-400 hover:bg-slate-800 transition-all';
+            document.getElementById('mode-brush').className = mode === 'brush' ? 'flex-1 py-1.5 text-xs font-bold rounded bg-cyan-600 text-white transition-all' : 'flex-1 py-1.5 text-xs font-bold rounded text-slate-400 hover:bg-slate-800 transition-all';
+            viewport.style.cursor = mode === 'pan' ? 'grab' : 'crosshair';
+        }
+
+        function handlePointerDown(e) {
+            isDragging = true;
+            if(interactionMode === 'pan') {
+                startX = e.touches ? e.touches[0].clientX : e.clientX;
+                startY = e.touches ? e.touches[0].clientY : e.clientY;
+                viewport.style.cursor = 'grabbing';
+            }
+        }
+        function handlePointerMove(e) {
+            if (!isDragging) return;
+            if(interactionMode === 'pan') {
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                isoCamera.style.transform = `translate(${translateX + (clientX - startX)}px, ${translateY + (clientY - startY)}px)`;
+            }
+        }
+        function handlePointerUp(e) {
+            if (!isDragging) return;
+            isDragging = false;
+            if(interactionMode === 'pan') {
+                const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+                const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+                translateX += clientX - startX;
+                translateY += clientY - startY;
+                viewport.style.cursor = 'grab';
+            }
+        }
+
+        viewport.addEventListener('mousedown', handlePointerDown);
+        window.addEventListener('mousemove', handlePointerMove);
+        window.addEventListener('mouseup', handlePointerUp);
+        viewport.addEventListener('touchstart', handlePointerDown, {passive: true});
+        window.addEventListener('touchmove', handlePointerMove, {passive: true});
+        window.addEventListener('touchend', handlePointerUp);
+
+        // === 5. 2.5D 精確菱形渲染 ===
+        const isoCanvas = document.getElementById('iso-grid-canvas');
+
+        function getIsoCoords(x, y) { return { x: (x - y) * TILE_W_HALF, y: (x + y) * TILE_H_HALF }; }
+
+        function render2DCanvas() {
+            isoCanvas.innerHTML = '';
+            
+            let renderMap = {}; 
+            const dirs = [[1,0], [-1,0], [0,1], [0,-1]];
+            
+            Object.keys(gameState.unlockedTiles).forEach(key => {
+                renderMap[key] = 'unlocked';
+                const [x, y] = key.split(',').map(Number);
+                dirs.forEach(([dx, dy]) => {
+                    const adjKey = `${x+dx},${y+dy}`;
+                    if (!gameState.unlockedTiles[adjKey]) renderMap[adjKey] = 'border';
+                });
+            });
+
+            let renderArray = Object.keys(renderMap).map(k => {
+                const [x, y] = k.split(',').map(Number);
+                return { x, y, type: renderMap[k] };
+            });
+            renderArray.sort((a, b) => (a.x + a.y) - (b.x + b.y));
+
+            renderArray.forEach(cell => createIsoTile(cell.x, cell.y, cell.type === 'border'));
+        }
+
+        function createIsoTile(x, y, isBorder) {
+            const posKey = `${x},${y}`;
+            const bData = gameState.buildings[posKey];
+            const coords = getIsoCoords(x, y);
+
+            const tileDiv = document.createElement('div');
+            tileDiv.className = `iso-tile absolute`;
+            tileDiv.style.left = `${coords.x}px`; tileDiv.style.top = `${coords.y}px`;
+            tileDiv.style.width = `${TILE_WIDTH}px`; tileDiv.style.height = `120px`;
+            tileDiv.style.transform = `translate(-50%, -100%)`; 
+            tileDiv.style.zIndex = (x + y + 1000) * 10; 
+
+            let svgFloorPlate = '';
+            let buildingGraphic = '';
+
+            // 筆刷塗抹事件：修正筆刷可以在還沒買的地畫的 bug
+            const brushEvents = `onmouseenter="if(interactionMode==='brush' && isDragging) { handleCellClick(${x}, ${y}, true); }"`;
+
+            if (isBorder) {
+                const expandCost = Object.keys(gameState.unlockedTiles).length * 80;
+                svgFloorPlate = `
+                    <svg class="absolute bottom-0 left-0 w-[100px] h-[50px] overflow-visible" style="pointer-events: none;">
+                        <polygon points="50,2 98,25 50,48 2,25" class="floor-polygon fill-slate-900/60 stroke-dashed stroke-amber-500/50 hover:fill-amber-500/30 hover:stroke-amber-400 cursor-pointer" style="pointer-events: auto;"
+                            onmousedown="if(interactionMode==='pan') { unlockExpansion(${x}, ${y}, ${expandCost}); }" />
+                        <text x="50" y="24" text-anchor="middle" class="fill-amber-400 font-bold text-[8px]" pointer-events="none">解鎖</text>
+                        <text x="50" y="34" text-anchor="middle" class="fill-amber-300 font-mono text-[7px]" pointer-events="none">💰${expandCost}</text>
+                    </svg>
+                `;
+            } else {
+                let strokeColor = 'stroke-slate-700/80';
+                let fillColor = gameState.ecoDisaster ? 'fill-green-900/60' : 'fill-slate-900/40';
+                let hClass = selectedTool==='demolish' ? 'hover:fill-red-500/30 hover:stroke-red-500' : 'hover:fill-cyan-500/20 hover:stroke-cyan-400';
+
+                svgFloorPlate = `
+                    <svg class="absolute bottom-0 left-0 w-[100px] h-[50px] overflow-visible" style="pointer-events: none;">
+                        <polygon points="50,2 98,25 50,48 2,25" class="floor-polygon ${fillColor} ${strokeColor} ${hClass} cursor-pointer" style="pointer-events: auto;"
+                            onmousedown="if(interactionMode==='pan') { handleCellClick(${x}, ${y}); }" ${brushEvents} />
+                    </svg>
+                `;
+
+                if (bData) {
+                    const def = BASE_BUILDINGS[bData.type] || ERA_BUILDINGS[bData.type] || {};
+                    let lvlBadge = bData.level > 1 ? `<span class="absolute top-0 right-0 bg-yellow-500 text-black text-[7px] font-black px-1 rounded shadow">Lv.${bData.level}</span>` : '';
+
+                    if (bData.state === 'destroyed') {
+                        buildingGraphic = `<div class="building-graphic absolute inset-x-0 bottom-[12px] h-[50px] flex flex-col items-center justify-end"><div class="absolute bottom-0 w-[60px] h-[36px] bg-red-950 border border-red-800 rounded shadow-2xl flex items-center justify-center text-xl">🔥</div><span class="absolute -top-2 bg-red-800 text-white text-[8px] font-bold px-1 rounded">廢墟</span></div>`;
+                    } else if (bData.state === 'glitch') {
+                        buildingGraphic = `<div class="building-graphic absolute inset-x-0 bottom-[12px] h-[55px] flex flex-col items-center justify-end"><div class="absolute bottom-0 w-[60px] h-[40px] rounded border-2 alert-active flex items-center justify-center text-2xl shadow-xl">${def.icon || '🏭'}</div><button onclick="fixGlitch('${posKey}')" class="absolute -top-5 bg-rose-500 border border-white text-white text-[9px] font-bold px-2.5 py-1 rounded-full shadow-lg animate-bounce" style="pointer-events: auto;">🔧修復</button></div>`;
+                    } else {
+                        const ocBadge = bData.overclock ? '<span class="absolute -top-3 left-0 bg-cyan-400 text-black px-1 text-[7px] font-bold rounded-full animate-pulse shadow">⚡️</span>' : '';
+                        buildingGraphic = `
+                            <div class="building-graphic absolute inset-x-0 bottom-[12px] h-[55px] flex flex-col items-center justify-end">
+                                <div class="absolute bottom-0 left-[20px] w-[30px] h-[25px] bg-black/40 rounded-bl transform skew-y-[23deg] origin-top-left"></div>
+                                <div class="absolute bottom-0 right-[20px] w-[30px] h-[25px] bg-black/20 rounded-br transform -skew-y-[23deg] origin-top-right"></div>
+                                <div class="absolute bottom-0 w-[60px] h-[40px] bg-gradient-to-br ${def.color || 'from-slate-700 to-slate-900 border-slate-400'} border border-slate-300/30 rounded shadow-2xl flex flex-col items-center justify-center text-2xl">
+                                    ${def.icon || '❓'}${lvlBadge}${ocBadge}
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+            }
+            tileDiv.innerHTML = `${svgFloorPlate}${buildingGraphic}`;
+            isoCanvas.appendChild(tileDiv);
+        }
+
+        // === 6. 擴展與點擊建造 ===
+        function unlockExpansion(x, y, cost) {
+            if (gameState.resources.credits >= cost) {
+                gameState.resources.credits -= cost;
+                sfxBuild();
+                gameState.unlockedTiles[`${x},${y}`] = true;
+                if(Math.random() > 0.4) gameState.unlockedTiles[`${x+1},${y}`] = true;
+                if(Math.random() > 0.4) gameState.unlockedTiles[`${x},${y+1}`] = true;
+                updateUI(); render2DCanvas();
+            } else {
+                sfxError(); showToast(`擴展需要 💰${cost}！`, 'red');
+            }
+        }
+
+        function handleCellClick(x, y, isBrush = false) {
+            const posKey = `${x},${y}`;
+            const bData = gameState.buildings[posKey];
+
+            // 修正邊界 Bug：僅限已解鎖領地
+            if (!gameState.unlockedTiles[posKey]) {
+                return; 
+            }
+
+            if (bData && bData.state === 'glitch') { fixGlitch(posKey); return; }
+
+            if (selectedTool === 'demolish') {
+                if (bData) {
+                    performDemolition(posKey);
+                }
+                return;
+            }
+
+            if (selectedTool === null && bData && !isBrush) {
+                openBuildingModal(posKey); return;
+            }
+
+            if (selectedTool && (BASE_BUILDINGS[selectedTool] || ERA_BUILDINGS[selectedTool])) {
+                if (bData) { if(!isBrush) showToast('該格點已被佔據！', 'orange'); return; }
+                const def = BASE_BUILDINGS[selectedTool] || ERA_BUILDINGS[selectedTool];
+                if (gameState.resources.credits >= def.baseCost) {
+                    gameState.resources.credits -= def.baseCost;
+                    gameState.buildings[posKey] = { type: selectedTool, level: 1, overclock: false, state: 'normal' };
+                    sfxBuild(); updateUI(); render2DCanvas();
+                } else {
+                    if(!isBrush) { sfxError(); showToast('預算不足！', 'red'); }
+                }
+            }
+        }
+
+        function performDemolition(posKey) {
+            const bData = gameState.buildings[posKey];
+            if (!bData) return;
+            const def = BASE_BUILDINGS[bData.type] || ERA_BUILDINGS[bData.type] || {};
+            const baseCost = def.baseCost || 100;
+            const refund = bData.state === 'destroyed' ? 0 : Math.floor(baseCost * Math.pow(1.5, bData.level-1) * 0.5);
+            gameState.resources.credits += refund;
+
+            if (activeGlitchTimer[posKey]) {
+                clearTimeout(activeGlitchTimer[posKey]);
+                delete activeGlitchTimer[posKey];
+            }
+
+            delete gameState.buildings[posKey];
+            updateUI();
+            render2DCanvas(); 
+            showToast(`拆除成功！回收 💰${refund} 信用點數`, 'green');
+        }
+
+        function fixGlitch(posKey) {
+            if (gameState.buildings[posKey] && gameState.buildings[posKey].state === 'glitch') {
+                gameState.buildings[posKey].state = 'normal';
+                if (activeGlitchTimer[posKey]) {
+                    clearTimeout(activeGlitchTimer[posKey]);
+                    delete activeGlitchTimer[posKey];
+                }
+                sfxBuild(); render2DCanvas(); updateUI();
+            }
+        }
+
+        function sellResource(type, amount) {
+            let inv = gameState.resources[type];
+            if (inv <= 0) return showToast('庫存不足', 'orange');
+            let sellCount = amount === 'all' ? inv : 1;
+            
+            let pollution = 0;
+            Object.values(gameState.buildings).forEach(b => {
+                if (b.state === 'normal') {
+                    const def = BASE_BUILDINGS[b.type] || ERA_BUILDINGS[b.type] || {};
+                    const pol = def.pol || 0;
+                    pollution += pol * b.level * (b.overclock ? 2 : 1);
+                }
+            });
+            let ecoFactor = Math.max(0.5, (100 - pollution) / 100);
+            let unitPrice = Math.max(5, Math.floor(MARKET_PRICES[type] * ecoFactor));
+            if(gameState.ecoDisaster) unitPrice = 1;
+
+            let earned = sellCount * unitPrice;
+            gameState.resources[type] -= sellCount;
+            gameState.resources.credits += earned;
+            
+            sfxUpgrade(); updateUI();
+            showToast(`賣出 ${sellCount} 單位，入帳 💰${earned}`, 'green');
+        }
+
+        function selectTool(tool) {
+            selectedTool = tool;
+            document.querySelectorAll('.tool-btn').forEach(btn => {
+                btn.classList.remove('border-cyan-400', 'bg-slate-900', 'border-red-400', 'border-blue-500', 'border-fuchsia-500');
+                btn.classList.add('border-slate-800', 'bg-slate-950');
+            });
+            const activeBtn = document.getElementById(tool===null ? 'tool-observe' : `tool-${tool}`);
+            if(activeBtn) {
+                activeBtn.classList.remove('border-slate-800', 'bg-slate-950');
+                if(tool==='demolish') activeBtn.classList.add('border-red-400', 'bg-red-950/20');
+                else if(tool && tool.startsWith('era_tech')) activeBtn.classList.add('border-fuchsia-500', 'bg-slate-900');
+                else if(tool && (tool.startsWith('era_basic') || tool === 'condenser')) activeBtn.classList.add('border-blue-500', 'bg-slate-900');
+                else activeBtn.classList.add('border-cyan-400', 'bg-slate-900');
+            }
+        }
+
+        // === 7. 彈出面板管理 ===
+        function openBuildingModal(posKey) {
+            activeModalKey = posKey;
+            const bData = gameState.buildings[posKey];
+            if (!bData) return;
+            const def = BASE_BUILDINGS[bData.type] || ERA_BUILDINGS[bData.type] || {};
+            
+            document.getElementById('modal-title').innerText = `${def.icon || '❔'} ${def.name || '未知設施'}`;
+            document.getElementById('modal-level').innerText = `Lv.${bData.level}`;
+            document.getElementById('modal-coord').innerText = posKey;
+            document.getElementById('modal-prod').innerText = `x${bData.level}`;
+            document.getElementById('modal-power').innerText = `${(def.pUse || 0) * bData.level} W`;
+            document.getElementById('modal-pol').innerText = `${(def.pol || 0) * bData.level}`;
+            
+            const cost = Math.floor((def.baseCost || 100) * Math.pow(1.5, bData.level));
+            document.getElementById('upgrade-cost').innerText = cost;
+
+            const ocPanel = document.getElementById('overclock-panel');
+            // 限制：工廠、專屬科技巨構、核心凝聚儀允許超頻
+            if ((bData.type === 'factory' || bData.type === 'condenser' || bData.type.startsWith('era_tech_')) && bData.state === 'normal') {
+                ocPanel.classList.remove('hidden');
+                document.getElementById('overclock-checkbox').checked = bData.overclock;
+            } else { ocPanel.classList.add('hidden'); }
+            document.getElementById('building-modal').classList.remove('hidden');
+        }
+        function closeBuildingModal() { document.getElementById('building-modal').classList.add('hidden'); activeModalKey = null; }
+        
+        function upgradeBuilding() {
+            if(!activeModalKey) return;
+            const bData = gameState.buildings[activeModalKey];
+            if (!bData) return;
+            const def = BASE_BUILDINGS[bData.type] || ERA_BUILDINGS[bData.type] || {};
+            const baseCost = def.baseCost || 100;
+            const cost = Math.floor(baseCost * Math.pow(1.5, bData.level));
+            
+            if(gameState.resources.credits >= cost) {
+                gameState.resources.credits -= cost;
+                bData.level += 1;
+                sfxUpgrade(); updateUI(); render2DCanvas(); openBuildingModal(activeModalKey);
+            } else { sfxError(); showToast('資金不足無法升級！', 'red'); }
+        }
+
+        function toggleOverclock() {
+            if (activeModalKey) {
+                gameState.buildings[activeModalKey].overclock = document.getElementById('overclock-checkbox').checked;
+                render2DCanvas(); updateUI();
+            }
+        }
+        function demolishFromModal() { if (activeModalKey) { const k = activeModalKey; closeBuildingModal(); selectedTool='demolish'; handleCellClick(...k.split(',')); } }
+
+        function openTechProgressModal() {
+            const currentConf = erasConfig[gameState.currentEra - 1];
+            const nextConf = erasConfig[gameState.currentEra] || null;
+
+            document.getElementById('tech-current-name').innerText = `[Era ${currentConf.era}] ${currentConf.name}`;
+            if(nextConf) {
+                document.getElementById('tech-req-credits').innerText = `${gameState.resources.credits} / ${nextConf.reqCredits}`;
+                document.getElementById('tech-req-cores').innerText = `${gameState.resources.cores} / ${nextConf.reqCores}`;
+                const btn = document.getElementById('upgrade-era-btn');
+                if (gameState.resources.credits >= nextConf.reqCredits && gameState.resources.cores >= nextConf.reqCores) {
+                    btn.disabled = false; btn.innerText = `🌌 躍遷至 [Era ${nextConf.era}]`;
+                } else { btn.disabled = true; btn.innerText = '躍遷能量不足'; }
+            } else {
+                document.getElementById('tech-req-credits').innerText = 'MAX'; document.getElementById('tech-req-cores').innerText = 'MAX';
+                document.getElementById('upgrade-era-btn').disabled = true; document.getElementById('upgrade-era-btn').innerText = '宇宙終點達成';
+            }
+
+            const tl = document.getElementById('era-timeline');
+            tl.innerHTML = '';
+            
+            let start = Math.max(0, gameState.currentEra - 10);
+            let end = Math.min(TOTAL_ERAS, start + 30);
+            for(let i=start; i<end; i++) {
+                let cfg = erasConfig[i];
+                let col = cfg.era < gameState.currentEra ? 'text-emerald-500' : (cfg.era === gameState.currentEra ? 'text-cyan-400 font-bold bg-slate-800/50' : 'text-slate-600');
+                let mark = cfg.era < gameState.currentEra ? '✔️' : (cfg.era === gameState.currentEra ? '▶️' : '🔒');
+                tl.innerHTML += `<div class="flex justify-between py-1.5 px-2 border-b border-slate-900 rounded ${col}"><span>${mark} Era ${cfg.era}: ${cfg.name}</span><span>💰${cfg.reqCredits} 💎${cfg.reqCores}</span></div>`;
+            }
+            document.getElementById('tech-modal').classList.remove('hidden');
+        }
+        function closeTechModal() { document.getElementById('tech-modal').classList.add('hidden'); }
+        
+        function attemptEraUpgrade() {
+            const nextConf = erasConfig[gameState.currentEra];
+            if (nextConf && gameState.resources.credits >= nextConf.reqCredits && gameState.resources.cores >= nextConf.reqCores) {
+                gameState.resources.credits -= nextConf.reqCredits;
+                gameState.resources.cores -= nextConf.reqCores;
+                gameState.currentEra++;
+                sfxUpgrade();
+                
+                document.getElementById('ui-era').innerText = `當前：Era ${gameState.currentEra}/${TOTAL_ERAS}`;
+                
+                // 每次升級重新刷新基礎設施與科技選單，即時解鎖或追加普通建設
+                initBuildMenu();
+                closeTechModal(); updateUI(); render2DCanvas();
+                showCustomAlert("🎉 躍遷成功", `你已順利帶領市民跨越到 【Era ${gameState.currentEra}: ${nextConf.name}】！\n\n新機器已被送入你的建造選單：\n🔹 一般基礎機器：${ERA_BUILDINGS[`era_basic_${gameState.currentEra}`].name}\n🔹 當代專屬科技體：${ERA_BUILDINGS[`era_tech_${gameState.currentEra}`].name}`);
+            }
+        }
+
+        // === 8. 核心遊戲大迴圈 ===
+        function updateUI() {
+            document.getElementById('ui-credits').innerText = `💰 ${gameState.resources.credits}`;
+            document.getElementById('ui-cores').innerText = `💎 ${gameState.resources.cores}`;
+            document.getElementById('ui-wheat').innerText = `🌾 ${gameState.resources.wheat}`;
+            document.getElementById('ui-paste').innerText = `🥫 ${gameState.resources.paste}`;
+
+            let tGen = 0, tUse = 0, tPol = 0;
+            Object.values(gameState.buildings).forEach(b => {
+                if (b.state === 'destroyed') return;
+                const def = BASE_BUILDINGS[b.type] || ERA_BUILDINGS[b.type] || {};
+                const pGen = def.pGen || 0;
+                const pUse = def.pUse || 0;
+                const pol = def.pol || 0;
+                
+                tGen += pGen * b.level;
+                tUse += (b.overclock ? pUse * 2.5 : pUse) * b.level;
+                tPol += (b.overclock ? pol * 2 : pol) * b.level;
+            });
+
+            const pBar = document.getElementById('ui-power-bar');
+            pBar.style.width = `${Math.min(100, tGen>0 ? (tUse/tGen)*100 : 0)}%`;
+            pBar.className = tUse > tGen ? "bg-red-500 h-full w-full transition-all" : "bg-cyan-400 h-full w-full transition-all";
+            document.getElementById('ui-power-text').innerText = `${Math.round(tUse)}/${Math.round(tGen)} W`;
+            document.getElementById('ui-power-text').className = tUse > tGen ? "text-[9px] text-red-400 font-mono mt-0.5 font-bold animate-pulse" : "text-[9px] text-cyan-300 font-mono mt-0.5";
+
+            let eco = Math.min(100, Math.max(0, 100 - tPol));
+            const eBar = document.getElementById('ui-eco-bar');
+            eBar.style.width = `${eco}%`;
+            eBar.className = eco < 20 ? "bg-red-500 h-full transition-all" : (eco < 50 ? "bg-amber-400 h-full transition-all" : "bg-emerald-500 h-full transition-all");
+            document.getElementById('ui-eco-text').innerText = `${Math.round(eco)}%`;
+
+            // 生態災難
+            if(eco <= 0 && !gameState.ecoDisaster) {
+                gameState.ecoDisaster = true;
+                document.getElementById('disaster-overlay').classList.remove('hidden');
+                sfxError(); 
+                showCustomAlert("⚠️ 全域生態災難", "環境污染指數已經破表！全城酸雨肆虐，所有的農場作物產出完全歸零！\n\n請立刻在選單中多加種植「🌳 生態樹木」來改善指數以挽救民生！");
+                render2DCanvas();
+            } else if (eco > 0 && gameState.ecoDisaster) {
+                gameState.ecoDisaster = false;
+                document.getElementById('disaster-overlay').classList.add('hidden');
+                showToast('🌤️ 生態恢復，酸雨停止。', 'green'); render2DCanvas();
+            }
+        }
+
+        function showToast(msg, colorType) {
+            const toast = document.createElement('div');
+            const colors = { green: 'bg-emerald-600 border-emerald-400', red: 'bg-red-600 border-red-400', orange: 'bg-amber-600 border-amber-400' };
+            toast.className = `fixed bottom-6 right-6 ${colors[colorType]} text-white px-4 py-3 rounded-xl border shadow-2xl z-[100] transition-all font-bold text-sm scalable-ui`;
+            toast.innerText = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => { toast.classList.add('translate-y-4', 'opacity-0'); setTimeout(() => toast.remove(), 300); }, 2500);
+        }
+
+        // 核心迴圈：已加入全包覆式的 Try-Catch 與 防禦性 Destructuring，保證後台在任何狀態下均能 100% 更新 UI
+        function startGameLoop() {
+            if(gameInterval) clearInterval(gameInterval);
+            gameInterval = setInterval(() => {
+                if(isPaused) return;
+                
+                try {
+                    gameState.tickCount++;
+                    
+                    let tGen = 0, tUse = 0;
+                    Object.values(gameState.buildings).forEach(b => {
+                        if (b.state === 'destroyed') return;
+                        const def = BASE_BUILDINGS[b.type] || ERA_BUILDINGS[b.type] || {};
+                        const pGen = def.pGen || 0;
+                        const pUse = def.pUse || 0;
+                        tGen += pGen * b.level; 
+                        tUse += (b.overclock ? pUse * 2.5 : pUse) * b.level;
+                    });
+
+                    const powerDeficit = tUse > tGen;
+                    const eff = powerDeficit ? 0.2 : 1.0; 
+                    let dWheat = 0;
+                    let facts = [];
+                    let condensers = []; // 後期凝聚儀運作陣列
+
+                    Object.entries(gameState.buildings).forEach(([k, b]) => {
+                        if (b.state !== 'normal') return;
+                        const def = BASE_BUILDINGS[b.type] || ERA_BUILDINGS[b.type] || {};
+                        const pWheat = def.pWheat || 0;
+                        const cWheat = def.cWheat || 0;
+                        const pPaste = def.pPaste || 0;
+                        const pGen = def.pGen || 0;
+                        
+                        if(pWheat > 0) dWheat += (gameState.ecoDisaster ? 0 : pWheat * eff * b.level);
+                        if(cWheat > 0 || pPaste > 0) facts.push(k);
+                        if(b.type === 'condenser') condensers.push(k); // 搜集凝聚儀
+
+                        // 電網爆炸
+                        if(powerDeficit && pGen > 0 && Math.random() < 0.05) {
+                            b.state = 'destroyed';
+                            sfxDestroy(); showToast('💥 警告：發電廠因超載而爆炸！', 'red'); render2DCanvas();
+                        }
+                    });
+
+                    // 生產基因小麥 / 基礎原料
+                    gameState.resources.wheat += Math.round(dWheat);
+
+                    // 工廠、巨構加工
+                    facts.forEach(k => {
+                        const b = gameState.buildings[k];
+                        if (!b) return;
+                        const def = BASE_BUILDINGS[b.type] || ERA_BUILDINGS[b.type] || {};
+                        const cWheat = def.cWheat || 0;
+                        const pPaste = def.pPaste || 0;
+                        
+                        let req = cWheat * b.level;
+                        let out = pPaste * eff * b.level;
+                        if(b.overclock) out *= 3;
+                        
+                        if (gameState.resources.wheat >= req) {
+                            gameState.resources.wheat -= req;
+                            gameState.resources.paste += Math.round(out);
+                            if (b.overclock && Math.random() < 0.25) {
+                                triggerGlitch(k); // 修正 QTE 爆炸計時器不生效問題
+                            }
+                        }
+                    });
+
+                    // 後期核心凝聚儀加工 (消耗大量營養膏 ➡️ 生產量子核心)
+                    condensers.forEach(k => {
+                        const b = gameState.buildings[k];
+                        if (!b) return;
+                        const def = BASE_BUILDINGS[b.type] || ERA_BUILDINGS[b.type] || {};
+                        const cPaste = def.cPaste || 0;
+                        const pCore = def.pCore || 0;
+                        
+                        let req = cPaste * b.level;
+                        let out = pCore * b.level;
+                        if (b.overclock) {
+                            out *= 3;
+                            req *= 2; // 超頻消耗加倍
+                        }
+                        if (gameState.resources.paste >= req) {
+                            gameState.resources.paste -= req;
+                            gameState.resources.cores += out;
+                            sfxUpgrade();
+                            showToast(`🌀 凝聚儀成功融合了 ${out} 個 量子核心！`, 'green');
+                            if (b.overclock && Math.random() < 0.25) {
+                                triggerGlitch(k); // 修正 QTE 爆炸計時器不生效問題
+                            }
+                        }
+                    });
+
+                    // 量子核心常規隨機生成 (核心掉率隨代數提升)
+                    if (Math.random() < (0.05 + gameState.currentEra * 0.005)) {
+                        gameState.resources.cores++;
+                    }
+
+                } catch (e) {
+                    console.error("背景遊戲迴圈發生預期外例外，已由保護系統自動攔截並修復：", e);
+                } finally {
+                    // ★ 核心修復：不論中途是否發生非預期錯誤，均在 finally 區塊強制重新整理 UI
+                    updateUI();
+                }
+            }, GAME_SPEED);
+        }
+
+        function triggerGlitch(posKey) {
+            if (gameState.buildings[posKey] && gameState.buildings[posKey].state === 'normal') {
+                gameState.buildings[posKey].state = 'glitch';
+                render2DCanvas();
+                showToast('⚠️ 警告：有設施發生高溫超頻過載！點擊板手搶修！', 'red');
+
+                activeGlitchTimer[posKey] = setTimeout(() => {
+                    if (gameState.buildings[posKey] && gameState.buildings[posKey].state === 'glitch') {
+                        gameState.buildings[posKey].state = 'destroyed';
+                        gameState.buildings[posKey].overclock = false;
+                        delete activeGlitchTimer[posKey];
+                        render2DCanvas();
+                        updateUI();
+                        showToast('💥 轟！設施過載損壞，已變為廢墟遺址！', 'red');
+                    }
+                }, 5000);
+            }
+        }
+
+        // 啟動遊戲
+        render2DCanvas();
+        updateUI();
+
+    </script>
+</body>
+</html>

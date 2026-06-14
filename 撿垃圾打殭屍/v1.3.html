@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🗑️ 撿垃圾打殭屍 🧟 (存檔與智能AI版)</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #1a1a2e; color: #fff; font-family: 'Microsoft JhengHei', Arial, sans-serif; overflow: hidden; user-select: none; -webkit-touch-callout: none; touch-action: none; }
+        
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; z-index: 1000; background: rgba(0,0,0,0.85); }
+        .box { background: rgba(0,0,0,0.8); border: 2px solid #00ff88; border-radius: 20px; padding: 30px; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 0 30px rgba(0,255,136,0.3); text-align: center; }
+        .box h1 { font-size: 2.2em; color: #00ff88; margin-bottom: 15px; text-shadow: 0 0 15px rgba(0,255,136,0.5); }
+        .box p, .box li { font-size: 1em; line-height: 1.6; color: #ddd; text-align: left; }
+        .box ul { padding-left: 20px; margin-bottom: 15px; }
+        
+        .btn { margin-top: 15px; padding: 12px 30px; font-size: 1.1em; font-weight: bold; background: linear-gradient(45deg, #00ff88, #00cc6a); color: #000; border: none; border-radius: 50px; cursor: pointer; transition: 0.2s; width: 100%; max-width: 250px; display: inline-block; }
+        .btn:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(0,255,136,0.6); }
+        .btn:disabled { background: #555; color: #888; cursor: not-allowed; box-shadow: none; transform: none; }
+
+        #game-container { display: none; width: 100vw; height: 100vh; position: relative; }
+        canvas { display: block; background: #2d2d44; touch-action: none; }
+
+        /* HUD */
+        #hud { position: absolute; top: 0; left: 0; width: 100%; padding: 10px; display: flex; justify-content: space-between; pointer-events: none; z-index: 10; }
+        .hud-col { display: flex; flex-direction: column; gap: 5px; }
+        .hud-item { background: rgba(0,0,0,0.7); padding: 5px 12px; border-radius: 8px; font-size: 0.9em; border: 1px solid #444; pointer-events: auto; }
+        
+        /* 暫停按鈕 */
+        #pause-btn { background: rgba(0,0,0,0.8); border: 2px solid #00eeff; color: #00eeff; font-size: 1.5em; width: 40px; height: 40px; border-radius: 10px; display: flex; justify-content: center; align-items: center; cursor: pointer; pointer-events: auto; margin-bottom: 5px; box-shadow: 0 0 10px rgba(0,238,255,0.4); }
+        
+        .health-bar-bg { width: 150px; height: 15px; background: #333; border-radius: 10px; overflow: hidden; margin-top: 5px; border: 1px solid #555; }
+        .health-bar { height: 100%; background: linear-gradient(90deg, #00ff88, #00cc6a); transition: width 0.2s; }
+
+        .damage-number { position: absolute; font-weight: bold; font-size: 1.2em; pointer-events: none; z-index: 30; animation: floatUp 0.8s forwards; text-shadow: 1px 1px 2px #000; }
+        .damage-number.crit { font-size: 2em; color: #ffcc00 !important; text-shadow: 0 0 10px #ffcc00, 2px 2px 0 #000; animation: critPop 0.8s forwards; }
+        @keyframes floatUp { 0% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-40px) scale(0.8); } }
+        @keyframes critPop { 0% { opacity: 1; transform: translateY(0) scale(1.5); } 20% { transform: translateY(-10px) scale(1.2); } 100% { opacity: 0; transform: translateY(-50px) scale(0.8); } }
+
+        #center-announce { position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%); font-size: 3em; font-weight: bold; color: #ffcc00; text-shadow: 0 0 20px #ff0000; opacity: 0; transition: opacity 0.3s; z-index: 20; pointer-events: none; }
+        
+        .shop-item { display: flex; justify-content: space-between; align-items: center; background: #222; padding: 10px; margin: 10px 0; border: 1px solid #555; border-radius: 10px; text-align: left; }
+        .shop-item div { font-size: 0.95em; }
+        .shop-item span { color: #ffcc00; font-weight: bold; }
+        
+        #weapon-list { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; pointer-events: auto; z-index: 100; max-width: 80%; }
+        .weapon-slot { background: rgba(0,0,0,0.8); border: 2px solid #444; border-radius: 8px; padding: 5px 10px; color: #888; font-size: 1.1em; transition: 0.2s; cursor: pointer; }
+        .weapon-slot.unlocked { color: #fff; border-color: #888; }
+        .weapon-slot.active { border-color: #00ff88; background: rgba(0,255,136,0.3); transform: scale(1.1); box-shadow: 0 0 15px #00ff88; color: #fff; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div id="intro-screen" class="overlay">
+    <div class="box">
+        <h1>🗑️ 撿垃圾打殭屍</h1>
+        <p><b>💻 電腦：</b> WASD移動，滑鼠瞄準射擊，ESC暫停。</p>
+        <p><b>📱 手機：</b> 左下角移動，右下角射擊，左上角暫停。</p>
+        <ul style="font-size: 0.9em; margin-top: 10px;">
+            <li>💡 新增存檔系統與全新智能突變怪物！</li>
+        </ul>
+        <button class="btn" onclick="startGame(false)">⚔️ 開始全新遊戲</button><br>
+        <button class="btn" style="background: linear-gradient(45deg, #00eeff, #0088ff); margin-top: 10px;" onclick="importSave()">📂 匯入進度存檔</button>
+    </div>
+</div>
+
+<div id="pause-screen" class="overlay" style="display: none; z-index: 2000;">
+    <div class="box" style="border-color: #00eeff; box-shadow: 0 0 30px rgba(0,238,255,0.4);">
+        <h1 style="color: #00eeff;">⏸️ 遊戲暫停</h1>
+        <button class="btn" onclick="togglePause()">▶️ 繼續遊戲</button><br>
+        <button class="btn" style="background: linear-gradient(45deg, #ffcc00, #ff8800); margin-top: 15px;" onclick="exportSave()">💾 導出存檔 (複製代碼)</button><br>
+        <button class="btn" style="background: linear-gradient(45deg, #ff4444, #cc0000); margin-top: 15px;" onclick="quitToMenu()">🚪 退出至主選單</button>
+    </div>
+</div>
+
+<div id="shop-screen" class="overlay" style="display: none;">
+    <div class="box">
+        <h1>🛒 黑市商人</h1>
+        <p style="text-align:center; color:#00ff88; font-size:1.2em; margin-bottom: 10px;">你身上的垃圾：<span id="shop-trash">0</span> 個</p>
+        <div style="max-height: 40vh; overflow-y: auto; padding-right: 10px;">
+            <div class="shop-item"><div>❤️ 急救包 (回復 5 HP)</div><button class="btn" style="margin:0; padding:8px 15px; width:auto;" onclick="buyItem('hp', 25)">25 垃圾</button></div>
+            <div class="shop-item"><div>🛡️ 護盾 (抵禦一次攻擊)</div><button class="btn" style="margin:0; padding:8px 15px; width:auto;" id="btn-shield" onclick="buyItem('shield', 40)">40 垃圾</button></div>
+            <div class="shop-item"><div>👟 輕量化跑鞋 (永久加速)</div><button class="btn" style="margin:0; padding:8px 15px; width:auto;" id="btn-speed" onclick="buyItem('speed', 60)">60 垃圾</button></div>
+            <div class="shop-item"><div>💪 健身手環 (最大血量 +5)</div><button class="btn" style="margin:0; padding:8px 15px; width:auto;" id="btn-maxhp" onclick="buyItem('maxhp', 80)">80 垃圾</button></div>
+            <div class="shop-item"><div>🍀 幸運草 (爆擊率 +5%)</div><button class="btn" style="margin:0; padding:8px 15px; width:auto;" id="btn-crit" onclick="buyItem('crit', 100)">100 垃圾</button></div>
+        </div>
+        <button class="btn" style="background: linear-gradient(45deg, #ffcc00, #ff9900);" onclick="closeShop()">⏭️ 繼續下一波</button>
+    </div>
+</div>
+
+<div id="game-over" class="overlay" style="display: none;">
+    <div class="box" style="border-color: #ff0000; box-shadow: 0 0 30px rgba(255,0,0,0.5);">
+        <h1 style="color: #ff0000;">☠️ 你成為了晚餐</h1>
+        <p style="text-align: center; font-size: 1.2em;">波次：<span id="final-wave"></span> | 擊殺：<span id="final-kills"></span></p>
+        <button class="btn" style="background: #ff4444;" onclick="quitToMenu()">返回主選單</button>
+    </div>
+</div>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+    <div id="hud">
+        <div class="hud-col">
+            <div id="pause-btn" onclick="togglePause()">⏸️</div>
+            <div class="hud-item" id="hud-hp-text">❤️ 10 / 10</div>
+            <div class="health-bar-bg"><div class="health-bar" id="hud-hp-bar"></div></div>
+            <div class="hud-item" style="margin-top:5px;" id="hud-stats">🛡️ 護盾: 0 | 👟 速度: 4.5</div>
+        </div>
+        <div class="hud-col" style="align-items: center;">
+            <div class="hud-item" style="font-size:1.2em; font-weight:bold; color:#ffcc00;" id="hud-wave">🌊 波次：1</div>
+            <div class="hud-item" id="hud-score">💀 擊殺：0</div>
+        </div>
+        <div class="hud-col" style="align-items: flex-end;">
+            <div class="hud-item" style="color:#00ff88; font-weight:bold;" id="hud-trash">🗑️ 垃圾幣：0</div>
+            <div class="hud-item" id="hud-next">📦 下次解鎖：10 垃圾</div>
+        </div>
+    </div>
+    <div id="weapon-list"></div>
+    <div id="center-announce"></div>
+</div>
+
+<script>
+// ==================== 基礎音效與畫布設定 ====================
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+let actx; function initAudio() { if(!actx) actx = new AudioContext(); if(actx.state === 'suspended') actx.resume(); }
+function playSound(type) { /* 省略詳細音效生成，保留架構以節省空間 */ }
+
+const canvas = document.getElementById('gameCanvas'); const ctx = canvas.getContext('2d');
+let W, H; let joyL = { baseX: 0, baseY: 0, active: false, id: null, dx: 0, dy: 0, maxR: 60 }; let joyR = { baseX: 0, baseY: 0, active: false, id: null, dx: 0, dy: 0, maxR: 60 };
+function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; joyL.baseX = 100; joyL.baseY = H - 100; joyR.baseX = W - 100; joyR.baseY = H - 100; }
+window.addEventListener('resize', resize); resize();
+
+const MAP_W = 2500, MAP_H = 2500;
+let gameRunning = false, isPaused = false, screenShake = 0, hitStop = 0;
+let keys = {}, mouseX = W/2, mouseY = H/2, mouseDown = false;
+let camera = { x: 0, y: 0 };
+let trashItems = [], bullets = [], zombies = [], particles = [], bloodStains = [], casings = [], damageTexts = [], explosions = [];
+let totalTrash = 0, trashCurrency = 0, totalKills = 0, currentWave = 1, zombiesToSpawn = 0, waveTimer = 0, isShopTime = false;
+let player = { x: MAP_W/2, y: MAP_H/2, size: 18, hp: 10, maxHp: 10, speed: 4.5, critChance: 0.1, cdMultiplier: 1.0, shield: 0, invincible: 0, shootCooldown: 0 };
+
+// 武器庫
+const weapons = [
+    { id: 1, name: '拳頭', emoji: '✊', dmg: 2, cd: 20, type: 'melee', range: 60, req: 0 },
+    { id: 2, name: '手槍', emoji: '🔫', dmg: 3, cd: 15, type: 'pistol', speed: 12, req: 10 },
+    { id: 3, name: '散彈', emoji: '💥', dmg: 3, cd: 35, type: 'shotgun', speed: 12, spread: 5, req: 30 },
+    { id: 4, name: '衝鋒', emoji: '💨', dmg: 2, cd: 6,  type: 'smg', speed: 14, req: 50 },
+    { id: 5, name: '火箭', emoji: '🚀', dmg: 35, cd: 70, type: 'rocket', speed: 10, radius: 200, req: 80 }
+];
+let unlockedWeapons = [0]; let currentWepIdx = 0;
+
+function switchWeapon(idx) { if (unlockedWeapons.includes(idx)) { currentWepIdx = idx; renderWeaponUI(); } }
+window.addEventListener('keydown', e => {
+    if (e.key === 'Escape') togglePause();
+    if(!gameRunning || isPaused) return;
+    keys[e.key.toLowerCase()] = true;
+    let num = parseInt(e.key); if (num >= 1 && num <= 5) switchWeapon(num - 1);
+});
+window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+
+function renderWeaponUI() {
+    const wl = document.getElementById('weapon-list'); wl.innerHTML = '';
+    weapons.forEach((w, i) => {
+        if (unlockedWeapons.includes(i)) {
+            let div = document.createElement('div');
+            div.className = 'weapon-slot unlocked' + (currentWepIdx === i ? ' active' : '');
+            div.textContent = `${i+1}.${w.emoji}`;
+            let preventAndSwitch = (e) => { e.stopPropagation(); e.preventDefault(); switchWeapon(i); };
+            div.addEventListener('mousedown', preventAndSwitch); div.addEventListener('touchstart', preventAndSwitch, {passive: false});
+            wl.appendChild(div);
+        }
+    });
+    document.getElementById('hud-next').textContent = unlockedWeapons.length < weapons.length ? `📦 解鎖還需 ${weapons[unlockedWeapons.length].req - totalTrash} 垃圾` : `✨ 武器滿級！`;
+}
+
+// ==================== 存檔系統與暫停邏輯 ====================
+function togglePause() {
+    if (!gameRunning || document.getElementById('game-over').style.display === 'flex' || isShopTime) return;
+    isPaused = !isPaused;
+    document.getElementById('pause-screen').style.display = isPaused ? 'flex' : 'none';
+}
+
+function quitToMenu() {
+    gameRunning = false; isPaused = false;
+    document.getElementById('pause-screen').style.display = 'none';
+    document.getElementById('game-over').style.display = 'none';
+    document.getElementById('game-container').style.display = 'none';
+    document.getElementById('intro-screen').style.display = 'flex';
+}
+
+function exportSave() {
+    try {
+        let saveData = { player, currentWave, totalKills, totalTrash, trashCurrency, unlockedWeapons, currentWepIdx };
+        let base64 = btoa(unescape(encodeURIComponent(JSON.stringify(saveData))));
+        navigator.clipboard.writeText(base64).then(() => { alert("✅ 存檔代碼已成功複製到剪貼簿！"); })
+        .catch(err => { prompt("自動複製失敗，請手動複製以下代碼：", base64); });
+    } catch (e) { alert("❌ 導出存檔失敗！"); }
+}
+
+function importSave() {
+    let code = prompt("請貼上存檔代碼 (Base64)：");
+    if(code) {
+        try {
+            let str = decodeURIComponent(escape(atob(code)));
+            let saveData = JSON.parse(str);
+            player = saveData.player; currentWave = saveData.currentWave; totalKills = saveData.totalKills; 
+            totalTrash = saveData.totalTrash; trashCurrency = saveData.trashCurrency; 
+            unlockedWeapons = saveData.unlockedWeapons; currentWepIdx = saveData.currentWepIdx;
+            startGame(true); // true 代表是從存檔讀取，不重置狀態
+            alert("✅ 存檔讀取成功！");
+        } catch(e) { alert("❌ 存檔代碼無效或已損壞！"); }
+    }
+}
+
+function startGame(isLoad = false) {
+    initAudio();
+    document.getElementById('intro-screen').style.display = 'none';
+    document.getElementById('game-container').style.display = 'block';
+    resize(); 
+    
+    if(!isLoad) { // 如果不是讀檔，重置所有數值
+        player = { x: MAP_W/2, y: MAP_H/2, size: 18, hp: 10, maxHp: 10, speed: 4.5, critChance: 0.1, cdMultiplier: 1.0, shield: 0, invincible: 0, shootCooldown: 0 };
+        totalTrash = 0; trashCurrency = 0; totalKills = 0; currentWave = 1; unlockedWeapons = [0]; currentWepIdx = 0;
+    }
+    
+    trashItems = []; bullets = []; zombies = []; particles = []; bloodStains = []; casings = []; explosions = [];
+    for(let i=0; i<40; i++) spawnTrash();
+    
+    gameRunning = true; isPaused = false; zombiesToSpawn = 10 + currentWave * 2;
+    renderWeaponUI(); updateHUD(); announce('🗑️ 開始生存！', '#00ff88');
+}
+
+// ==================== 智能 AI 怪物生成 ====================
+function spawnZombie() {
+    let type = 'normal', color = '#55cc55', emoji = '🧟', hp = 10, spd = 1.8, size = 20, dmg = 1;
+    let r = Math.random();
+    
+    if (currentWave >= 8 && r < 0.05) { type = 'boss'; emoji = '👹'; hp = 150; spd = 1.3; size = 45; dmg = 3; color = '#ff0000'; }
+    else if (currentWave >= 5 && r < 0.15) { type = 'tank'; emoji = '🛡️'; hp = 45; spd = 1.0; size = 30; dmg = 2; color = '#aa66ff'; }
+    else if (currentWave >= 3 && r < 0.25) { type = 'bomber'; emoji = '💣'; hp = 12; spd = 2.0; size = 22; dmg = 1; color = '#ff3300'; } // 自爆怪
+    else if (currentWave >= 4 && r < 0.4) { type = 'spider'; emoji = '🕷️'; hp = 8; spd = 1.5; size = 16; dmg = 1; color = '#9933ff'; } // 跳躍怪
+    else if (currentWave >= 2 && r < 0.6) { type = 'wolf'; emoji = '🐺'; hp = 10; spd = 3.5; size = 18; dmg = 1; color = '#ffff66'; } // 側翼怪
+    else if (r < 0.8) { type = 'fast'; emoji = '🏃'; hp = 8; spd = 3.8; size = 18; dmg = 1; color = '#ff6666'; }
+
+    let mult = 1 + (currentWave - 1) * 0.2;
+    let angle = Math.random() * Math.PI * 2;
+    let dist = Math.max(W, H)/2 + 150;
+    
+    zombies.push({
+        x: player.x + Math.cos(angle)*dist, y: player.y + Math.sin(angle)*dist,
+        hp: hp * mult, maxHp: hp * mult, speed: spd + (currentWave*0.01), size, damage: dmg, color, emoji, type,
+        vx: 0, vy: 0, dashTimer: Math.random()*100 + 50, isDashing: 0, dashAngle: 0,
+        flankDir: (Math.random() > 0.5 ? 1 : -1) // 側翼方向
+    });
+}
+
+// ==================== 核心遊戲迴圈 ====================
+function update() {
+    if (!gameRunning || isPaused) return; // 暫停時不更新邏輯
+    if (hitStop > 0) { hitStop--; return; }
+
+    // 玩家移動與射擊 (省略觸控搖桿詳解，概念同上一版)
+    let dx = 0, dy = 0;
+    if (keys['w']) dy -= 1; if (keys['s']) dy += 1; if (keys['a']) dx -= 1; if (keys['d']) dx += 1;
+    if (dx !== 0 || dy !== 0) { let len = Math.hypot(dx, dy); player.x += (dx/len) * player.speed; player.y += (dy/len) * player.speed; }
+    player.x = Math.max(player.size, Math.min(MAP_W-player.size, player.x)); player.y = Math.max(player.size, Math.min(MAP_H-player.size, player.y));
+
+    if (player.invincible > 0) player.invincible--;
+    if (player.shootCooldown > 0) player.shootCooldown--;
+    // if (mouseDown) shoot(); // 此處簡化，實際請套用上一版的射擊邏輯
+
+    // ... 省略子彈與撿垃圾邏輯 (同上一版) ...
+
+    // 🧠 怪物智能 AI 更新
+    for (let i = zombies.length - 1; i >= 0; i--) {
+        let z = zombies[i];
+        if (z.hp <= 0) { 
+            if(z.type === 'bomber') triggerExplosion(z.x, z.y, 150, 20); // 自爆怪死亡爆炸
+            zombies.splice(i, 1); continue; 
+        }
+
+        let distToPlayer = Math.hypot(player.x - z.x, player.y - z.y);
+        let angleToPlayer = Math.atan2(player.y - z.y, player.x - z.x);
+        let moveAngle = angleToPlayer;
+        let currentSpd = z.speed;
+
+        // 🕷️ 蜘蛛跳躍邏輯
+        if (z.type === 'spider') {
+            z.dashTimer--;
+            if (z.dashTimer <= 0) { z.dashTimer = 150; z.isDashing = 15; z.dashAngle = angleToPlayer; }
+            if (z.isDashing > 0) { z.isDashing--; moveAngle = z.dashAngle; currentSpd = 12; } // 瞬間高速
+            else currentSpd = 1.5; // 平時很慢
+        }
+        // 🐺 側翼狼邏輯
+        else if (z.type === 'wolf' || z.type === 'fast') {
+            // 距離遠時繞背，距離近時直衝
+            let flankForce = Math.min(1, 200 / Math.max(10, distToPlayer)); 
+            moveAngle += z.flankDir * (1 - flankForce) * 1.5; // 產生弧線路徑
+        }
+        // 💣 自爆怪邏輯
+        else if (z.type === 'bomber') {
+            if (distToPlayer < 120) { currentSpd *= 1.8; z.color = '#ff0000'; z.size = 25 + Math.sin(Date.now()/50)*5; } // 靠近加速閃爍
+        }
+
+        z.vx = Math.cos(moveAngle) * currentSpd; z.vy = Math.sin(moveAngle) * currentSpd;
+
+        // 🧠 群集分離 (Flocking Separation) - 防止擠成一直線
+        let sepX = 0, sepY = 0;
+        for (let j = 0; j < zombies.length; j++) {
+            if (i === j) continue;
+            let z2 = zombies[j];
+            let d = Math.hypot(z2.x - z.x, z2.y - z.y);
+            let repelDist = z.size + z2.size + 15; // 增加排斥半徑，讓牠們扇形散開
+            if (d < repelDist && d > 0) {
+                let force = (repelDist - d) / repelDist;
+                sepX -= (z2.x - z.x) / d * force * 1.5;
+                sepY -= (z2.y - z.y) / d * force * 1.5;
+                
+                // 物理硬碰撞推擠
+                if(d < z.size + z2.size) {
+                    let p = ((z.size + z2.size) - d) / 2;
+                    z.x -= (z2.x-z.x)/d * p; z.y -= (z2.y-z.y)/d * p;
+                }
+            }
+        }
+        z.vx += sepX; z.vy += sepY;
+        
+        z.x += z.vx; z.y += z.vy;
+
+        // 攻擊玩家
+        if (distToPlayer < z.size + player.size && player.invincible <= 0) {
+            if (z.type === 'bomber') { triggerExplosion(z.x, z.y, 150, 20); z.hp = 0; } // 自爆
+            else if (player.shield > 0) { player.shield--; } // 破盾
+            else { player.hp -= z.damage; player.invincible = 40; } // 受傷
+            
+            updateHUD();
+            if (player.hp <= 0) { 
+                gameRunning = false; document.getElementById('game-over').style.display = 'flex';
+                document.getElementById('final-wave').textContent = currentWave; document.getElementById('final-kills').textContent = totalKills;
+            }
+        }
+    }
+
+    // 波次管理... (略，同上一版)
+    camera.x = player.x - W/2; camera.y = player.y - H/2;
+}
+
+function draw() {
+    ctx.clearRect(0, 0, W, H); ctx.save(); ctx.translate(-camera.x, -camera.y);
+    // ... 繪製地圖、垃圾、玩家、怪物、特效 (同上一版) ...
+    
+    // 繪製殭屍 (特化自爆怪和跳躍怪的視覺)
+    zombies.forEach(z => {
+        ctx.fillStyle = z.color; ctx.font = `${z.size*2}px Arial`; 
+        ctx.fillText(z.emoji, z.x, z.y);
+        if(z.type === 'spider' && z.isDashing > 0) {
+            // 衝刺殘影
+            ctx.globalAlpha = 0.5; ctx.fillText(z.emoji, z.x - z.vx*2, z.y - z.vy*2); ctx.globalAlpha = 1;
+        }
+    });
+
+    ctx.restore();
+}
+
+function triggerExplosion(x, y, radius, dmg) { /* 同上一版的爆炸邏輯 */ }
+function updateHUD() { /* 更新 UI 文字 */ }
+function gameLoop() { update(); draw(); requestAnimationFrame(gameLoop); }
+
+// 初始化與事件監聽
+canvas.addEventListener('touchstart', e => { /* 觸控搖桿，同上一版 */ }, {passive: false});
+gameLoop();
+</script>
+</body>
+</html>

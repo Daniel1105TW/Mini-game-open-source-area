@@ -1,0 +1,1302 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>平靜港灣：療癒釣魚物語 (Serene Harbor)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background: linear-gradient(to bottom, #e0f2fe, #bae6fd);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        /* 溫馨的海浪波動動畫 */
+        @keyframes wave {
+            0%, 100% { transform: translateY(0) scaleY(1); }
+            50% { transform: translateY(8px) scaleY(1.05); }
+        }
+        .wave-bg {
+            animation: wave 4s ease-in-out infinite;
+        }
+        /* 驚嘆號跳動動畫 */
+        @keyframes pop {
+            0% { transform: scale(0) translateY(0); opacity: 0; }
+            50% { transform: scale(1.3) translateY(-10px); opacity: 1; }
+            70% { transform: scale(0.9) translateY(-5px); }
+            100% { transform: scale(1) translateY(-8px); opacity: 1; }
+        }
+        .pop-effect {
+            animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        /* 魚浮標上下微動 */
+        @keyframes bob {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-6px); }
+        }
+        .bobbing {
+            animation: bob 2s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-start p-4 md:p-6 text-slate-700 select-none">
+
+    <!-- 頂部標題與主選單 -->
+    <header class="w-full max-w-4xl flex flex-col md:flex-row justify-between items-center bg-white/70 backdrop-blur-md p-4 rounded-2xl shadow-sm mb-6 border border-white/50">
+        <div class="flex items-center gap-3">
+            <div class="p-2.5 bg-sky-100 rounded-xl text-sky-600">
+                <i data-lucide="anchor" class="w-6 h-6"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold text-sky-900 tracking-wide">平靜港灣 <span class="text-xs font-normal bg-sky-200 text-sky-800 py-0.5 px-2 rounded-full">Serene Harbor</span></h1>
+                <p class="text-xs text-sky-700/80">核心原型：手動釣魚 QTE 與魚竿升級</p>
+            </div>
+        </div>
+        
+        <!-- 資源狀態列 -->
+        <div class="flex items-center gap-4 mt-3 md:mt-0">
+            <div class="flex items-center gap-2 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-full">
+                <i data-lucide="coins" class="w-5 h-5 text-amber-500"></i>
+                <span id="player-gold" class="font-bold text-amber-800">100</span>
+                <span class="text-xs text-amber-600">金幣</span>
+            </div>
+            <div class="flex items-center gap-2 bg-indigo-50 border border-indigo-200 px-3 py-1.5 rounded-full">
+                <i data-lucide="sparkles" class="w-5 h-5 text-indigo-500"></i>
+                <span id="player-pearls" class="font-bold text-indigo-800">5</span>
+                <span class="text-xs text-indigo-600">珍珠</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- 遊戲主區塊 -->
+    <main class="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- 左側與中間：釣魚主舞台 -->
+        <div class="lg:col-span-2 flex flex-col gap-6">
+            
+            <!-- 釣魚水域與動態畫面 -->
+            <div class="relative bg-gradient-to-b from-sky-300 to-blue-500 rounded-3xl p-6 h-[320px] shadow-lg border border-sky-400 overflow-hidden flex flex-col justify-between">
+                <!-- 背景雲朵與太陽 -->
+                <div class="absolute top-4 left-6 opacity-30 flex items-center gap-1">
+                    <i data-lucide="cloud" class="w-6 h-6 text-white"></i>
+                    <i data-lucide="cloud" class="w-4 h-4 text-white"></i>
+                </div>
+                <div class="absolute top-4 right-6 w-12 h-12 bg-amber-200/40 rounded-full blur-sm"></div>
+
+                <!-- 狀態廣播 -->
+                <div id="game-status" class="z-10 bg-white/80 backdrop-blur-sm py-1.5 px-4 rounded-full text-sm text-sky-900 font-medium self-center shadow-sm border border-sky-100 transition-all duration-300">
+                    微風吹拂，正是適合釣魚的日子...
+                </div>
+
+                <!-- 湖面/海面動態與浮標 -->
+                <div class="relative w-full h-32 flex items-center justify-center">
+                    <!-- 波浪背景層 -->
+                    <div class="absolute bottom-0 left-0 w-full h-12 bg-blue-400/30 rounded-full blur-md wave-bg"></div>
+                    
+                    <!-- 水花 / 浮標狀態 -->
+                    <div id="fishing-bobber-area" class="relative hidden">
+                        <!-- 驚嘆號提示 -->
+                        <div id="bite-alert" class="absolute -top-16 left-1/2 -translate-x-1/2 hidden z-20">
+                            <div class="pop-effect bg-rose-500 text-white font-bold text-xl px-3 py-1 rounded-full shadow-lg flex items-center gap-1 border-2 border-white animate-bounce">
+                                <span>💬</span>拉竿！
+                            </div>
+                        </div>
+                        <!-- 水花動畫 -->
+                        <div id="water-splash" class="absolute -top-6 -left-6 w-16 h-16 bg-sky-200/50 rounded-full animate-ping hidden"></div>
+                        <!-- 浮標本體 -->
+                        <div class="bobbing cursor-pointer bg-white border-2 border-rose-500 w-5 h-10 rounded-full flex flex-col items-center justify-start shadow-md overflow-hidden">
+                            <div class="w-full h-1/2 bg-rose-500"></div>
+                            <div class="w-full h-1/2 bg-white"></div>
+                        </div>
+                    </div>
+
+                    <!-- 靜止時的空水面裝飾 -->
+                    <div id="idle-water-decor" class="text-white/60 flex flex-col items-center gap-1">
+                        <i data-lucide="waves" class="w-12 h-12 animate-pulse"></i>
+                        <span class="text-xs">點擊下方拋竿開始享受平靜</span>
+                    </div>
+                </div>
+
+                <!-- 水域控制與魚餌選擇 -->
+                <div class="z-10 flex justify-between items-end">
+                    <!-- 當前裝備魚竿簡述 -->
+                    <div class="bg-slate-900/40 backdrop-blur-sm text-white px-3 py-2 rounded-xl text-xs flex flex-col gap-0.5">
+                        <div class="flex items-center gap-1">
+                            <i data-lucide="sword" class="w-3.5 h-3.5 text-amber-300"></i>
+                            <span id="hud-rod-name" class="font-bold">新手竹竿</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span>耐久度:</span>
+                            <div class="w-16 bg-slate-700 h-1.5 rounded-full overflow-hidden">
+                                <div id="hud-rod-durability-bar" class="bg-emerald-400 h-full w-full"></div>
+                            </div>
+                            <span id="hud-rod-durability-text">50/50</span>
+                        </div>
+                    </div>
+
+                    <!-- 魚餌切換 -->
+                    <div class="flex gap-1.5 bg-white/90 p-1.5 rounded-2xl shadow-md border border-slate-100">
+                        <button onclick="selectBait('worm')" id="bait-btn-worm" class="bait-btn px-2.5 py-1.5 rounded-xl text-xs font-medium flex flex-col items-center gap-1 transition-all bg-sky-100 text-sky-950 border border-sky-300">
+                            <span>🪱</span>
+                            <span>蚯蚓</span>
+                            <span class="text-[10px] text-slate-500">(一般)</span>
+                        </button>
+                        <button onclick="selectBait('lure')" id="bait-btn-lure" class="bait-btn px-2.5 py-1.5 rounded-xl text-xs font-medium flex flex-col items-center gap-1 transition-all text-slate-600 hover:bg-slate-100">
+                            <span>🐟</span>
+                            <span>擬餌</span>
+                            <span class="text-[10px] text-amber-600">(速咬)</span>
+                        </button>
+                        <button onclick="selectBait('magic')" id="bait-btn-magic" class="bait-btn px-2.5 py-1.5 rounded-xl text-xs font-medium flex flex-col items-center gap-1 transition-all text-slate-600 hover:bg-slate-100">
+                            <span>✨</span>
+                            <span>魔法</span>
+                            <span class="text-[10px] text-indigo-600">(稀有+)</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 控制面板與 QTE 區塊 -->
+            <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col items-center justify-center min-h-[160px]">
+                
+                <!-- 準備/拋竿狀態按鈕 -->
+                <div id="control-idle-group" class="w-full flex flex-col items-center gap-3">
+                    <button id="btn-cast" onclick="startFishing()" class="w-full md:w-2/3 bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-600 hover:to-indigo-600 text-white font-bold py-4 px-8 rounded-2xl shadow-md shadow-sky-200 transition-all active:scale-95 flex items-center justify-center gap-3 text-lg">
+                        <i data-lucide="sparkles" class="w-6 h-6"></i>
+                        拋竿入海
+                    </button>
+                    <p class="text-xs text-slate-400">拋竿需要消耗 1 點耐久度。當前魚餌效果：<span id="bait-desc" class="text-sky-600">縮短等待時間，普通機率。</span></p>
+                </div>
+
+                <!-- 等待咬竿狀態 -->
+                <div id="control-waiting-group" class="hidden w-full flex flex-col items-center gap-3">
+                    <div class="flex items-center gap-2 text-sky-600 font-medium animate-pulse">
+                        <span class="flex h-3.5 w-3.5 relative">
+                          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
+                          <span class="relative inline-flex rounded-full h-3.5 w-3.5 bg-sky-500"></span>
+                        </span>
+                        靜待魚兒靠近... <span id="wait-timer-ui"></span>
+                    </div>
+                    <button onclick="cancelFishing()" class="text-xs text-slate-400 hover:text-rose-500 underline transition-colors">
+                        收回魚竿 (不扣耐久度)
+                    </button>
+                </div>
+
+                <!-- QTE 核心遊戲介面 -->
+                <div id="control-qte-group" class="hidden w-full max-w-md flex flex-col items-center gap-4">
+                    <div class="w-full flex justify-between text-xs font-semibold text-slate-500 px-1">
+                        <span class="flex items-center gap-1"><i data-lucide="info" class="w-3.5 h-3.5"></i> 在綠色與黃色區域按下「拉竿」！</span>
+                        <span id="qte-difficulty-badge" class="bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full">中等難度</span>
+                    </div>
+
+                    <!-- 滑動條 QTE 槽 -->
+                    <div class="relative w-full h-10 bg-slate-100 border border-slate-200 rounded-2xl overflow-hidden shadow-inner flex items-center">
+                        <!-- 安全區域 (黃色) -->
+                        <div id="qte-safe-zone" class="absolute h-full bg-amber-200" style="left: 30%; width: 40%;"></div>
+                        <!-- 完美區域 (綠色) -->
+                        <div id="qte-perfect-zone" class="absolute h-full bg-emerald-400" style="left: 45%; width: 10%;"></div>
+                        <!-- 滑動指針 -->
+                        <div id="qte-indicator" class="absolute top-0 bottom-0 w-2.5 bg-indigo-600 border border-white shadow shadow-indigo-400 rounded-full transition-all duration-75" style="left: 0%;"></div>
+                    </div>
+
+                    <button id="btn-pull" onclick="executePull()" class="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold py-3.5 px-8 rounded-2xl shadow-lg shadow-emerald-100 active:scale-95 transition-all flex items-center justify-center gap-2 text-lg">
+                        <i data-lucide="arrow-up-circle" class="w-6 h-6 animate-bounce"></i>
+                        立刻拉竿！
+                    </button>
+                </div>
+
+                <!-- 損壞無法使用提示 -->
+                <div id="control-broken-group" class="hidden w-full flex flex-col items-center gap-3">
+                    <div class="p-3 bg-rose-50 border border-rose-200 rounded-2xl text-center text-rose-800 text-sm flex flex-col items-center gap-1.5">
+                        <span class="font-bold text-base flex items-center gap-1"><i data-lucide="alert-triangle" class="w-5 h-5"></i> 魚竿已損壞！</span>
+                        <span>無法拋竿，請前往下方的鐵匠鋪修復魚竿。</span>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- 鐵匠鋪：魚竿修復與升級 -->
+            <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
+                <div class="flex items-center justify-between mb-4 border-b border-slate-50 pb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="p-1.5 bg-amber-100 text-amber-700 rounded-lg"><i data-lucide="hammer" class="w-5 h-5"></i></span>
+                        <h2 class="font-bold text-slate-800">港口鐵匠鋪 & 商店</h2>
+                    </div>
+                    <span class="text-xs text-slate-400">升級可大幅提升 QTE 完美區域寬度</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- 耐久度維修 -->
+                    <div class="bg-amber-50/50 border border-amber-100 p-4 rounded-2xl flex flex-col justify-between gap-3">
+                        <div>
+                            <h3 class="font-bold text-sm text-slate-800">維修當前魚竿</h3>
+                            <p class="text-xs text-slate-500 mt-1">恢復當前裝備魚竿的所有耐久度。</p>
+                        </div>
+                        <div class="flex justify-between items-center mt-2">
+                            <span class="text-xs font-medium text-amber-700 flex items-center gap-1">
+                                <i data-lucide="coins" class="w-4 h-4"></i>
+                                費用: <span id="repair-cost-ui" class="font-bold">10</span> 金幣
+                            </span>
+                            <button id="btn-repair" onclick="repairRod()" class="bg-amber-500 hover:bg-amber-600 text-white font-semibold text-xs py-2 px-4 rounded-xl transition-all shadow-sm active:scale-95">
+                                馬上修復
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 魚竿升級 -->
+                    <div class="bg-indigo-50/50 border border-indigo-100 p-4 rounded-2xl flex flex-col justify-between gap-3">
+                        <div>
+                            <div class="flex justify-between items-start">
+                                <h3 class="font-bold text-sm text-slate-800">升級魚竿：<span id="upgrade-next-level" class="text-indigo-600">Lv.1</span></h3>
+                                <span class="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">可升至 Lv.5</span>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-1" id="upgrade-bonus-desc">升級效果: 最大耐久 +10, 安全/完美QTE寬度 +10%</p>
+                        </div>
+                        <div class="flex justify-between items-center mt-2">
+                            <span class="text-xs font-medium text-indigo-700 flex items-center gap-1">
+                                <i data-lucide="coins" class="w-4 h-4"></i>
+                                費用: <span id="upgrade-cost-ui" class="font-bold">50</span> 金幣
+                            </span>
+                            <button id="btn-upgrade" onclick="upgradeRod()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs py-2 px-4 rounded-xl transition-all shadow-sm active:scale-95">
+                                強化升級
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 購買新類型魚竿 -->
+                <div class="mt-4 pt-4 border-t border-slate-100">
+                    <h3 class="text-xs font-bold text-slate-400 mb-2">購買其他特色魚竿</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <!-- 幸運之竹 -->
+                        <div id="shop-rod-lucky" class="border border-slate-200 p-3 rounded-xl flex justify-between items-center bg-white hover:border-sky-300 transition-all">
+                            <div class="flex flex-col gap-0.5">
+                                <span class="text-xs font-bold text-slate-800 flex items-center gap-1">🍀 幸運之竹 <span class="text-[10px] text-sky-600 font-normal">幸運型</span></span>
+                                <span class="text-[10px] text-slate-500">稀有魚上鉤率提升 2.5 倍，但最大耐久較低(30)。</span>
+                            </div>
+                            <button onclick="buySpecialRod('lucky', 150)" class="text-xs bg-slate-100 hover:bg-sky-500 hover:text-white px-2.5 py-1.5 rounded-lg font-bold transition-all text-slate-700 flex items-center gap-0.5">
+                                <i data-lucide="coins" class="w-3.5 h-3.5"></i>150
+                            </button>
+                        </div>
+                        <!-- 玄鐵重竿 -->
+                        <div id="shop-rod-iron" class="border border-slate-200 p-3 rounded-xl flex justify-between items-center bg-white hover:border-slate-400 transition-all">
+                            <div class="flex flex-col gap-0.5">
+                                <span class="text-xs font-bold text-slate-800 flex items-center gap-1">🧱 玄鐵重竿 <span class="text-[10px] text-amber-700 font-normal">耐用型</span></span>
+                                <span class="text-[10px] text-slate-500">最大耐久度高達 120！且每次失誤僅扣 1 點耐久。</span>
+                            </div>
+                            <button onclick="buySpecialRod('iron', 220)" class="text-xs bg-slate-100 hover:bg-slate-700 hover:text-white px-2.5 py-1.5 rounded-lg font-bold transition-all text-slate-700 flex items-center gap-0.5">
+                                <i data-lucide="coins" class="w-3.5 h-3.5"></i>220
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 右側：個人魚簍、圖鑑與成就 -->
+        <div class="flex flex-col gap-6">
+            
+            <!-- 歷史捕獲數據 -->
+            <div class="bg-gradient-to-br from-indigo-900 to-slate-900 text-indigo-100 rounded-3xl p-5 shadow-sm">
+                <h3 class="text-xs uppercase tracking-wider text-indigo-300 font-bold mb-3 flex items-center gap-1.5">
+                    <i data-lucide="bar-chart-2" class="w-4 h-4"></i> 港口捕魚日誌
+                </h3>
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    <div class="bg-white/10 p-2.5 rounded-xl">
+                        <span class="block text-lg font-bold text-white" id="stat-total-casts">0</span>
+                        <span class="text-[10px] text-indigo-200">拋竿次數</span>
+                    </div>
+                    <div class="bg-white/10 p-2.5 rounded-xl">
+                        <span class="block text-lg font-bold text-white" id="stat-total-fish">0</span>
+                        <span class="text-[10px] text-indigo-200">成功捕獲</span>
+                    </div>
+                    <div class="bg-white/10 p-2.5 rounded-xl">
+                        <span class="block text-lg font-bold text-white text-emerald-300" id="stat-rate">0%</span>
+                        <span class="text-[10px] text-indigo-200">拉竿成功率</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 我的魚簍 (背包) -->
+            <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex-1 flex flex-col">
+                <div class="flex justify-between items-center mb-4 border-b border-slate-50 pb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="p-1.5 bg-sky-50 text-sky-600 rounded-lg"><i data-lucide="shopping-bag" class="w-5 h-5"></i></span>
+                        <h2 class="font-bold text-slate-800">隨身魚簍</h2>
+                    </div>
+                    <button onclick="sellAllFish()" class="text-xs bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-1 px-3 rounded-full shadow-sm transition-all active:scale-95 flex items-center gap-1">
+                        <i data-lucide="badge-dollar-sign" class="w-3.5 h-3.5"></i>一鍵全賣
+                    </button>
+                </div>
+
+                <!-- 魚簍列表 -->
+                <div id="basket-empty-state" class="flex-1 flex flex-col items-center justify-center text-slate-400 py-8">
+                    <i data-lucide="container" class="w-10 h-10 stroke-[1.5] mb-2 animate-bounce"></i>
+                    <p class="text-xs">魚簍空空如也，快去海邊拋竿吧！</p>
+                </div>
+
+                <div id="basket-list" class="flex-1 overflow-y-auto max-h-[220px] space-y-2 hidden pr-1">
+                    <!-- 動態渲染魚籃內容 -->
+                </div>
+            </div>
+
+            <!-- 魚類圖鑑進度 -->
+            <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-bold text-sm text-slate-800 flex items-center gap-2">
+                        <span class="p-1.5 bg-pink-50 text-pink-500 rounded-lg"><i data-lucide="book-open" class="w-5 h-5"></i></span>
+                        海域圖鑑收集
+                    </h3>
+                    <span class="text-xs font-semibold text-pink-600 bg-pink-50 px-2.5 py-0.5 rounded-full" id="catalog-progress">0/8</span>
+                </div>
+
+                <div class="grid grid-cols-4 gap-2" id="catalog-grid">
+                    <!-- 動態渲染圖鑑項目 -->
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- 成功釣魚彈窗 Modal -->
+    <div id="catch-modal" class="fixed inset-0 bg-slate-950/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-xl border border-white text-center transform scale-95 transition-transform duration-300 flex flex-col items-center">
+            <div class="w-20 h-20 bg-sky-50 rounded-full flex items-center justify-center text-4xl mb-4 border-2 border-sky-200 animate-spin" style="animation-duration: 4s;" id="modal-fish-icon">
+                🐟
+            </div>
+            <span class="text-xs font-bold tracking-widest uppercase py-1 px-3 rounded-full" id="modal-fish-rarity">普通</span>
+            <h3 class="text-xl font-black text-slate-800 mt-2" id="modal-fish-name">可愛黃尾魚</h3>
+            <p class="text-xs text-slate-400 mt-1">體長: <span id="modal-fish-size" class="text-sky-600 font-bold">12.5 cm</span> (歷史新紀錄!)</p>
+            
+            <div class="w-full bg-slate-50 border border-slate-100 p-3 rounded-2xl my-4 text-xs text-slate-500 leading-relaxed text-left" id="modal-fish-story">
+                「生活在淺海的常見小魚，有著鵝黃色的尾巴，總是成群結隊穿梭在珊瑚叢中。」
+            </div>
+
+            <div class="w-full flex gap-3">
+                <button onclick="keepFish()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-3 rounded-xl transition-all">
+                    放入魚簍
+                </button>
+                <button onclick="releaseFishDirectly()" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3 rounded-xl transition-all shadow-md shadow-emerald-100 flex items-center justify-center gap-1">
+                    <i data-lucide="sparkles" class="w-4 h-4"></i> 放生 (+1 珍珠)
+                </button>
+            </div>
+            <p class="text-[10px] text-slate-400 mt-2">溫馨提示：放生可獲得稀有珍珠獎勵喔！</p>
+        </div>
+    </div>
+
+    <!-- 提示框 Toast Container -->
+    <div id="toast-container" class="fixed bottom-6 right-6 flex flex-col gap-2 z-50 pointer-events-none"></div>
+
+    <script>
+        // ==================== 數據定義與配置 ====================
+        
+        // 魚種數據庫
+        const FISH_DATABASE = [
+            { id: 'f01', name: '溫柔小黃尾', emoji: '🐠', rarity: 'common', baseMinSize: 8, baseMaxSize: 15, basePrice: 15, story: '淺海中最溫柔的使者，尾巴在陽光下泛著淡淡的金黃色。' },
+            { id: 'f02', name: '平靜海葵魚', emoji: '🐡', rarity: 'common', baseMinSize: 10, baseMaxSize: 18, basePrice: 20, story: '生活在溫暖海葵中的小傢伙，遇到驚嚇時會把自己鼓得圓滾滾。' },
+            { id: 'f03', name: '療癒粉紅水母', emoji: '🪼', rarity: 'rare', baseMinSize: 15, baseMaxSize: 30, basePrice: 45, story: '散發著微光的粉紅水母，它的飄動節奏彷彿自帶催眠的海浪曲調。' },
+            { id: 'f04', name: '碧波飛魚', emoji: '🐟', rarity: 'rare', baseMinSize: 20, baseMaxSize: 42, basePrice: 60, story: '擅長在浪花尖端滑行的奇妙魚類，追逐著風的軌跡。' },
+            { id: 'f05', name: '深海發光烏賊', emoji: '🦑', rarity: 'epic', baseMinSize: 30, baseMaxSize: 65, basePrice: 120, story: '只在寧靜深夜或深海中浮現的精靈，身上的斑點能變幻多種奇異色彩。' },
+            { id: 'f06', name: '星空寄居蟹', emoji: '🐚', rarity: 'epic', baseMinSize: 5, baseMaxSize: 12, basePrice: 140, story: '背負著被海水打磨如黑曜石般外殼的蟹，殼上閃爍著猶如銀河的碎星。' },
+            { id: 'f07', name: '沉睡太古巨鰻', emoji: '🐍', rarity: 'legendary', baseMinSize: 120, baseMaxSize: 220, basePrice: 350, story: '傳說中守護港灣萬年的巨鰻，只有在絕對平靜且使用魔法誘餌時才會醒來。' },
+            { id: 'f08', name: '幻彩極光錦鯉', emoji: '🦈', rarity: 'mythic', baseMinSize: 80, baseMaxSize: 150, basePrice: 600, story: '神話般的魚種。據說看過它遊動姿態的漁夫，內心將會獲得永久的安寧。' }
+        ];
+
+        // 稀有度設定
+        const RARITY_DETAILS = {
+            common: { name: '普通', color: 'bg-slate-100 text-slate-600 border-slate-300', chance: 0.60, qteSpeed: 1.5, qteWidthPct: 0.35, durCost: 1 },
+            rare: { name: '稀有', color: 'bg-sky-100 text-sky-700 border-sky-300', chance: 0.25, qteSpeed: 2.2, qteWidthPct: 0.25, durCost: 2 },
+            epic: { name: '史詩', color: 'bg-indigo-100 text-indigo-700 border-indigo-300', chance: 0.11, qteSpeed: 3.0, qteWidthPct: 0.18, durCost: 3 },
+            legendary: { name: '傳奇', color: 'bg-amber-100 text-amber-800 border-amber-300', chance: 0.035, qteSpeed: 4.0, qteWidthPct: 0.12, durCost: 5 },
+            mythic: { name: '神秘', color: 'bg-rose-100 text-rose-700 border-rose-300', chance: 0.005, qteSpeed: 4.8, qteWidthPct: 0.08, durCost: 8 }
+        };
+
+        // 魚餌設定
+        const BAIT_DETAILS = {
+            worm: { name: '蚯蚓', desc: '縮短等待時間，普通機率。', waitMin: 3, waitMax: 6, rarityBonus: null },
+            lure: { name: '特製擬餌', desc: '超快速吸引魚兒上鉤。', waitMin: 1.5, waitMax: 3.5, rarityBonus: null },
+            magic: { name: '高級魔法誘餌', desc: '巨幅提升稀有與傳奇魚上鉤機率！', waitMin: 4, waitMax: 8, rarityBonus: 'high' }
+        };
+
+        // 魚竿類型數據
+        const ROD_TEMPLATES = {
+            bamboo: {
+                name: '新手竹竿',
+                desc: '用海邊斑竹製成的樸素魚竿。',
+                maxDurability: 50,
+                baseQteWidthBonus: 0,
+                rarityChanceMul: 1.0,
+                repairCostPerPoint: 0.2, // 點耐久耗金
+                levelUpData: [
+                    { level: 1, cost: 50, maxDurability: 50, qteBonus: 0, chanceMul: 1.0 },
+                    { level: 2, cost: 90, maxDurability: 60, qteBonus: 0.05, chanceMul: 1.1 },
+                    { level: 3, cost: 140, maxDurability: 70, qteBonus: 0.10, chanceMul: 1.2 },
+                    { level: 4, cost: 200, maxDurability: 85, qteBonus: 0.15, chanceMul: 1.3 },
+                    { level: 5, cost: 300, maxDurability: 100, qteBonus: 0.25, chanceMul: 1.5 }
+                ]
+            },
+            lucky: {
+                name: '🍀 幸運之竹',
+                desc: '蘊含好運草汁液，極度受大魚偏愛。',
+                maxDurability: 30,
+                baseQteWidthBonus: -0.05, // 窄一點
+                rarityChanceMul: 2.5, // 2.5倍高階魚機率
+                repairCostPerPoint: 0.5,
+                levelUpData: [
+                    { level: 1, cost: 80, maxDurability: 30, qteBonus: -0.05, chanceMul: 2.5 },
+                    { level: 2, cost: 120, maxDurability: 38, qteBonus: 0.0, chanceMul: 2.8 },
+                    { level: 3, cost: 180, maxDurability: 46, qteBonus: 0.05, chanceMul: 3.2 },
+                    { level: 4, cost: 260, maxDurability: 55, qteBonus: 0.10, chanceMul: 3.6 },
+                    { level: 5, cost: 400, maxDurability: 70, qteBonus: 0.15, chanceMul: 4.2 }
+                ]
+            },
+            iron: {
+                name: '🧱 玄鐵重竿',
+                desc: '厚重沉穩，即便釣到巨獸也毫不費力。',
+                maxDurability: 120,
+                baseQteWidthBonus: 0.10, // 寬 10%
+                rarityChanceMul: 0.8, // 稀有魚機率稍低
+                repairCostPerPoint: 0.1, // 維修極度便宜
+                levelUpData: [
+                    { level: 1, cost: 100, maxDurability: 120, qteBonus: 0.10, chanceMul: 0.8 },
+                    { level: 2, cost: 150, maxDurability: 140, qteBonus: 0.15, chanceMul: 0.9 },
+                    { level: 3, cost: 220, maxDurability: 165, qteBonus: 0.20, chanceMul: 1.0 },
+                    { level: 4, cost: 300, maxDurability: 190, qteBonus: 0.25, chanceMul: 1.1 },
+                    { level: 5, cost: 450, maxDurability: 220, qteBonus: 0.35, chanceMul: 1.2 }
+                ]
+            }
+        };
+
+        // ==================== 遊戲狀態 ====================
+        let state = {
+            gold: 120,
+            pearls: 5,
+            
+            // 當前裝備魚竿
+            activeRodType: 'bamboo', // 'bamboo', 'lucky', 'iron'
+            rodLevel: 1,
+            rodDurability: 50,
+
+            // 已購魚竿記錄 (解鎖與當前等級)
+            unlockedRods: {
+                bamboo: 1,
+                lucky: 0, // 0表示未解鎖
+                iron: 0
+            },
+
+            // 魚餌選擇
+            activeBait: 'worm', // 'worm', 'lure', 'magic'
+
+            // 背包(魚簍)
+            basket: [],
+            
+            // 圖鑑收集 (記錄捕獲過的最大尺寸)
+            catalog: {}, // { 'f01': 14.5, ... }
+
+            // 統計數據
+            stats: {
+                casts: 0,
+                catches: 0,
+                successPull: 0,
+                failPull: 0
+            }
+        };
+
+        // 釣魚QTE執行時狀態
+        let qteState = {
+            isActive: false,
+            direction: 1, // 1向右, -1向左
+            position: 0, // 0 - 100 百分比
+            speed: 1.5,
+            safeStart: 30,
+            safeWidth: 40,
+            perfectStart: 45,
+            perfectWidth: 10,
+            currentFish: null, // 被吸引過來的魚
+            animationId: null
+        };
+
+        let fishingTimer = null;
+
+        // ==================== 初始化 ====================
+        window.onload = function() {
+            lucide.createIcons();
+            loadGameState();
+            renderUI();
+            initCatalogGrid();
+        };
+
+        // 讀取/初始化本地狀態
+        function loadGameState() {
+            // 本原型先使用內存狀態，並給予友好的預設體驗。
+            state.gold = 120;
+            state.pearls = 5;
+            state.rodDurability = ROD_TEMPLATES[state.activeRodType].maxDurability;
+        }
+
+        // ==================== UI 渲染與同步 ====================
+        function renderUI() {
+            // 頂部資源
+            document.getElementById('player-gold').innerText = Math.floor(state.gold);
+            document.getElementById('player-pearls').innerText = state.pearls;
+
+            // 魚竿狀態
+            const activeRod = ROD_TEMPLATES[state.activeRodType];
+            const currentLevelData = activeRod.levelUpData[state.rodLevel - 1];
+            
+            document.getElementById('hud-rod-name').innerText = `${activeRod.name} (Lv.${state.rodLevel})`;
+            
+            const durPct = (state.rodDurability / currentLevelData.maxDurability) * 100;
+            const durBar = document.getElementById('hud-rod-durability-bar');
+            durBar.style.width = `${durPct}%`;
+            
+            // 根據耐久度變更顏色
+            if (durPct > 50) {
+                durBar.className = "bg-emerald-400 h-full transition-all duration-300";
+            } else if (durPct > 20) {
+                durBar.className = "bg-amber-400 h-full transition-all duration-300";
+            } else {
+                durBar.className = "bg-rose-500 h-full transition-all duration-300";
+            }
+            document.getElementById('hud-rod-durability-text').innerText = `${state.rodDurability}/${currentLevelData.maxDurability}`;
+
+            // 控制面板狀態
+            const castBtnGroup = document.getElementById('control-idle-group');
+            const waitGroup = document.getElementById('control-waiting-group');
+            const qteGroup = document.getElementById('control-qte-group');
+            const brokenGroup = document.getElementById('control-broken-group');
+
+            castBtnGroup.classList.add('hidden');
+            waitGroup.classList.add('hidden');
+            qteGroup.classList.add('hidden');
+            brokenGroup.classList.add('hidden');
+
+            if (state.rodDurability <= 0) {
+                brokenGroup.classList.remove('hidden');
+            } else if (qteState.isActive) {
+                qteGroup.classList.remove('hidden');
+            } else if (fishingTimer) {
+                waitGroup.classList.remove('hidden');
+            } else {
+                castBtnGroup.classList.remove('hidden');
+            }
+
+            // 商店鐵匠鋪 UI 同步
+            // 1. 維修費用
+            const neededDur = currentLevelData.maxDurability - state.rodDurability;
+            const repairCost = Math.ceil(neededDur * activeRod.repairCostPerPoint);
+            document.getElementById('repair-cost-ui').innerText = repairCost;
+            document.getElementById('btn-repair').disabled = (neededDur === 0 || state.gold < repairCost);
+            if (neededDur === 0) {
+                document.getElementById('btn-repair').className = "bg-slate-200 text-slate-400 font-semibold text-xs py-2 px-4 rounded-xl cursor-not-allowed";
+            } else {
+                document.getElementById('btn-repair').className = "bg-amber-500 hover:bg-amber-600 text-white font-semibold text-xs py-2 px-4 rounded-xl transition-all shadow-sm active:scale-95";
+            }
+
+            // 2. 升級資訊
+            const isMaxLevel = state.rodLevel >= 5;
+            const upgradeBtn = document.getElementById('btn-upgrade');
+            if (isMaxLevel) {
+                document.getElementById('upgrade-next-level').innerText = 'Max';
+                document.getElementById('upgrade-bonus-desc').innerText = '魚竿已達到黃金滿級！物理極限。';
+                document.getElementById('upgrade-cost-ui').innerText = '--';
+                upgradeBtn.disabled = true;
+                upgradeBtn.className = "bg-slate-200 text-slate-400 font-semibold text-xs py-2 px-4 rounded-xl cursor-not-allowed";
+            } else {
+                const nextLevelData = activeRod.levelUpData[state.rodLevel];
+                document.getElementById('upgrade-next-level').innerText = `Lv.${state.rodLevel + 1}`;
+                
+                const currentBonus = currentLevelData.qteBonus * 100;
+                const nextBonus = nextLevelData.qteBonus * 100;
+                
+                document.getElementById('upgrade-bonus-desc').innerText = `最大耐久: ${currentLevelData.maxDurability} ➜ ${nextLevelData.maxDurability}\nQTE寬度獎勵: +${currentBonus}% ➜ +${nextBonus}%`;
+                document.getElementById('upgrade-cost-ui').innerText = nextLevelData.cost;
+                
+                const canAfford = state.gold >= nextLevelData.cost;
+                upgradeBtn.disabled = !canAfford;
+                if (canAfford) {
+                    upgradeBtn.className = "bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs py-2 px-4 rounded-xl transition-all shadow-sm active:scale-95";
+                } else {
+                    upgradeBtn.className = "bg-slate-200 text-slate-400 font-semibold text-xs py-2 px-4 rounded-xl cursor-not-allowed";
+                }
+            }
+
+            // 3. 商店其他魚竿按鈕狀態
+            ['lucky', 'iron'].forEach(type => {
+                const isUnlocked = state.unlockedRods[type] > 0;
+                const container = document.getElementById(`shop-rod-${type}`);
+                if (isUnlocked) {
+                    // 已解鎖，如果是當前裝備的，則顯示「使用中」，否則顯示「切換」
+                    const isEquipped = state.activeRodType === type;
+                    const actionBtn = container.querySelector('button');
+                    if (isEquipped) {
+                        actionBtn.className = "text-xs bg-emerald-100 text-emerald-800 px-2.5 py-1.5 rounded-lg font-bold cursor-default";
+                        actionBtn.innerText = "裝備中";
+                        actionBtn.onclick = null;
+                    } else {
+                        actionBtn.className = "text-xs bg-slate-200 hover:bg-sky-500 hover:text-white px-2.5 py-1.5 rounded-lg font-bold transition-all text-slate-700";
+                        actionBtn.innerText = "切換裝備";
+                        actionBtn.onclick = function() { equipRod(type); };
+                    }
+                }
+            });
+
+            // 同步新手竹竿按鈕（如果其他竿裝備，可在這裡展示竹竿切換，此原型簡化：竹竿永遠解鎖，所以也需要處理）
+            if (state.activeRodType !== 'bamboo') {
+                // 如果需要切換回竹竿，提供切換入口，這裡在代碼中手動切換也很方便
+            }
+
+            // 4. 歷史統計
+            document.getElementById('stat-total-casts').innerText = state.stats.casts;
+            document.getElementById('stat-total-fish').innerText = state.stats.catches;
+            const totalPulls = state.stats.successPull + state.stats.failPull;
+            const rate = totalPulls > 0 ? Math.round((state.stats.successPull / totalPulls) * 100) : 0;
+            document.getElementById('stat-rate').innerText = `${rate}%`;
+
+            // 5. 隨身魚簍
+            renderBasket();
+
+            // 6. 圖鑑進度
+            updateCatalogProgress();
+        }
+
+        // ==================== 魚簍與背包系統 ====================
+        function renderBasket() {
+            const emptyState = document.getElementById('basket-empty-state');
+            const listContainer = document.getElementById('basket-list');
+            
+            if (state.basket.length === 0) {
+                emptyState.classList.remove('hidden');
+                listContainer.classList.add('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            listContainer.classList.remove('hidden');
+            listContainer.innerHTML = '';
+
+            state.basket.forEach((item, index) => {
+                const rar = RARITY_DETAILS[item.rarity];
+                const itemDiv = document.createElement('div');
+                itemDiv.className = "flex justify-between items-center bg-slate-50 border border-slate-100 p-2.5 rounded-xl text-xs hover:bg-slate-100/70 transition-all";
+                itemDiv.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span class="text-2xl">${item.emoji}</span>
+                        <div class="flex flex-col">
+                            <span class="font-bold text-slate-800">${item.name}</span>
+                            <span class="text-[10px] text-slate-400">${item.size.toFixed(1)} cm | <span class="${getRarityColorText(item.rarity)} font-semibold">${rar.name}</span></span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold text-amber-700 flex items-center gap-0.5">
+                            <i data-lucide="coins" class="w-3.5 h-3.5"></i> ${item.price}
+                        </span>
+                        <button onclick="sellSingleFish(${index})" class="p-1 hover:bg-rose-50 text-slate-400 hover:text-rose-500 rounded-lg transition-colors">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                `;
+                listContainer.appendChild(itemDiv);
+            });
+            lucide.createIcons();
+        }
+
+        function getRarityColorText(rarity) {
+            switch(rarity) {
+                case 'common': return 'text-slate-500';
+                case 'rare': return 'text-sky-600';
+                case 'epic': return 'text-indigo-600';
+                case 'legendary': return 'text-amber-600';
+                case 'mythic': return 'text-rose-600 animate-pulse';
+                default: return 'text-slate-500';
+            }
+        }
+
+        // ==================== 魚餌選擇 ====================
+        function selectBait(baitType) {
+            if (fishingTimer || qteState.isActive) {
+                showToast("釣魚進行中，無法更換魚餌！", "error");
+                return;
+            }
+            state.activeBait = baitType;
+            
+            // 更新 UI 狀態
+            document.querySelectorAll('.bait-btn').forEach(btn => {
+                btn.className = "bait-btn px-2.5 py-1.5 rounded-xl text-xs font-medium flex flex-col items-center gap-1 transition-all text-slate-600 hover:bg-slate-100";
+            });
+
+            const activeBtn = document.getElementById(`bait-btn-${baitType}`);
+            if (baitType === 'worm') {
+                activeBtn.className = "bait-btn px-2.5 py-1.5 rounded-xl text-xs font-medium flex flex-col items-center gap-1 transition-all bg-sky-100 text-sky-950 border border-sky-300";
+            } else if (baitType === 'lure') {
+                activeBtn.className = "bait-btn px-2.5 py-1.5 rounded-xl text-xs font-medium flex flex-col items-center gap-1 transition-all bg-amber-100 text-amber-950 border border-amber-300";
+            } else if (baitType === 'magic') {
+                activeBtn.className = "bait-btn px-2.5 py-1.5 rounded-xl text-xs font-medium flex flex-col items-center gap-1 transition-all bg-indigo-100 text-indigo-950 border border-indigo-300";
+            }
+
+            document.getElementById('bait-desc').innerText = BAIT_DETAILS[baitType].desc;
+            showToast(`已裝備：${BAIT_DETAILS[baitType].name}`, "info");
+        }
+
+        // ==================== 核心釣魚流程邏輯 ====================
+        
+        // 1. 拋竿
+        function startFishing() {
+            if (state.rodDurability <= 0) {
+                showToast("魚竿已損壞，請先到鐵匠鋪修復！", "error");
+                return;
+            }
+
+            // 扣除 1 點耐久度
+            state.rodDurability -= 1;
+            state.stats.casts += 1;
+
+            // 隱藏靜態裝飾
+            document.getElementById('idle-water-decor').classList.add('hidden');
+            // 顯示浮標
+            const bobberArea = document.getElementById('fishing-bobber-area');
+            bobberArea.classList.remove('hidden');
+            document.getElementById('water-splash').classList.add('hidden');
+            document.getElementById('bite-alert').classList.add('hidden');
+
+            document.getElementById('game-status').innerText = "「嗖——」浮標在海面盪漾開來。";
+            
+            // 計算等待時間
+            const bait = BAIT_DETAILS[state.activeBait];
+            const waitTimeSec = Math.random() * (bait.waitMax - bait.waitMin) + bait.waitMin;
+            
+            renderUI();
+
+            let remaining = Math.ceil(waitTimeSec);
+            document.getElementById('wait-timer-ui').innerText = `(約 ${remaining} 秒)`;
+            
+            const countdownInterval = setInterval(() => {
+                remaining -= 1;
+                if (remaining > 0 && fishingTimer) {
+                    document.getElementById('wait-timer-ui').innerText = `(約 ${remaining} 秒)`;
+                } else {
+                    clearInterval(countdownInterval);
+                }
+            }, 1000);
+
+            // 觸發魚咬鉤
+            fishingTimer = setTimeout(() => {
+                clearInterval(countdownInterval);
+                triggerFishBite();
+            }, waitTimeSec * 1000);
+        }
+
+        // 2. 取消拋竿
+        function cancelFishing() {
+            if (fishingTimer) {
+                clearTimeout(fishingTimer);
+                fishingTimer = null;
+            }
+            // 歸還 1 耐久，不算是損耗
+            state.rodDurability = Math.min(ROD_TEMPLATES[state.activeRodType].levelUpData[state.rodLevel-1].maxDurability, state.rodDurability + 1);
+            state.stats.casts = Math.max(0, state.stats.casts - 1);
+
+            document.getElementById('idle-water-decor').classList.remove('hidden');
+            document.getElementById('fishing-bobber-area').classList.add('hidden');
+            document.getElementById('game-status').innerText = "你悄悄地收回了釣線。";
+            renderUI();
+        }
+
+        // 3. 魚咬鉤（準備 QTE）
+        function triggerFishBite() {
+            fishingTimer = null;
+            
+            // 隨選出咬鉤的魚種 (受魚竿屬性與魚餌影響)
+            const chosenFish = rollFish();
+            qteState.currentFish = chosenFish;
+
+            // 播放驚嘆號與水波特效
+            const biteAlert = document.getElementById('bite-alert');
+            const splash = document.getElementById('water-splash');
+            biteAlert.classList.remove('hidden');
+            splash.classList.remove('hidden');
+
+            document.getElementById('game-status').innerText = "！！！有大傢伙咬鉤了！快拉竿！";
+            
+            // 自動開啟 QTE 小遊戲
+            startQTE(chosenFish);
+        }
+
+        // 機率演算法：根據魚竿與魚餌綜合權重
+        function rollFish() {
+            const activeRod = ROD_TEMPLATES[state.activeRodType];
+            const isMagicBait = state.activeBait === 'magic';
+            
+            // 計算各稀有度加成係數
+            let rarityWeights = {
+                common: RARITY_DETAILS.common.chance,
+                rare: RARITY_DETAILS.rare.chance,
+                epic: RARITY_DETAILS.epic.chance,
+                legendary: RARITY_DETAILS.legendary.chance,
+                mythic: RARITY_DETAILS.mythic.chance
+            };
+
+            // 魚竿加成：幸運之竹對稀有、史詩、傳奇提升
+            if (activeRod.rarityChanceMul > 1.0) {
+                const mul = activeRod.rarityChanceMul;
+                rarityWeights.rare *= (mul * 0.8);
+                rarityWeights.epic *= (mul * 0.9);
+                rarityWeights.legendary *= mul;
+                rarityWeights.mythic *= (mul * 1.2);
+            } else if (activeRod.rarityChanceMul < 1.0) {
+                // 耐用重竿稍微壓低傳奇率
+                rarityWeights.legendary *= 0.8;
+                rarityWeights.mythic *= 0.5;
+            }
+
+            // 魔法魚餌加成
+            if (isMagicBait) {
+                rarityWeights.common *= 0.3; // 壓縮普通率
+                rarityWeights.rare *= 1.5;
+                rarityWeights.epic *= 2.0;
+                rarityWeights.legendary *= 3.5;
+                rarityWeights.mythic *= 5.0;
+            }
+
+            // 重新歸一化權重
+            const sum = Object.values(rarityWeights).reduce((a, b) => a + b, 0);
+            Object.keys(rarityWeights).forEach(key => rarityWeights[key] /= sum);
+
+            // 抽取稀有度
+            const rand = Math.random();
+            let accumulated = 0;
+            let selectedRarity = 'common';
+            
+            for (let [rarity, weight] of Object.entries(rarityWeights)) {
+                accumulated += weight;
+                if (rand <= accumulated) {
+                    selectedRarity = rarity;
+                    break;
+                }
+            }
+
+            // 從對應稀有度的魚中抽出一隻
+            const pool = FISH_DATABASE.filter(f => f.rarity === selectedRarity);
+            const chosen = pool[Math.floor(Math.random() * pool.length)];
+
+            // 隨機尺寸
+            const size = Math.random() * (chosen.baseMaxSize - chosen.baseMinSize) + chosen.baseMinSize;
+            
+            // 根據尺寸給予價格微調
+            const sizeFactor = size / ((chosen.baseMinSize + chosen.baseMaxSize) / 2);
+            const finalPrice = Math.round(chosen.basePrice * sizeFactor);
+
+            return {
+                ...chosen,
+                size: size,
+                price: finalPrice
+            };
+        }
+
+        // ==================== QTE 判定核心演算法 ====================
+        
+        function startQTE(fish) {
+            const rarityInfo = RARITY_DETAILS[fish.rarity];
+            const activeRod = ROD_TEMPLATES[state.activeRodType];
+            const currentLevelData = activeRod.levelUpData[state.rodLevel - 1];
+
+            // 難度控制：基礎速 + 稀有度加成
+            qteState.speed = rarityInfo.qteSpeed;
+            
+            // 計算安全與完美區域寬度（隨魚竿等級與類型增加寬度）
+            // 寬度獎勵 = 基礎寬度 * (1 + 升級寬度加成)
+            const widthBonus = 1 + (currentLevelData.qteBonus + activeRod.baseQteWidthBonus);
+            
+            qteState.safeWidth = Math.max(10, rarityInfo.qteWidthPct * 100 * widthBonus);
+            qteState.perfectWidth = Math.max(4, (rarityInfo.qteWidthPct * 0.3) * 100 * widthBonus);
+
+            // 隨機分佈安全區起始位置 (20% - 70%)
+            qteState.safeStart = 15 + Math.random() * (85 - qteState.safeWidth - 15);
+            // 完美區放置在安全區中心附近
+            qteState.perfectStart = qteState.safeStart + (qteState.safeWidth / 2) - (qteState.perfectWidth / 2);
+
+            // 更新 QTE 條視覺
+            const safeZoneUI = document.getElementById('qte-safe-zone');
+            const perfectZoneUI = document.getElementById('qte-perfect-zone');
+            const difficultyBadge = document.getElementById('qte-difficulty-badge');
+
+            safeZoneUI.style.left = `${qteState.safeStart}%`;
+            safeZoneUI.style.width = `${qteState.safeWidth}%`;
+
+            perfectZoneUI.style.left = `${qteState.perfectStart}%`;
+            perfectZoneUI.style.width = `${qteState.perfectWidth}%`;
+
+            // 難度文字
+            difficultyBadge.innerText = `${rarityInfo.name} 難度`;
+            if (fish.rarity === 'common') difficultyBadge.className = "bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-full text-[10px] font-bold";
+            else if (fish.rarity === 'rare') difficultyBadge.className = "bg-sky-100 text-sky-700 px-2.5 py-0.5 rounded-full text-[10px] font-bold";
+            else if (fish.rarity === 'epic') difficultyBadge.className = "bg-indigo-100 text-indigo-700 px-2.5 py-0.5 rounded-full text-[10px] font-bold";
+            else if (fish.rarity === 'legendary') difficultyBadge.className = "bg-amber-100 text-amber-700 px-2.5 py-0.5 rounded-full text-[10px] font-bold";
+            else difficultyBadge.className = "bg-rose-100 text-rose-700 px-2.5 py-0.5 rounded-full text-[10px] font-bold animate-pulse";
+
+            // 啟動指針來回移動
+            qteState.isActive = true;
+            qteState.position = 0;
+            qteState.direction = 1;
+
+            renderUI();
+            
+            // 逐幀動畫
+            function updateIndicator() {
+                if (!qteState.isActive) return;
+
+                qteState.position += qteState.speed * qteState.direction;
+
+                if (qteState.position >= 100) {
+                    qteState.position = 100;
+                    qteState.direction = -1;
+                } else if (qteState.position <= 0) {
+                    qteState.position = 0;
+                    qteState.direction = 1;
+                }
+
+                document.getElementById('qte-indicator').style.left = `${qteState.position}%`;
+                qteState.animationId = requestAnimationFrame(updateIndicator);
+            }
+
+            qteState.animationId = requestAnimationFrame(updateIndicator);
+        }
+
+        // 4. 點擊拉竿判定
+        function executePull() {
+            if (!qteState.isActive) return;
+
+            // 停止 QTE 動畫
+            cancelAnimationFrame(qteState.animationId);
+            qteState.isActive = false;
+
+            const pos = qteState.position;
+            const fish = qteState.currentFish;
+            const rarityInfo = RARITY_DETAILS[fish.rarity];
+
+            // 判定邊界
+            const inPerfect = pos >= qteState.perfectStart && pos <= (qteState.perfectStart + qteState.perfectWidth);
+            const inSafe = pos >= qteState.safeStart && pos <= (qteState.safeStart + qteState.safeWidth);
+
+            if (inPerfect) {
+                // 完美拉竿
+                handleFishingSuccess(fish, 'perfect');
+            } else if (inSafe) {
+                // 普通拉竿
+                handleFishingSuccess(fish, 'good');
+            } else {
+                // 脫鈎失敗
+                handleFishingFailure(fish);
+            }
+        }
+
+        // 5. 釣魚成功
+        function handleFishingSuccess(fish, quality) {
+            state.stats.catches += 1;
+            state.stats.successPull += 1;
+            
+            // 清理水域 UI
+            document.getElementById('idle-water-decor').classList.remove('hidden');
+            document.getElementById('fishing-bobber-area').classList.add('hidden');
+
+            // 完美拉竿額外獎勵（不消耗任何額外耐久度，且售價多 10%）
+            let bonusText = "";
+            if (quality === 'perfect') {
+                fish.price = Math.round(fish.price * 1.15);
+                bonusText = "✨ 完美控線！魚獲估值提升 15%！";
+                showToast("Perfect! 完美的拉竿時機！", "success");
+            } else {
+                showToast("成功捕獲一條健康的魚！", "success");
+            }
+
+            // 更新圖鑑紀錄
+            const prevBest = state.catalog[fish.id];
+            let isNewRecord = false;
+            if (!prevBest || fish.size > prevBest) {
+                state.catalog[fish.id] = fish.size;
+                isNewRecord = true;
+            }
+
+            // 顯示收穫彈窗
+            showCatchModal(fish, isNewRecord, bonusText);
+            renderUI();
+        }
+
+        // 6. 釣魚失敗 (斷線或脫鉤)
+        function handleFishingFailure(fish) {
+            state.stats.failPull += 1;
+
+            // 根據魚竿類型扣除不同耐久度。玄鐵重竿有抗失誤抗性 (僅扣 1)，其他正常扣。
+            let extraDurCost = RARITY_DETAILS[fish.rarity].durCost;
+            if (state.activeRodType === 'iron') {
+                extraDurCost = 1;
+            }
+            state.rodDurability = Math.max(0, state.rodDurability - extraDurCost);
+
+            // 清理水域 UI
+            document.getElementById('idle-water-decor').classList.remove('hidden');
+            document.getElementById('fishing-bobber-area').classList.add('hidden');
+
+            document.getElementById('game-status').innerText = `哎呀... 魚線一陣鬆動，${fish.name} 脫鉤溜走了！`;
+            showToast(`拉竿失誤！魚竿損耗了 ${extraDurCost} 點耐久。`, "error");
+
+            renderUI();
+        }
+
+        // ==================== 彈窗與放生/保留互動 ====================
+        
+        let pendingFish = null;
+
+        function showCatchModal(fish, isNewRecord, bonusText) {
+            pendingFish = fish;
+            
+            const modal = document.getElementById('catch-modal');
+            const icon = document.getElementById('modal-fish-icon');
+            const name = document.getElementById('modal-fish-name');
+            const size = document.getElementById('modal-fish-size');
+            const rarity = document.getElementById('modal-fish-rarity');
+            const story = document.getElementById('modal-fish-story');
+
+            icon.innerText = fish.emoji;
+            name.innerText = fish.name;
+            size.innerText = `${fish.size.toFixed(1)} cm`;
+            
+            if (isNewRecord) {
+                size.innerHTML += ` <span class="bg-amber-100 text-amber-700 text-[10px] px-1.5 py-0.5 rounded-full ml-1">🏆 紀錄新高</span>`;
+            }
+
+            const rar = RARITY_DETAILS[fish.rarity];
+            rarity.innerText = rar.name;
+            rarity.className = `text-xs font-bold tracking-widest uppercase py-1 px-3 rounded-full ${rar.color}`;
+
+            let storyHtml = fish.story;
+            if (bonusText) {
+                storyHtml += `<br><span class="block mt-2 font-semibold text-emerald-600">${bonusText}</span>`;
+            }
+            story.innerHTML = storyHtml;
+
+            // 彈出動畫
+            modal.classList.remove('hidden');
+            const modalContent = modal.querySelector('div');
+            setTimeout(() => {
+                modalContent.classList.remove('scale-95');
+                modalContent.classList.add('scale-100');
+            }, 50);
+        }
+
+        // 放入背包
+        function keepFish() {
+            if (pendingFish) {
+                if (state.basket.length >= 10) {
+                    showToast("魚簍已滿！請先在右側出售一些魚獲。", "error");
+                    return;
+                }
+                state.basket.push(pendingFish);
+                document.getElementById('game-status').innerText = `你將【${pendingFish.name}】放入了身旁的竹簍中。`;
+                closeCatchModal();
+                renderUI();
+            }
+        }
+
+        // 直接放生
+        function releaseFishDirectly() {
+            if (pendingFish) {
+                // 獎勵珍珠 (用於未來購買特定裝飾、高級誘餌)
+                state.pearls += 1;
+                document.getElementById('game-status').innerText = `你放生了【${pendingFish.name}】，感受到一股來自大海的和諧能量 (+1 珍珠)。`;
+                closeCatchModal();
+                renderUI();
+                showToast("放生成功，感謝大自然的饋贈！", "success");
+            }
+        }
+
+        function closeCatchModal() {
+            const modal = document.getElementById('catch-modal');
+            const modalContent = modal.querySelector('div');
+            modalContent.classList.remove('scale-100');
+            modalContent.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                pendingFish = null;
+            }, 150);
+        }
+
+        // ==================== 背包商店出售 ====================
+        function sellSingleFish(index) {
+            const fish = state.basket[index];
+            state.gold += fish.price;
+            state.basket.splice(index, 1);
+            showToast(`售出【${fish.name}】獲得 ${fish.price} 金幣！`, "success");
+            renderUI();
+        }
+
+        function sellAllFish() {
+            if (state.basket.length === 0) {
+                showToast("魚簍是空的，無魚可售！", "error");
+                return;
+            }
+
+            let totalGold = 0;
+            state.basket.forEach(fish => totalGold += fish.price);
+            state.gold += totalGold;
+            state.basket = [];
+            
+            showToast(`全數售出！一氣呵成賺取了 ${totalGold} 金幣！`, "success");
+            renderUI();
+        }
+
+        // ==================== 鐵匠鋪：修復與裝備更換 ====================
+        
+        function repairRod() {
+            const activeRod = ROD_TEMPLATES[state.activeRodType];
+            const currentLevelData = activeRod.levelUpData[state.rodLevel - 1];
+            
+            const neededDur = currentLevelData.maxDurability - state.rodDurability;
+            if (neededDur <= 0) return;
+
+            const cost = Math.ceil(neededDur * activeRod.repairCostPerPoint);
+            if (state.gold >= cost) {
+                state.gold -= cost;
+                state.rodDurability = currentLevelData.maxDurability;
+                showToast(`魚竿修復完畢！火花四濺中煥然一新！`, "success");
+                renderUI();
+            } else {
+                showToast("金幣不夠！多釣點魚去賣吧。", "error");
+            }
+        }
+
+        function upgradeRod() {
+            const activeRod = ROD_TEMPLATES[state.activeRodType];
+            if (state.rodLevel >= 5) return;
+
+            const nextLevelData = activeRod.levelUpData[state.rodLevel];
+            if (state.gold >= nextLevelData.cost) {
+                state.gold -= nextLevelData.cost;
+                state.rodLevel += 1;
+                // 升級後滿血復活
+                state.rodDurability = nextLevelData.maxDurability;
+                showToast(`恭喜！魚竿成功強化至 Lv.${state.rodLevel}！`, "success");
+                renderUI();
+            } else {
+                showToast("金幣不夠，無法支付高昂的鍛造升級費！", "error");
+            }
+        }
+
+        function buySpecialRod(type, cost) {
+            if (state.gold >= cost) {
+                state.gold -= cost;
+                state.unlockedRods[type] = 1; // 激活 Lv.1
+                showToast(`解鎖並裝備了【${ROD_TEMPLATES[type].name}】！`, "success");
+                equipRod(type);
+            } else {
+                showToast("金幣不足以購買此特色魚竿！", "error");
+            }
+        }
+
+        function equipRod(type) {
+            if (fishingTimer || qteState.isActive) {
+                showToast("釣魚正在進行中，不可更換魚竿！", "error");
+                return;
+            }
+            state.activeRodType = type;
+            state.rodLevel = state.unlockedRods[type];
+            
+            // 載入該魚竿最大耐久
+            const activeRod = ROD_TEMPLATES[type];
+            state.rodDurability = activeRod.levelUpData[state.rodLevel - 1].maxDurability;
+            
+            showToast(`已切換裝備：${activeRod.name}`, "info");
+            renderUI();
+        }
+
+        // ==================== 圖鑑模組 ====================
+        function initCatalogGrid() {
+            const grid = document.getElementById('catalog-grid');
+            grid.innerHTML = '';
+            
+            FISH_DATABASE.forEach(fish => {
+                const card = document.createElement('div');
+                card.id = `catalog-card-${fish.id}`;
+                card.className = "border border-slate-100 rounded-2xl p-2 text-center bg-slate-50 opacity-40 transition-all flex flex-col items-center justify-center h-20";
+                card.innerHTML = `
+                    <span class="text-2xl filter grayscale" id="cat-emoji-${fish.id}">❓</span>
+                    <span class="text-[9px] mt-1 font-bold text-slate-400 block truncate w-full" id="cat-name-${fish.id}">未解鎖</span>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function updateCatalogProgress() {
+            let unlockedCount = 0;
+            FISH_DATABASE.forEach(fish => {
+                const record = state.catalog[fish.id];
+                const card = document.getElementById(`catalog-card-${fish.id}`);
+                const emojiSpan = document.getElementById(`cat-emoji-${fish.id}`);
+                const nameSpan = document.getElementById(`cat-name-${fish.id}`);
+                
+                if (record) {
+                    unlockedCount += 1;
+                    card.className = "border border-sky-100 rounded-2xl p-2 text-center bg-sky-50/50 hover:bg-sky-50 transition-all cursor-pointer flex flex-col items-center justify-center h-20 shadow-sm";
+                    emojiSpan.innerText = fish.emoji;
+                    emojiSpan.classList.remove('grayscale');
+                    nameSpan.innerText = fish.name;
+                    nameSpan.className = "text-[9px] mt-1 font-extrabold text-sky-900 block truncate w-full";
+                    
+                    // 點擊卡片顯示小知識與最大尺寸
+                    card.onclick = () => {
+                        showToast(`📖 ${fish.name} | 最大尺寸: ${record.toFixed(1)} cm\n故事: ${fish.story}`, "info", 5000);
+                    };
+                }
+            });
+
+            document.getElementById('catalog-progress').innerText = `${unlockedCount}/${FISH_DATABASE.length}`;
+        }
+
+        // ==================== 便捷輔助工具 ====================
+        
+        // 浮動訊息
+        function showToast(message, type = "info", duration = 3000) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            let bgClass = "bg-slate-900 text-white";
+            let icon = "💡";
+            
+            if (type === "success") {
+                bgClass = "bg-emerald-50 text-emerald-900 border border-emerald-200 shadow-emerald-50";
+                icon = "✨";
+            } else if (type === "error") {
+                bgClass = "bg-rose-50 text-rose-900 border border-rose-200 shadow-rose-50";
+                icon = "⚠️";
+            } else if (type === "info") {
+                bgClass = "bg-sky-50 text-sky-900 border border-sky-200 shadow-sky-50";
+                icon = "🐳";
+            }
+
+            toast.className = `${bgClass} p-3.5 rounded-2xl text-xs font-semibold shadow-lg pointer-events-auto flex items-center gap-2 max-w-sm transition-all duration-300 transform translate-y-2 opacity-0`;
+            toast.innerHTML = `<span>${icon}</span> <div class="whitespace-pre-line">${message}</div>`;
+            
+            container.appendChild(toast);
+            
+            // 進場
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+
+            // 退場
+            setTimeout(() => {
+                toast.classList.add('translate-y-2', 'opacity-0');
+                setTimeout(() => {
+                    toast.remove();
+                }, 300);
+            }, duration);
+        }
+    </script>
+</body>
+</html>

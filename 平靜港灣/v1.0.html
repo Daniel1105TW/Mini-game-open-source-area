@@ -1,0 +1,2595 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>平靜港灣：療癒釣魚物語 (Serene Harbor)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background: linear-gradient(to bottom, #f0f9ff, #e0f2fe, #bae6fd);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        /* 溫馨的海浪波動動畫 */
+        @keyframes wave {
+            0%, 100% { transform: translateY(0) scaleY(1); }
+            50% { transform: translateY(6px) scaleY(1.03); }
+        }
+        .wave-bg {
+            animation: wave 5s ease-in-out infinite;
+        }
+        /* 驚嘆號跳動動畫 */
+        @keyframes pop {
+            0% { transform: scale(0) translateY(0); opacity: 0; }
+            50% { transform: scale(1.3) translateY(-10px); opacity: 1; }
+            70% { transform: scale(0.9) translateY(-5px); }
+            100% { transform: scale(1) translateY(-8px); opacity: 1; }
+        }
+        .pop-effect {
+            animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        /* 魚浮標上下微動 */
+        @keyframes bob {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-6px) rotate(2deg); }
+        }
+        .bobbing {
+            animation: bob 2s ease-in-out infinite;
+        }
+        /* 雲朵緩慢飄動 */
+        @keyframes drift {
+            0% { transform: translateX(-10%); }
+            100% { transform: translateX(110%); }
+        }
+        .cloud-drift-1 {
+            animation: drift 60s linear infinite;
+        }
+        .cloud-drift-2 {
+            animation: drift 90s linear infinite;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-start text-slate-700 select-none pb-12">
+
+    <!-- ==================== 首頁 (Welcome Screen) ==================== -->
+    <div id="welcome-screen" class="fixed inset-0 z-50 bg-gradient-to-b from-sky-100 via-sky-200 to-blue-300 flex flex-col items-center justify-between p-6 overflow-hidden">
+        <!-- 漂浮雲朵背景 -->
+        <div class="absolute top-12 left-0 w-24 h-8 bg-white/40 rounded-full blur-sm cloud-drift-1 pointer-events-none"></div>
+        <div class="absolute top-36 left-0 w-36 h-12 bg-white/30 rounded-full blur-sm cloud-drift-2 pointer-events-none"></div>
+        
+        <div class="flex-1 flex flex-col items-center justify-center text-center px-4 max-w-lg">
+            <!-- 療癒Logo與標題 -->
+            <div class="w-24 h-24 bg-white/80 rounded-[2.5rem] flex items-center justify-center text-5xl shadow-lg border border-white mb-6 wave-bg">
+                ⚓
+            </div>
+            <h1 class="text-3xl md:text-5xl font-black text-sky-950 tracking-wider mb-2">平靜港灣</h1>
+            <p class="text-sm md:text-base text-sky-900/80 font-medium mb-6">《 療癒釣魚物語 · Serene Harbor 》</p>
+            
+            <div class="w-full bg-white/60 backdrop-blur-md p-6 rounded-3xl border border-white/50 shadow-sm flex flex-col gap-3">
+                <button onclick="startGame(false)" class="w-full bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-600 hover:to-indigo-600 text-white font-black py-4 px-6 rounded-2xl shadow-lg shadow-sky-200/50 transition-all active:scale-95 text-base flex items-center justify-center gap-2">
+                    <i data-lucide="play" class="w-5 h-5 fill-current"></i> 進入平靜港灣
+                </button>
+                
+                <div class="h-[1px] bg-sky-900/10 my-1"></div>
+                
+                <!-- 快捷讀取/存檔匯入 -->
+                <div class="flex flex-col gap-2">
+                    <span class="text-xs text-sky-900/60 font-bold">備份或繼承進度</span>
+                    <div class="flex gap-2">
+                        <button onclick="triggerImportModal()" class="flex-1 text-xs bg-white hover:bg-slate-50 text-sky-900 font-bold py-2.5 px-4 rounded-xl border border-slate-200 transition-colors">
+                            匯入存檔代碼
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-[11px] text-sky-900/50 text-center pb-4">
+            <p>獨立遊戲開發原型 · 溫馨治癒放置體驗</p>
+            <p class="mt-0.5">© Serene Harbor. All Rights Reserved.</p>
+        </div>
+    </div>
+
+
+    <!-- ==================== 頂部置頂固定狀態欄 (Sticky Header) ==================== -->
+    <header class="sticky top-0 w-full z-40 bg-white/85 backdrop-blur-md border-b border-sky-100/60 shadow-sm py-3 px-4 md:px-8 flex flex-col md:flex-row justify-between items-center gap-3">
+        <div class="flex items-center gap-3 self-start md:self-center">
+            <button onclick="returnToWelcome()" class="p-2 hover:bg-sky-100/50 rounded-xl text-sky-800 transition-colors mr-1" title="返回主頁面">
+                <i data-lucide="chevron-left" class="w-5 h-5"></i>
+            </button>
+            <div class="p-2 bg-sky-100 rounded-xl text-sky-600 shadow-inner">
+                <i data-lucide="anchor" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-black text-sky-950 tracking-wide flex items-center gap-1.5">
+                    平靜港灣 <span class="text-[10px] font-bold bg-sky-200 text-sky-800 py-0.5 px-2 rounded-full font-sans">v3.0</span>
+                </h1>
+                <p class="text-[10px] text-sky-800/70">手動溫馨釣魚 ✖ 貓咪營地自動化</p>
+            </div>
+        </div>
+        
+        <!-- 置頂資源顯示列 -->
+        <div class="flex flex-wrap items-center justify-end gap-3 w-full md:w-auto">
+            <!-- 金幣 -->
+            <div class="flex items-center gap-1.5 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-2xl shadow-sm">
+                <i data-lucide="coins" class="w-4 h-4 text-amber-500"></i>
+                <span id="player-gold" class="font-bold text-amber-800 text-base">150</span>
+                <span class="text-[10px] text-amber-600 bg-amber-100/50 px-1.5 py-0.2 rounded font-semibold">金幣</span>
+            </div>
+            <!-- 珍珠 -->
+            <div class="flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 px-3 py-1.5 rounded-2xl shadow-sm">
+                <i data-lucide="sparkles" class="w-4 h-4 text-indigo-500"></i>
+                <span id="player-pearls" class="font-bold text-indigo-800 text-base">5</span>
+                <span class="text-[10px] text-indigo-600 bg-indigo-100/50 px-1.5 py-0.2 rounded font-semibold">珍珠</span>
+            </div>
+            <!-- 烤魚 -->
+            <div class="flex items-center gap-1.5 bg-orange-50 border border-orange-200 px-3 py-1.5 rounded-2xl shadow-sm">
+                <span class="text-base">🐟🔥</span>
+                <span id="player-bakedfish" class="font-bold text-orange-800 text-base">0</span>
+                <span class="text-[10px] text-orange-600 bg-orange-100/50 px-1.5 py-0.2 rounded font-semibold">烤魚</span>
+            </div>
+        </div>
+    </header>
+
+
+    <!-- ==================== 遊戲主要內容區塊 ==================== -->
+    <main class="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-6 p-4 md:p-6 mt-2">
+        
+        <!-- 左側與中間：手動與放置營地 (8 columns) -->
+        <div class="lg:col-span-8 flex flex-col gap-6">
+            
+            <!-- 釣魚水域與動態畫面 -->
+            <div class="relative bg-gradient-to-b from-sky-300 via-sky-400 to-blue-500 rounded-[2rem] p-6 h-[320px] shadow-lg border-2 border-white/40 overflow-hidden flex flex-col justify-between">
+                
+                <!-- SVG 動態釣線系統 -->
+                <svg class="absolute inset-0 w-full h-full pointer-events-none z-10" id="fishing-line-svg">
+                    <path id="fishing-line" d="" stroke="rgba(255,255,255,0.7)" stroke-width="1.5" stroke-dasharray="3,3" fill="none" class="hidden transition-all duration-75" />
+                </svg>
+
+                <div class="absolute top-4 left-6 opacity-30 flex items-center gap-1 pointer-events-none">
+                    <i data-lucide="cloud" class="w-6 h-6 text-white"></i>
+                    <i data-lucide="cloud" class="w-4 h-4 text-white"></i>
+                </div>
+                <div class="absolute top-4 right-12 w-14 h-14 bg-amber-100/30 rounded-full blur-sm pointer-events-none"></div>
+
+                <!-- 狀態廣播 -->
+                <div id="game-status" class="z-20 bg-white/80 backdrop-blur-sm py-2 px-5 rounded-full text-xs text-sky-950 font-bold self-center shadow-md border border-white/50 transition-all duration-300">
+                    溫柔的海浪拍打著港灣，今天也是適合釣魚的一天...
+                </div>
+
+                <!-- 湖面/海面動態與浮標 -->
+                <div class="relative w-full h-32 flex items-center justify-center">
+                    <div class="absolute bottom-0 left-0 w-full h-16 bg-blue-400/20 rounded-full blur-md wave-bg pointer-events-none"></div>
+                    
+                    <!-- 水花 / 浮標狀態 -->
+                    <div id="fishing-bobber-area" class="relative hidden z-20">
+                        <!-- 驚嘆號提示 -->
+                        <div id="bite-alert" class="absolute -top-16 left-1/2 -translate-x-1/2 hidden z-30">
+                            <div class="pop-effect bg-rose-500 text-white font-black text-xs px-3 py-1.5 rounded-full shadow-xl flex items-center gap-1 border-2 border-white animate-bounce">
+                                <span class="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-white opacity-75"></span>
+                                💬 魚咬鉤了！拉竿！
+                            </div>
+                        </div>
+                        <div id="water-splash" class="absolute -top-6 -left-6 w-16 h-16 bg-white/60 rounded-full animate-ping hidden"></div>
+                        <div class="absolute -top-1 -left-1 w-6 h-6 border-2 border-sky-100/50 rounded-full animate-ping"></div>
+                        <!-- 浮標本體 -->
+                        <div id="bobber-body" class="bobbing cursor-pointer bg-white border-2 border-rose-500 w-6 h-12 rounded-full flex flex-col items-center justify-start shadow-lg overflow-hidden">
+                            <div class="w-full h-1/2 bg-rose-500"></div>
+                            <div class="w-full h-1/2 bg-white flex items-center justify-center text-[8px] text-slate-400">🌊</div>
+                        </div>
+                    </div>
+
+                    <!-- 靜止時的空水面裝飾 -->
+                    <div id="idle-water-decor" class="text-white/70 flex flex-col items-center gap-1.5">
+                        <i data-lucide="waves" class="w-10 h-10 animate-pulse"></i>
+                        <span class="text-xs font-medium tracking-wide">選好誘餌，拋竿入海</span>
+                    </div>
+                </div>
+
+                <!-- 水域控制與魚餌選擇 -->
+                <div class="z-20 flex justify-between items-end flex-wrap gap-2">
+                    <div class="bg-slate-900/50 backdrop-blur-md text-white px-3 py-2 rounded-2xl text-xs flex flex-col gap-0.5 border border-white/10">
+                        <div class="flex items-center gap-1">
+                            <span class="p-1 bg-amber-500/20 rounded-md"><i data-lucide="sword" class="w-3.5 h-3.5 text-amber-300"></i></span>
+                            <span id="hud-rod-name" class="font-bold">新手竹竿</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span>耐久:</span>
+                            <div class="w-16 bg-slate-700 h-1.5 rounded-full overflow-hidden border border-slate-600">
+                                <div id="hud-rod-durability-bar" class="bg-emerald-400 h-full w-full"></div>
+                            </div>
+                            <span id="hud-rod-durability-text" class="font-semibold">50/50</span>
+                        </div>
+                    </div>
+
+                    <div id="rod-tip" class="absolute bottom-4 right-4 w-2 h-2 opacity-0 pointer-events-none"></div>
+
+                    <!-- 魚餌選擇區 -->
+                    <div class="flex flex-col gap-0.5 bg-white/90 p-1.5 rounded-2xl shadow-lg border border-white/50">
+                        <span class="text-[9px] font-bold text-slate-400 px-1">點擊裝載魚餌：</span>
+                        <div class="flex gap-1">
+                            <button onclick="selectBait('worm')" id="bait-btn-worm" class="bait-btn px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition-all bg-sky-100 text-sky-950 border border-sky-300 shadow-sm">
+                                <span>🪱</span><span id="bait-count-worm">10</span>
+                            </button>
+                            <button onclick="selectBait('lure')" id="bait-btn-lure" class="bait-btn px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition-all text-slate-600 hover:bg-slate-100">
+                                <span>🐟</span><span id="bait-count-lure">5</span>
+                            </button>
+                            <button onclick="selectBait('dough')" id="bait-btn-dough" class="bait-btn px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition-all text-slate-600 hover:bg-slate-100">
+                                <span>🍪</span><span id="bait-count-dough">2</span>
+                            </button>
+                            <button onclick="selectBait('magic')" id="bait-btn-magic" class="bait-btn px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition-all text-slate-600 hover:bg-slate-100">
+                                <span>✨</span><span id="bait-count-magic">0</span>
+                            </button>
+                            <button onclick="selectBait('shrimp')" id="bait-btn-shrimp" class="bait-btn px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition-all text-slate-400 hover:bg-slate-100 hidden">
+                                <span>🦐</span><span id="bait-count-shrimp">0</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 控制面板與 QTE 區塊 -->
+            <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col items-center justify-center min-h-[160px] relative overflow-hidden">
+                
+                <!-- 準備/拋竿狀態按鈕 -->
+                <div id="control-idle-group" class="w-full flex flex-col items-center gap-3">
+                    <button id="btn-cast" onclick="startFishing()" class="w-full md:w-2/3 bg-gradient-to-r from-sky-500 via-sky-600 to-indigo-500 hover:from-sky-600 hover:to-indigo-600 text-white font-black py-4 px-8 rounded-2xl shadow-lg shadow-sky-100 transition-all active:scale-95 flex items-center justify-center gap-3 text-base">
+                        <i data-lucide="sparkles" class="w-5 h-5 animate-spin" style="animation-duration: 8s;"></i>
+                        拋竿入海
+                    </button>
+                    <p class="text-[11px] text-slate-400 text-center">每次拋竿消耗 1 點魚竿耐久。目前裝備：<span id="bait-desc" class="text-sky-600 font-bold">普通蚯蚓 (溫和咬鉤，普通機率)</span></p>
+                </div>
+
+                <!-- 等待咬竿狀態 -->
+                <div id="control-waiting-group" class="hidden w-full flex flex-col items-center gap-3">
+                    <div class="flex items-center gap-2 text-sky-600 font-bold animate-pulse text-xs md:text-sm">
+                        <span class="flex h-3 w-3 relative">
+                          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
+                          <span class="relative inline-flex rounded-full h-3 w-3 bg-sky-500"></span>
+                        </span>
+                        <span>平心靜氣... 靜待魚兒咬餌... </span>
+                        <span id="wait-timer-ui" class="text-slate-400 text-xs font-mono"></span>
+                    </div>
+                    <button onclick="cancelFishing()" class="text-xs text-rose-400 hover:text-rose-600 font-semibold underline decoration-dotted transition-colors">
+                        收回魚線 (不耗耐久與魚餌)
+                    </button>
+                </div>
+
+                <!-- QTE 核心遊戲介面 -->
+                <div id="control-qte-group" class="hidden w-full max-w-md flex flex-col items-center gap-4 animate-fade-in">
+                    <div class="w-full flex justify-between text-[11px] font-bold text-slate-500 px-1">
+                        <span class="flex items-center gap-1 text-sky-700"><i data-lucide="info" class="w-3.5 h-3.5"></i> 在完美(綠)或安全(黃)區按下「拉竿」！</span>
+                        <span id="qte-difficulty-badge" class="bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full font-mono text-[9px]">極難</span>
+                    </div>
+
+                    <!-- 滑動條 QTE 槽 -->
+                    <div class="relative w-full h-10 bg-slate-100 border-2 border-slate-200 rounded-2xl overflow-hidden shadow-inner flex items-center">
+                        <div id="qte-safe-zone" class="absolute h-full bg-amber-300/80" style="left: 30%; width: 40%;"></div>
+                        <div id="qte-perfect-zone" class="absolute h-full bg-emerald-400/90" style="left: 45%; width: 10%;"></div>
+                        <div id="qte-indicator" class="absolute top-0 bottom-0 w-3 bg-indigo-600 border-2 border-white shadow-md shadow-indigo-300 rounded-full transition-all duration-75" style="left: 0%;"></div>
+                    </div>
+
+                    <button id="btn-pull" onclick="executePull()" class="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black py-3.5 px-8 rounded-2xl shadow-xl shadow-emerald-100 active:scale-95 transition-all flex items-center justify-center gap-2 text-base">
+                        <i data-lucide="arrow-up-circle" class="w-5 h-5 animate-bounce"></i>
+                        立刻收竿！
+                    </button>
+                </div>
+
+                <!-- 損壞無法使用提示 -->
+                <div id="control-broken-group" class="hidden w-full flex flex-col items-center gap-3">
+                    <div class="p-4 bg-rose-50 border-2 border-rose-100 rounded-2xl text-center text-rose-800 text-xs flex flex-col items-center gap-1.5 max-w-sm">
+                        <span class="font-extrabold text-sm flex items-center gap-1 text-rose-600"><i data-lucide="alert-triangle" class="w-4 h-4"></i> 魚竿壞了！</span>
+                        <span>請先前往下方的鐵匠鋪修復它，才能繼續拋線。</span>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- 貓咪工人與放置自動化營地 -->
+            <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4 border-b border-slate-50 pb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="p-2 bg-orange-100 text-orange-600 rounded-xl"><i data-lucide="home" class="w-5 h-5"></i></span>
+                        <div>
+                            <h2 class="font-black text-slate-800 text-base">港口貓咪營地 & 放置自動化</h2>
+                            <p class="text-[11px] text-slate-400">僱用並升級流浪貓！牠們出海釣魚效率已重構平衡</p>
+                        </div>
+                    </div>
+                    
+                    <!-- 烹飪營火篝火 -->
+                    <div class="flex items-center gap-2 bg-amber-50/70 border border-amber-200/60 p-2 rounded-2xl">
+                        <span class="text-xl">🔥</span>
+                        <div class="flex flex-col">
+                            <span class="text-[10px] font-bold text-slate-500">營地篝火烘烤</span>
+                            <button onclick="bakeFish()" id="btn-bake-fish" class="text-xs bg-amber-500 hover:bg-amber-600 text-white font-bold px-2.5 py-1 rounded-xl transition-all shadow-sm active:scale-95">
+                                烤一條普通魚
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 貓咪工人列表 -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <!-- 橘貓胖橘 -->
+                    <div id="worker-card-w1" class="border border-slate-200 rounded-2xl p-4 flex flex-col justify-between gap-3 bg-slate-50/50">
+                        <div class="flex justify-between items-start">
+                            <div class="flex items-center gap-2">
+                                <span class="text-3xl">🐱</span>
+                                <div>
+                                    <div class="flex items-center gap-1">
+                                        <h4 class="font-bold text-xs text-slate-800">阿橘</h4>
+                                        <span id="w1-level-badge" class="text-[9px] bg-sky-100 text-sky-800 px-1.5 py-0.2 rounded font-black">Lv.1</span>
+                                    </div>
+                                    <span class="text-[9px] bg-slate-200 text-slate-700 py-0.2 px-1.5 rounded">分成 10%</span>
+                                </div>
+                            </div>
+                            <span id="w1-status" class="text-[10px] font-bold text-slate-400">未僱用</span>
+                        </div>
+                        <p class="text-[11px] text-slate-500" id="w1-desc-text">慢吞吞的橘貓。捕魚間隔: 25秒。只捕普通魚與稀有魚。</p>
+                        
+                        <!-- 體力條 -->
+                        <div class="flex flex-col gap-1">
+                            <div class="flex justify-between text-[10px] text-slate-400">
+                                <span>體力</span>
+                                <span id="w1-stamina-text">0/100</span>
+                            </div>
+                            <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                                <div id="w1-stamina-bar" class="bg-orange-400 h-full w-0"></div>
+                            </div>
+                        </div>
+
+                        <!-- 操作與升級按鈕 -->
+                        <div class="flex flex-col gap-1.5 pt-1">
+                            <div class="flex gap-1">
+                                <button onclick="hireWorker('w1')" id="w1-hire-btn" class="flex-1 text-xs bg-sky-500 hover:bg-sky-600 text-white font-bold py-2 rounded-xl transition-all shadow-sm active:scale-95 flex items-center justify-center gap-1">
+                                    <i data-lucide="coins" class="w-3.5 h-3.5"></i>120 僱用
+                                </button>
+                                <button onclick="feedWorker('w1', 'bake')" id="w1-feed-bake-btn" class="hidden flex-1 text-xs bg-amber-500 hover:bg-amber-600 text-white font-bold py-1.5 rounded-xl transition-all active:scale-95">
+                                    🔥 餵烤魚
+                                </button>
+                                <button onclick="feedWorker('w1', 'bento')" id="w1-feed-bento-btn" class="hidden flex-1 text-xs bg-rose-500 hover:bg-rose-600 text-white font-bold py-1.5 rounded-xl transition-all active:scale-95">
+                                    🍱 餵罐罐
+                                </button>
+                            </div>
+                            <!-- 升級按鈕 -->
+                            <button onclick="upgradeWorker('w1')" id="w1-upgrade-btn" class="hidden w-full text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold py-1.5 rounded-xl border border-indigo-200 transition-all flex items-center justify-center gap-1">
+                                <i data-lucide="trending-up" class="w-3.5 h-3.5"></i> 升級 (Lv.2): <span id="w1-upgrade-cost">100g</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 三花花花 -->
+                    <div id="worker-card-w2" class="border border-slate-200 rounded-2xl p-4 flex flex-col justify-between gap-3 bg-slate-50/50">
+                        <div class="flex justify-between items-start">
+                            <div class="flex items-center gap-2">
+                                <span class="text-3xl">😸</span>
+                                <div>
+                                    <div class="flex items-center gap-1">
+                                        <h4 class="font-bold text-xs text-slate-800">花花</h4>
+                                        <span id="w2-level-badge" class="text-[9px] bg-sky-100 text-sky-800 px-1.5 py-0.2 rounded font-black">Lv.1</span>
+                                    </div>
+                                    <span class="text-[9px] bg-indigo-100 text-indigo-700 py-0.2 px-1.5 rounded">分成 15%</span>
+                                </div>
+                            </div>
+                            <span id="w2-status" class="text-[10px] font-bold text-slate-400">未僱用</span>
+                        </div>
+                        <p class="text-[11px] text-slate-500" id="w2-desc-text">活潑的三花貓。捕魚間隔: 35秒。有機率抓到史詩魚。</p>
+                        
+                        <!-- 體力條 -->
+                        <div class="flex flex-col gap-1">
+                            <div class="flex justify-between text-[10px] text-slate-400">
+                                <span>體力</span>
+                                <span id="w2-stamina-text">0/100</span>
+                            </div>
+                            <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                                <div id="w2-stamina-bar" class="bg-orange-400 h-full w-0"></div>
+                            </div>
+                        </div>
+
+                        <!-- 操作與升級按鈕 -->
+                        <div class="flex flex-col gap-1.5 pt-1">
+                            <div class="flex gap-1">
+                                <button onclick="hireWorker('w2')" id="w2-hire-btn" class="flex-1 text-xs bg-sky-500 hover:bg-sky-600 text-white font-bold py-2 rounded-xl transition-all shadow-sm active:scale-95 flex items-center justify-center gap-1">
+                                    <i data-lucide="coins" class="w-3.5 h-3.5"></i>280 僱用
+                                </button>
+                                <button onclick="feedWorker('w2', 'bake')" id="w2-feed-bake-btn" class="hidden flex-1 text-xs bg-amber-500 hover:bg-amber-600 text-white font-bold py-1.5 rounded-xl transition-all active:scale-95">
+                                    🔥 餵烤魚
+                                </button>
+                                <button onclick="feedWorker('w2', 'bento')" id="w2-feed-bento-btn" class="hidden flex-1 text-xs bg-rose-500 hover:bg-rose-600 text-white font-bold py-1.5 rounded-xl transition-all active:scale-95">
+                                    🍱 餵罐罐
+                                </button>
+                            </div>
+                            <!-- 升級按鈕 -->
+                            <button onclick="upgradeWorker('w2')" id="w2-upgrade-btn" class="hidden w-full text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold py-1.5 rounded-xl border border-indigo-200 transition-all flex items-center justify-center gap-1">
+                                <i data-lucide="trending-up" class="w-3.5 h-3.5"></i> 升級 (Lv.2): <span id="w2-upgrade-cost">200g</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 黑貓小黑 -->
+                    <div id="worker-card-w3" class="border border-slate-200 rounded-2xl p-4 flex flex-col justify-between gap-3 bg-slate-50/50">
+                        <div class="flex justify-between items-start">
+                            <div class="flex items-center gap-2">
+                                <span class="text-3xl">🐈‍⬛</span>
+                                <div>
+                                    <div class="flex items-center gap-1">
+                                        <h4 class="font-bold text-xs text-slate-800">小黑</h4>
+                                        <span id="w3-level-badge" class="text-[9px] bg-sky-100 text-sky-800 px-1.5 py-0.2 rounded font-black">Lv.1</span>
+                                    </div>
+                                    <span class="text-[9px] bg-purple-100 text-purple-700 py-0.2 px-1.5 rounded">分成 20%</span>
+                                </div>
+                            </div>
+                            <span id="w3-status" class="text-[10px] font-bold text-slate-400">未僱用</span>
+                        </div>
+                        <p class="text-[11px] text-slate-500" id="w3-desc-text">高冷黑貓。捕魚間隔: 50秒。極低機率捕獲傳奇與神話魚。</p>
+                        
+                        <!-- 體力條 -->
+                        <div class="flex flex-col gap-1">
+                            <div class="flex justify-between text-[10px] text-slate-400">
+                                <span>體力</span>
+                                <span id="w3-stamina-text">0/120</span>
+                            </div>
+                            <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                                <div id="w3-stamina-bar" class="bg-orange-400 h-full w-0"></div>
+                            </div>
+                        </div>
+
+                        <!-- 操作與升級按鈕 -->
+                        <div class="flex flex-col gap-1.5 pt-1">
+                            <div class="flex gap-1">
+                                <button onclick="hireWorker('w3')" id="w3-hire-btn" class="flex-1 text-xs bg-sky-500 hover:bg-sky-600 text-white font-bold py-2 rounded-xl transition-all shadow-sm active:scale-95 flex items-center justify-center gap-1">
+                                    <i data-lucide="coins" class="w-3.5 h-3.5"></i>500 僱用
+                                </button>
+                                <button onclick="feedWorker('w3', 'bake')" id="w3-feed-bake-btn" class="hidden flex-1 text-xs bg-amber-500 hover:bg-amber-600 text-white font-bold py-1.5 rounded-xl transition-all active:scale-95">
+                                    🔥 餵烤魚
+                                </button>
+                                <button onclick="feedWorker('w3', 'bento')" id="w3-feed-bento-btn" class="hidden flex-1 text-xs bg-rose-500 hover:bg-rose-600 text-white font-bold py-1.5 rounded-xl transition-all active:scale-95">
+                                    🍱 餵罐罐
+                                </button>
+                            </div>
+                            <!-- 升級按鈕 -->
+                            <button onclick="upgradeWorker('w3')" id="w3-upgrade-btn" class="hidden w-full text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold py-1.5 rounded-xl border border-indigo-200 transition-all flex items-center justify-center gap-1">
+                                <i data-lucide="trending-up" class="w-3.5 h-3.5"></i> 升級 (Lv.2): <span id="w3-upgrade-cost">350g</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 港口自動化臨時倉庫 (已取消收割按鈕，僅保留一鍵全賣) -->
+                <div class="bg-slate-50 border border-slate-200/80 rounded-2.5xl p-4">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="text-xs font-extrabold text-slate-700 flex items-center gap-1">
+                            <i data-lucide="box" class="w-4 h-4 text-sky-600"></i>
+                            貓咪港口臨時倉庫 (<span id="warehouse-count">0/20</span>)
+                        </span>
+                        <div class="flex gap-2">
+                            <button onclick="sellAllWarehouse()" class="text-xs bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-4 py-1.5 rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-1">
+                                <i data-lucide="badge-dollar-sign" class="w-3.5 h-3.5"></i> 一鍵售出倉庫魚獲
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="warehouse-empty-state" class="text-center py-4 text-slate-400 text-[11px]">
+                        目前倉庫是空的。貓咪釣魚後會將魚獲直接放入此倉庫！
+                    </div>
+                    <div id="warehouse-grid" class="grid grid-cols-5 md:grid-cols-10 gap-2 hidden">
+                        <!-- 動態生成倉庫魚獲 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 珍珠專屬神殿 & 雜貨商鋪 -->
+            <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-5 border-b border-slate-100 pb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="p-2 bg-indigo-100 text-indigo-600 rounded-xl"><i data-lucide="sparkles" class="w-5 h-5"></i></span>
+                        <div>
+                            <h2 class="font-black text-slate-800 text-base">神聖珍珠神殿 (珍珠專屬用途)</h2>
+                            <p class="text-[11px] text-slate-400">用放生魚類獲得的珍貴珍珠換取遠古祝福或神術</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 珍珠祝福選單 -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <!-- 永久金幣加成 -->
+                    <div class="border border-indigo-100 bg-indigo-50/20 p-4 rounded-2xl flex flex-col justify-between gap-3">
+                        <div>
+                            <div class="flex justify-between items-start">
+                                <span class="font-extrabold text-xs text-indigo-950 flex items-center gap-1">🌊 豐饒之海</span>
+                                <span id="bless-goldBonus-badge" class="text-[9px] bg-indigo-100 text-indigo-800 font-bold px-1.5 py-0.2 rounded">Lv.0</span>
+                            </div>
+                            <p class="text-[10px] text-slate-500 mt-1">售出所有魚獲金幣收益永久提升 +5% (可加疊)。</p>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-bold text-indigo-800 flex items-center gap-0.5">
+                                <i data-lucide="sparkles" class="w-3.5 h-3.5 text-indigo-500"></i>
+                                <span id="bless-goldBonus-cost">8</span> 珍珠
+                            </span>
+                            <button onclick="buyBlessing('goldBonus')" id="btn-bless-goldBonus" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-1.5 px-3 rounded-xl transition-all active:scale-95">
+                                祈願祝福
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 永久指針速度降低 -->
+                    <div class="border border-indigo-100 bg-indigo-50/20 p-4 rounded-2xl flex flex-col justify-between gap-3">
+                        <div>
+                            <div class="flex justify-between items-start">
+                                <span class="font-extrabold text-xs text-indigo-950 flex items-center gap-1">🧘 心如止水</span>
+                                <span id="bless-qteSpeed-badge" class="text-[9px] bg-indigo-100 text-indigo-800 font-bold px-1.5 py-0.2 rounded">Lv.0</span>
+                            </div>
+                            <p class="text-[10px] text-slate-500 mt-1">永久降低 QTE 指針擺動速度 10%，起竿更容易完美！</p>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-bold text-indigo-800 flex items-center gap-0.5">
+                                <i data-lucide="sparkles" class="w-3.5 h-3.5 text-indigo-500"></i>
+                                <span id="bless-qteSpeed-cost">12</span> 珍珠
+                            </span>
+                            <button onclick="buyBlessing('qteSpeed')" id="btn-bless-qteSpeed" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-1.5 px-3 rounded-xl transition-all active:scale-95">
+                                祈願祝福
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 一鍵體力滿 -->
+                    <div class="border border-indigo-100 bg-indigo-50/20 p-4 rounded-2xl flex flex-col justify-between gap-3">
+                        <div>
+                            <span class="font-extrabold text-xs text-indigo-950 flex items-center gap-1">✨ 貓咪治癒之光</span>
+                            <p class="text-[10px] text-slate-500 mt-1">神殿神術。消耗 2 珍珠瞬間恢復所有已僱用貓咪 100% 體力！</p>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-bold text-indigo-800 flex items-center gap-0.5">
+                                <i data-lucide="sparkles" class="w-3.5 h-3.5 text-indigo-500"></i>
+                                2 珍珠
+                            </span>
+                            <button onclick="castCatHeal()" class="bg-gradient-to-r from-pink-500 to-indigo-500 hover:from-pink-600 hover:to-indigo-600 text-white font-bold text-xs py-1.5 px-3 rounded-xl transition-all active:scale-95">
+                                降臨治癒
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 港口商店 (物資與設備保養) -->
+                <div class="pt-4 border-t border-slate-100">
+                    <h3 class="text-xs font-extrabold text-slate-500 mb-3 flex items-center gap-1"><i data-lucide="shopping-cart" class="w-4 h-4"></i> 港口商店 & 鐵匠維修</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <!-- 耐久度維修 -->
+                        <div class="bg-amber-50/40 border border-amber-100 p-4 rounded-2xl flex flex-col justify-between gap-3">
+                            <div>
+                                <h3 class="font-bold text-xs text-slate-800 flex items-center gap-1">🔧 鐵匠快速修理</h3>
+                                <p class="text-[10px] text-slate-500 mt-1">將目前手持魚竿的耐久度一鍵回滿。</p>
+                            </div>
+                            <div class="flex justify-between items-center mt-1">
+                                <span class="text-xs font-bold text-amber-800 flex items-center gap-0.5">
+                                    <i data-lucide="coins" class="w-3.5 h-3.5 text-amber-500"></i>
+                                    <span id="repair-cost-ui">10</span>金幣
+                                </span>
+                                <button id="btn-repair" onclick="repairRod()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs py-1.5 px-3.5 rounded-xl transition-all active:scale-95 shadow-sm">
+                                    快速修復
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 魚竿升級 -->
+                        <div class="bg-indigo-50/40 border border-indigo-100 p-4 rounded-2xl flex flex-col justify-between gap-3">
+                            <div>
+                                <div class="flex justify-between items-start">
+                                    <h3 class="font-bold text-xs text-slate-800 flex items-center gap-1">⚒️ 魚竿工藝升級</h3>
+                                    <span id="upgrade-next-level" class="text-[9px] bg-indigo-100 text-indigo-700 py-0.2 px-1.5 rounded font-bold">Lv.2</span>
+                                </div>
+                                <p class="text-[10px] text-slate-500 mt-1" id="upgrade-bonus-desc">提高耐久上限及判定安全區</p>
+                            </div>
+                            <div class="flex justify-between items-center mt-1">
+                                <span class="text-xs font-bold text-indigo-800 flex items-center gap-0.5">
+                                    <i data-lucide="coins" class="w-3.5 h-3.5 text-indigo-500"></i>
+                                    <span id="upgrade-cost-ui">50</span>金幣
+                                </span>
+                                <button id="btn-upgrade" onclick="upgradeRod()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-1.5 px-3.5 rounded-xl transition-all active:scale-95 shadow-sm">
+                                    強化升級
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 隨身魚簍容量升級 -->
+                        <div class="bg-sky-50/40 border border-sky-100 p-4 rounded-2xl flex flex-col justify-between gap-3">
+                            <div>
+                                <div class="flex justify-between items-start">
+                                    <h3 class="font-bold text-xs text-slate-800 flex items-center gap-1">🎒 擴建隨身魚簍</h3>
+                                    <span id="basket-upgrade-badge" class="text-[9px] bg-sky-100 text-sky-700 py-0.2 px-1.5 rounded font-bold">當前: 10格</span>
+                                </div>
+                                <p class="text-[10px] text-slate-500 mt-1" id="basket-upgrade-desc">擴充魚簍格數 10 格 ➜ 15 格。</p>
+                            </div>
+                            <div class="flex justify-between items-center mt-1">
+                                <span class="text-xs font-bold text-sky-800 flex items-center gap-0.5">
+                                    <i data-lucide="coins" class="w-3.5 h-3.5 text-sky-500"></i>
+                                    <span id="basket-upgrade-cost">100</span>金幣
+                                </span>
+                                <button id="btn-upgrade-basket" onclick="upgradeBasketCapacity()" class="bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs py-1.5 px-3.5 rounded-xl transition-all active:scale-95 shadow-sm">
+                                    擴建容量
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 雜貨零售 -->
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mt-4">
+                        <!-- 購買蚯蚓 -->
+                        <div class="border border-slate-200 p-3 rounded-2xl flex flex-col justify-between gap-2 bg-slate-50/20 text-center">
+                            <span class="text-xs font-bold text-slate-800 block">🪱 蚯蚓 x5</span>
+                            <button onclick="buyBaits('worm', 15)" class="text-xs bg-slate-100 hover:bg-amber-500 hover:text-white py-1.5 rounded-xl font-bold transition-all text-slate-700">
+                                💰15 金幣
+                            </button>
+                        </div>
+                        <!-- 購買擬餌 -->
+                        <div class="border border-slate-200 p-3 rounded-2xl flex flex-col justify-between gap-2 bg-slate-50/20 text-center">
+                            <span class="text-xs font-bold text-slate-800 block">🐟 擬餌 x3</span>
+                            <button onclick="buyBaits('lure', 30)" class="text-xs bg-slate-100 hover:bg-amber-500 hover:text-white py-1.5 rounded-xl font-bold transition-all text-slate-700">
+                                💰30 金幣
+                            </button>
+                        </div>
+                        <!-- 購買閃耀麵團 -->
+                        <div class="border border-slate-200 p-3 rounded-2xl flex flex-col justify-between gap-2 bg-slate-50/20 text-center">
+                            <span class="text-xs font-bold text-slate-800 block">🍪 麵團 x2</span>
+                            <button onclick="buyBaits('dough', 40)" class="text-xs bg-slate-100 hover:bg-amber-500 hover:text-white py-1.5 rounded-xl font-bold transition-all text-slate-700">
+                                💰40 金幣
+                            </button>
+                        </div>
+                        <!-- 購買魔法誘餌 -->
+                        <div class="border border-slate-200 p-3 rounded-2xl flex flex-col justify-between gap-2 bg-slate-50/20 text-center">
+                            <span class="text-xs font-bold text-slate-800 block">✨ 魔法誘餌 x1</span>
+                            <button onclick="buyBaits('magic', 50)" class="text-xs bg-slate-100 hover:bg-amber-500 hover:text-white py-1.5 rounded-xl font-bold transition-all text-slate-700">
+                                💰50 金幣
+                            </button>
+                        </div>
+                        <!-- 購買特製便當罐罐 -->
+                        <div class="border border-slate-200 p-3 rounded-2xl flex flex-col justify-between gap-2 bg-slate-50/20 text-center">
+                            <span class="text-xs font-bold text-slate-800 block">🍱 特製罐罐 x1</span>
+                            <button onclick="buyBento(30)" class="text-xs bg-slate-100 hover:bg-rose-500 hover:text-white py-1.5 rounded-xl font-bold transition-all text-slate-700">
+                                💰30 金幣
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 磷蝦與特色配方 -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                        <div id="shrimp-unlock-card" class="border border-dashed border-indigo-200 p-3 rounded-2xl flex justify-between items-center bg-indigo-50/20">
+                            <div class="flex flex-col">
+                                <span class="text-xs font-bold text-indigo-950">🦐 神秘深海磷蝦 (未解鎖)</span>
+                                <span class="text-[9px] text-indigo-500">解鎖配方後方可長期購買，吸引夢幻與神話魚</span>
+                            </div>
+                            <button onclick="unlockShrimpBait()" class="text-xs bg-indigo-100 hover:bg-indigo-600 hover:text-white px-3 py-1.5 rounded-xl font-bold text-indigo-700 transition-colors">
+                                💰150 金幣解鎖
+                            </button>
+                        </div>
+
+                        <div id="shrimp-buy-card" class="border border-slate-200 p-3 rounded-2xl justify-between items-center bg-slate-50/20 hidden">
+                            <div class="flex flex-col">
+                                <span class="text-xs font-bold text-indigo-900">🦐 磷蝦誘餌 x1 (極光深海極品)</span>
+                                <span class="text-[9px] text-slate-400">大量招來深海太古與神話極光生靈</span>
+                            </div>
+                            <button onclick="buyBaits('shrimp', 90)" class="text-xs bg-slate-100 hover:bg-indigo-500 hover:text-white px-4 py-1.5 rounded-xl font-bold text-slate-700 transition-colors">
+                                💰90 金幣
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 專屬特色魚竿解鎖 -->
+                <div class="mt-4 pt-4 border-t border-slate-100">
+                    <h3 class="text-xs font-bold text-slate-400 mb-2">專屬特色魚竿解鎖商店</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div id="shop-rod-lucky" class="border border-slate-200 p-3 rounded-xl flex justify-between items-center bg-white">
+                            <div class="flex flex-col gap-0.5">
+                                <span class="text-xs font-bold text-slate-800 flex items-center gap-1">🍀 幸運之竹 <span class="text-[10px] text-sky-600 font-normal">幸運型</span></span>
+                                <span class="text-[10px] text-slate-500">高階魚上鉤率提升，最大耐久較低(30)。</span>
+                            </div>
+                            <button id="btn-buy-rod-lucky" onclick="buySpecialRod('lucky', 150)" class="text-xs bg-slate-100 hover:bg-sky-500 hover:text-white px-2.5 py-1.5 rounded-lg font-bold transition-all text-slate-700 flex items-center gap-0.5">
+                                <i data-lucide="coins" class="w-3.5 h-3.5"></i>150
+                            </button>
+                        </div>
+                        <div id="shop-rod-iron" class="border border-slate-200 p-3 rounded-xl flex justify-between items-center bg-white">
+                            <div class="flex flex-col gap-0.5">
+                                <span class="text-xs font-bold text-slate-800 flex items-center gap-1">🧱 玄鐵重竿 <span class="text-[10px] text-amber-700 font-normal">耐用型</span></span>
+                                <span class="text-[10px] text-slate-500">耐久度高達 120！且失誤僅扣 1 點耐久。</span>
+                            </div>
+                            <button id="btn-buy-rod-iron" onclick="buySpecialRod('iron', 220)" class="text-xs bg-slate-100 hover:bg-slate-700 hover:text-white px-2.5 py-1.5 rounded-lg font-bold transition-all text-slate-700 flex items-center gap-0.5">
+                                <i data-lucide="coins" class="w-3.5 h-3.5"></i>220
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 右側：個人魚簍、圖鑑與數據 (4 columns) -->
+        <div class="lg:col-span-4 flex flex-col gap-6">
+            
+            <!-- 歷史捕獲數據 -->
+            <div class="bg-gradient-to-br from-indigo-950 via-slate-900 to-indigo-900 text-indigo-100 rounded-[2rem] p-5 shadow-lg border border-white/10">
+                <h3 class="text-xs uppercase tracking-wider text-indigo-300 font-bold mb-3 flex items-center gap-1.5">
+                    <i data-lucide="bar-chart-2" class="w-4 h-4"></i> 港口捕魚日誌
+                </h3>
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    <div class="bg-white/10 p-2 rounded-xl">
+                        <span class="block text-base font-black text-white" id="stat-total-casts">0</span>
+                        <span class="text-[9px] text-indigo-200">拋竿次數</span>
+                    </div>
+                    <div class="bg-white/10 p-2 rounded-xl">
+                        <span class="block text-base font-black text-white" id="stat-total-fish">0</span>
+                        <span class="text-[9px] text-indigo-200">成功捕獲</span>
+                    </div>
+                    <div class="bg-white/10 p-2 rounded-xl">
+                        <span class="block text-base font-black text-white text-emerald-300" id="stat-rate">0%</span>
+                        <span class="text-[9px] text-indigo-200">拉竿成功率</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 我的隨身魚簍 (背包) -->
+            <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 flex flex-col gap-4">
+                <div class="flex justify-between items-center border-b border-slate-50 pb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="p-2 bg-sky-50 text-sky-600 rounded-xl"><i data-lucide="shopping-bag" class="w-5 h-5"></i></span>
+                        <div>
+                            <h2 class="font-black text-slate-800 text-sm">隨身魚簍 (<span id="basket-count-indicator">0/10</span>)</h2>
+                        </div>
+                    </div>
+                    <button onclick="sellAllFish()" class="text-xs bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-1.5 px-3 rounded-full shadow-md transition-all active:scale-95 flex items-center gap-0.5">
+                        <i data-lucide="badge-dollar-sign" class="w-3.5 h-3.5"></i>全賣
+                    </button>
+                </div>
+
+                <div id="basket-empty-state" class="flex flex-col items-center justify-center text-slate-400 py-6">
+                    <i data-lucide="container" class="w-8 h-8 stroke-[1.5] mb-2 animate-pulse"></i>
+                    <p class="text-xs">魚簍空空如也...</p>
+                </div>
+
+                <div id="basket-list" class="overflow-y-auto max-h-[160px] space-y-2 hidden pr-1">
+                    <!-- 動態渲染魚籃 -->
+                </div>
+
+                <!-- 🎣 新增：我的魚竿收藏與切換背包欄 -->
+                <div class="border-t border-slate-100 pt-3">
+                    <h3 class="text-xs font-black text-slate-500 mb-2 flex items-center gap-1.5">
+                        <i data-lucide="sword" class="w-4 h-4 text-sky-500"></i> 我的魚竿收藏庫 (可免費切換)
+                    </h3>
+                    <div id="owned-rods-list" class="flex flex-col gap-2">
+                        <!-- 動態生成擁有的魚竿 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 魚類圖鑑進度 -->
+            <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-bold text-sm text-slate-800 flex items-center gap-2">
+                        <span class="p-1.5 bg-pink-50 text-pink-500 rounded-lg"><i data-lucide="book-open" class="w-5 h-5"></i></span>
+                        海域圖鑑
+                    </h3>
+                    <span class="text-xs font-black text-pink-600 bg-pink-50 px-2.5 py-0.5 rounded-full" id="catalog-progress">0/12</span>
+                </div>
+
+                <div class="grid grid-cols-4 gap-2" id="catalog-grid">
+                    <!-- 動態渲染圖鑑 -->
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- ==================== 系統設定與存檔管理匯出/入 (底部) ==================== -->
+    <footer class="w-full max-w-5xl px-4 md:px-6 mt-8 border-t border-sky-200/50 pt-6">
+        <div class="bg-white/80 backdrop-blur-sm rounded-3xl p-5 border border-sky-100 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex flex-col gap-1 text-center md:text-left">
+                <span class="text-xs font-black text-sky-950 flex items-center justify-center md:justify-start gap-1">
+                    <i data-lucide="settings" class="w-4 h-4"></i> ⚙️ 平靜港灣系統存檔管理
+                </span>
+                <span class="text-[10px] text-slate-400">我們在後台會隨時為您自動保存養老數據，您也可以手動匯出備份存檔。</span>
+            </div>
+            
+            <div class="flex gap-2 w-full md:w-auto">
+                <button onclick="exportSave()" class="flex-1 md:flex-initial text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold py-2.5 px-4 rounded-xl border border-indigo-200 transition-colors flex items-center justify-center gap-1.5">
+                    <i data-lucide="download" class="w-4 h-4"></i> 匯出存檔代碼
+                </button>
+                <button onclick="triggerImportModal()" class="flex-1 md:flex-initial text-xs bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold py-2.5 px-4 rounded-xl border border-slate-200 transition-colors flex items-center justify-center gap-1.5">
+                    <i data-lucide="upload" class="w-4 h-4"></i> 匯入存檔
+                </button>
+            </div>
+        </div>
+    </footer>
+
+
+    <!-- ==================== 各種互動彈窗 Modal ==================== -->
+
+    <!-- 成功釣魚彈窗 (零延遲展示) -->
+    <div id="catch-modal" class="fixed inset-0 bg-slate-950/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-[2rem] w-full max-w-sm p-6 shadow-2xl border-2 border-white text-center transform scale-95 transition-transform duration-200 flex flex-col items-center animate-fade-in">
+            <div class="w-20 h-20 bg-sky-50 rounded-full flex items-center justify-center text-4xl mb-4 border-2 border-sky-200 wave-bg" id="modal-fish-icon">
+                🐠
+            </div>
+            <span class="text-xs font-bold tracking-widest uppercase py-1 px-3 rounded-full" id="modal-fish-rarity">普通</span>
+            <h3 class="text-xl font-black text-slate-800 mt-2" id="modal-fish-name">可愛黃尾魚</h3>
+            <p class="text-xs text-slate-400 mt-1">體長: <span id="modal-fish-size" class="text-sky-600 font-bold">12.5 cm</span></p>
+            
+            <div class="w-full bg-slate-50 border border-slate-100 p-3.5 rounded-2xl my-4 text-xs text-slate-500 leading-relaxed text-left" id="modal-fish-story">
+                「生活在淺海的常見小魚...」
+            </div>
+
+            <div class="w-full flex gap-3">
+                <button onclick="keepFish()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl transition-all">
+                    放入魚簍
+                </button>
+                <button onclick="releaseFishDirectly()" class="flex-1 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold py-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-1 text-sm">
+                    <i data-lucide="sparkles" class="w-4 h-4"></i> 放生 (+1 珍珠)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 存檔匯入輸入彈窗 -->
+    <div id="import-modal" class="fixed inset-0 bg-slate-950/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-md p-6 shadow-xl border border-slate-100">
+            <h3 class="text-base font-black text-slate-800 mb-2 flex items-center gap-1.5">
+                <i data-lucide="upload" class="text-indigo-600 w-5 h-5"></i> 匯入平靜港灣存檔代碼
+            </h3>
+            <p class="text-xs text-slate-500 mb-3 leading-relaxed">請將您匯出的 Base64 格式存檔代碼粘貼在下方：</p>
+            <textarea id="import-text" class="w-full h-32 p-3 border border-slate-200 rounded-xl text-xs font-mono focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 bg-slate-50" placeholder="請在此貼上存檔代碼..."></textarea>
+            <div class="flex gap-2 mt-4">
+                <button onclick="closeImportModal()" class="flex-1 text-xs bg-slate-100 hover:bg-slate-200 py-2.5 rounded-xl font-bold">取消</button>
+                <button onclick="importSave()" class="flex-1 text-xs bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl font-bold">確認匯入並加載</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 重置進度確認彈窗 -->
+    <div id="reset-modal" class="fixed inset-0 bg-slate-950/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-xs p-6 shadow-xl border border-slate-100 text-center">
+            <h3 class="text-base font-bold text-slate-800 mb-2">確定要重新開始嗎？</h3>
+            <p class="text-xs text-slate-500 mb-4 leading-relaxed">這將清空您所有的金幣、購買的魚竿、貓咪工人進度，並清除本地備份。</p>
+            <div class="flex gap-2">
+                <button onclick="closeResetModal()" class="flex-1 text-xs bg-slate-100 hover:bg-slate-200 py-2.5 rounded-xl font-bold">取消</button>
+                <button onclick="resetGame()" class="flex-1 text-xs bg-rose-500 hover:bg-rose-600 text-white py-2.5 rounded-xl font-bold">確認清除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 提示框 Toast Container -->
+    <div id="toast-container" class="fixed bottom-6 right-6 flex flex-col gap-2 z-50 pointer-events-none"></div>
+
+
+    <!-- ==================== 遊戲邏輯與演算法 JavaScript ==================== -->
+    <script>
+        // ==================== 1. 遊戲數據與資料庫配置 ====================
+        
+        // 圖鑑魚種數據庫
+        const FISH_DATABASE = [
+            { id: 'f01', name: '溫柔小黃尾', emoji: '🐠', rarity: 'common', baseMinSize: 8, baseMaxSize: 15, basePrice: 15, story: '淺海中最溫柔的使者，尾巴在陽光下泛著淡淡的金黃色。' },
+            { id: 'f02', name: '平靜海葵魚', emoji: '🐡', rarity: 'common', baseMinSize: 10, baseMaxSize: 18, basePrice: 20, story: '生活在溫暖海葵中的小傢伙，遇到驚嚇時會把自己鼓得圓滾滾。' },
+            { id: 'f03', name: '療癒粉紅水母', emoji: '🪼', rarity: 'rare', baseMinSize: 15, baseMaxSize: 30, basePrice: 45, story: '散發著微光的粉紅水母，它的飄動節奏彷彿自帶催眠的海浪曲調。' },
+            { id: 'f04', name: '碧波飛魚', emoji: '🐟', rarity: 'rare', baseMinSize: 20, baseMaxSize: 42, basePrice: 60, story: '擅長在浪花尖端滑行的奇妙魚類，追逐著風的軌跡。' },
+            { id: 'f05', name: '回憶氣泡水母', emoji: '🫧', rarity: 'rare', baseMinSize: 12, baseMaxSize: 25, basePrice: 50, story: '晶瑩剔透，身體裡包裹著一顆永不熄滅的氣泡，裝著大自然最美的夢。' },
+            { id: 'f06', name: '深海發光烏賊', emoji: '🦑', rarity: 'epic', baseMinSize: 30, baseMaxSize: 65, basePrice: 125, story: '只在寧靜深夜或深海中浮現的精靈，身上的斑點能變幻多種奇異色彩。' },
+            { id: 'f07', name: '星空寄居蟹', emoji: '🐚', rarity: 'epic', baseMinSize: 5, baseMaxSize: 12, basePrice: 140, story: '背負著被海水打磨如黑曜石般外殼的蟹，殼上閃爍著猶如銀河的碎星。' },
+            { id: 'f08', name: '彩虹星光海星', emoji: '⭐', rarity: 'epic', baseMinSize: 6, baseMaxSize: 16, basePrice: 160, story: '靜臥在珊瑚底部的五彩海星，相傳是在流星墜入海中時誕生的奇異生靈。' },
+            { id: 'f09', name: '沉睡太古巨鰻', emoji: '🐍', rarity: 'legendary', baseMinSize: 120, baseMaxSize: 220, basePrice: 350, story: '傳說中守護港灣萬年的巨鰻，只有在絕對平靜且使用高級魔法誘餌時才會醒來。' },
+            { id: 'f10', name: '發光深海燈籠魚', emoji: '💡', rarity: 'legendary', baseMinSize: 45, baseMaxSize: 95, basePrice: 380, story: '提著一盞散發柔和金色微光小燈籠的深海隱士，能在最寂靜的黑暗裡指引方向。' },
+            { id: 'f11', name: '幻彩極光錦鯉', emoji: '🦈', rarity: 'mythic', baseMinSize: 80, baseMaxSize: 150, basePrice: 600, story: '神話般的魚種。據說看過它遊動姿態的漁夫，內心將會獲得永久的安寧。' },
+            { id: 'f12', name: '許願星空泡泡魚', emoji: '🐳', rarity: 'mythic', baseMinSize: 100, baseMaxSize: 280, basePrice: 750, story: '遠古傳奇。頭頂能吐出五彩斑斕的願望泡泡，只在極光與深海交會的港灣出現。' }
+        ];
+
+        // 稀情度係數設定
+        const RARITY_DETAILS = {
+            common: { name: '普通', color: 'bg-slate-100 text-slate-600 border-slate-300', chance: 0.60, qteSpeed: 1.3, qteWidthPct: 0.35, durCost: 1 },
+            rare: { name: '稀有', color: 'bg-sky-100 text-sky-700 border-sky-300', chance: 0.25, qteSpeed: 1.9, qteWidthPct: 0.25, durCost: 2 },
+            epic: { name: '史詩', color: 'bg-indigo-100 text-indigo-700 border-indigo-300', chance: 0.11, qteSpeed: 2.7, qteWidthPct: 0.18, durCost: 3 },
+            legendary: { name: '傳奇', color: 'bg-amber-100 text-amber-800 border-amber-300', chance: 0.035, qteSpeed: 3.5, qteWidthPct: 0.12, durCost: 5 },
+            mythic: { name: '神話', color: 'bg-rose-100 text-rose-700 border-rose-300', chance: 0.005, qteSpeed: 4.2, qteWidthPct: 0.08, durCost: 8 }
+        };
+
+        // 魚餌設定
+        const BAIT_DETAILS = {
+            worm: { name: '蚯蚓', desc: '溫和咬鉤，普通機率。', waitMin: 3, waitMax: 6, rarityBonus: null },
+            lure: { name: '特製擬餌', desc: '吸引速度極快，縮短咬鉤時間。', waitMin: 1.2, waitMax: 2.4, rarityBonus: null },
+            dough: { name: '閃耀麵團', desc: '香甜氣味，提升稀有魚機率。', waitMin: 2.5, waitMax: 5, rarityBonus: 'medium' },
+            magic: { name: '高級魔法誘餌', desc: '注入神祕法術，大幅提升史詩與傳奇魚機率。', waitMin: 4, waitMax: 8, rarityBonus: 'high' },
+            shrimp: { name: '深海磷蝦', desc: '最高機率吸引傳奇與神話魚！', waitMin: 3.5, waitMax: 7, rarityBonus: 'extreme' }
+        };
+
+        // 魚竿與強化
+        const ROD_TEMPLATES = {
+            bamboo: {
+                name: '新手竹竿',
+                desc: '用海邊斑竹製成的樸素魚竿。',
+                maxDurability: 50,
+                baseQteWidthBonus: 0,
+                rarityChanceMul: 1.0,
+                repairCostPerPoint: 0.2,
+                levelUpData: [
+                    { level: 1, cost: 50, maxDurability: 50, qteBonus: 0, chanceMul: 1.0 },
+                    { level: 2, cost: 90, maxDurability: 60, qteBonus: 0.06, chanceMul: 1.1 },
+                    { level: 3, cost: 140, maxDurability: 70, qteBonus: 0.12, chanceMul: 1.2 },
+                    { level: 4, cost: 200, maxDurability: 85, qteBonus: 0.18, chanceMul: 1.3 },
+                    { level: 5, cost: 300, maxDurability: 100, qteBonus: 0.28, chanceMul: 1.5 }
+                ]
+            },
+            lucky: {
+                name: '🍀 幸運之竹',
+                desc: '蘊含好運草汁液，極度受大魚偏愛。',
+                maxDurability: 30,
+                baseQteWidthBonus: -0.05,
+                rarityChanceMul: 2.2,
+                repairCostPerPoint: 0.5,
+                levelUpData: [
+                    { level: 1, cost: 80, maxDurability: 30, qteBonus: -0.05, chanceMul: 2.2 },
+                    { level: 2, cost: 120, maxDurability: 38, qteBonus: 0.01, chanceMul: 2.5 },
+                    { level: 3, cost: 180, maxDurability: 46, qteBonus: 0.07, chanceMul: 2.9 },
+                    { level: 4, cost: 260, maxDurability: 55, qteBonus: 0.13, chanceMul: 3.3 },
+                    { level: 5, cost: 400, maxDurability: 70, qteBonus: 0.20, chanceMul: 3.8 }
+                ]
+            },
+            iron: {
+                name: '🧱 玄鐵重竿',
+                desc: '厚重沉穩，即便釣到巨獸也毫不費力。',
+                maxDurability: 120,
+                baseQteWidthBonus: 0.10,
+                rarityChanceMul: 0.8,
+                repairCostPerPoint: 0.15,
+                levelUpData: [
+                    { level: 1, cost: 100, maxDurability: 120, qteBonus: 0.10, chanceMul: 0.8 },
+                    { level: 2, cost: 150, maxDurability: 140, qteBonus: 0.16, chanceMul: 0.9 },
+                    { level: 3, cost: 220, maxDurability: 165, qteBonus: 0.22, chanceMul: 1.0 },
+                    { level: 4, cost: 300, maxDurability: 190, qteBonus: 0.28, chanceMul: 1.1 },
+                    { level: 5, cost: 450, maxDurability: 220, qteBonus: 0.38, chanceMul: 1.2 }
+                ]
+            }
+        };
+
+        // 魚簍升級數據
+        const BASKET_UPGRADES = [
+            { level: 1, capacity: 10, cost: 100 },
+            { level: 2, capacity: 15, cost: 200 },
+            { level: 3, capacity: 25, cost: 450 },
+            { level: 4, capacity: 40, cost: 800 },
+            { level: 5, capacity: 60, cost: 0 } // Max
+        ];
+
+        // 珍珠祝福永久祝福定義
+        const SHRINE_BLESSINGS = {
+            goldBonus: { name: '豐饒之海', maxLevel: 5, baseCost: 8, costMultiplier: 1.5, text: '魚獲金幣收益永久額外提升' },
+            qteSpeed: { name: '心如止水', maxLevel: 3, baseCost: 12, costMultiplier: 1.8, text: '拉竿判定指針速度永久降低' }
+        };
+
+        // 貓咪工人多級升級與平衡調整
+        const WORKERS_BASE = {
+            w1: { 
+                id: 'w1', name: '阿橘', emoji: '🐱', cost: 120, commission: 0.10,
+                baseSpeed: 25,
+                baseMaxStamina: 100,
+                targetRarity: ['common', 'rare'],
+                desc: '愛打瞌睡的橘貓。升級後可縮短捕魚時間並增加耐力。每次釣魚耗體5。'
+            },
+            w2: { 
+                id: 'w2', name: '花花', emoji: '😸', cost: 280, commission: 0.15,
+                baseSpeed: 35,
+                baseMaxStamina: 100,
+                targetRarity: ['common', 'rare', 'epic'],
+                desc: '行動敏捷，自帶微弱好運。每次耗體6。'
+            },
+            w3: { 
+                id: 'w3', name: '小黑', emoji: '🐈‍⬛', cost: 500, commission: 0.20,
+                baseSpeed: 50,
+                baseMaxStamina: 120,
+                targetRarity: ['rare', 'epic', 'legendary', 'mythic'],
+                desc: '高傲神祕的黑貓隱士。極低概率捕獲神話極光錦鯉。每次耗體8。'
+            }
+        };
+
+        // ==================== 2. 遊戲主狀態物件 ====================
+        let state = {
+            gold: 150,
+            pearls: 5,
+            bakedFish: 0,
+            bentoCount: 0,
+            
+            // 背包
+            basketCapacity: 10,
+            basketLevel: 1,
+            basket: [],
+
+            // 消耗性魚餌
+            baitInventory: {
+                worm: 10,
+                lure: 5,
+                dough: 2,
+                magic: 0,
+                shrimp: 0
+            },
+            shrimpUnlocked: false,
+            activeBait: 'worm',
+
+            // 手持魚竿
+            activeRodType: 'bamboo',
+            rodLevel: 1,
+            rodDurability: 50,
+            unlockedRods: {
+                bamboo: 1,
+                lucky: 0,
+                iron: 0
+            },
+
+            // 貓咪僱傭狀態、等級
+            hiredWorkers: { w1: false, w2: false, w3: false },
+            workerLevels: { w1: 1, w2: 1, w3: 1 },
+            workerStamina: { w1: 0, w2: 0, w3: 0 },
+
+            // 珍珠神殿永久被動級數
+            blessings: {
+                goldBonus: 0,
+                qteSpeed: 0
+            },
+
+            warehouse: [],
+            catalog: {},
+            
+            stats: { casts: 0, catches: 0, successPull: 0, failPull: 0 }
+        };
+
+        // QTE 的實時動態物理指針
+        let qteState = {
+            isActive: false,
+            direction: 1,
+            position: 0,
+            speed: 1.5,
+            safeStart: 30,
+            safeWidth: 40,
+            perfectStart: 45,
+            perfectWidth: 10,
+            currentFish: null,
+            animationId: null
+        };
+
+        let fishingTimer = null;
+        let workerTimer = null;
+        let isFishingProcess = false; // 防連按拋竿狀態標記
+        let lineAnimationActive = false; // 動態魚線追蹤標記
+
+        // ==================== 3. 系統生命週期 ====================
+
+        // 開始進入港灣
+        function startGame(forcedReset = false) {
+            loadGameState(forcedReset);
+            document.getElementById('welcome-screen').classList.add('hidden');
+            renderUI();
+            
+            // 重新整理自動化放置定時器
+            if (workerTimer) clearInterval(workerTimer);
+            startWorkerAutomationLoop();
+        }
+
+        // 返回首頁
+        function returnToWelcome() {
+            if (fishingTimer || qteState.isActive) {
+                showToast("您正在起竿或等待咬鉤中，先結束手頭的垂釣吧！", "error");
+                return;
+            }
+            stopLineTracking();
+            document.getElementById('welcome-screen').classList.remove('hidden');
+        }
+
+        // 深層狀態物件安全合併演算法（防止讀取/匯入存檔時資料結構不對等毀損）
+        function deepMerge(target, source) {
+            for (const key in source) {
+                if (source[key] !== null && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+                    if (!target[key]) target[key] = {};
+                    deepMerge(target[key], source[key]);
+                } else {
+                    target[key] = source[key];
+                }
+            }
+            return target;
+        }
+
+        // 讀取本地 LocalStorage 備份進度 (加入安全防崩潰機制)
+        function loadGameState(forcedReset = false) {
+            if (forcedReset) {
+                try {
+                    localStorage.removeItem('serene_harbor_v3_save');
+                } catch (e) {
+                    console.warn("Storage access blocked.");
+                }
+                // 預設重置數據
+                state = {
+                    gold: 150, pearls: 5, bakedFish: 0, bentoCount: 0,
+                    basketCapacity: 10, basketLevel: 1, basket: [],
+                    baitInventory: { worm: 10, lure: 5, dough: 2, magic: 0, shrimp: 0 },
+                    shrimpUnlocked: false, activeBait: 'worm',
+                    activeRodType: 'bamboo', rodLevel: 1, rodDurability: 50,
+                    unlockedRods: { bamboo: 1, lucky: 0, iron: 0 },
+                    hiredWorkers: { w1: false, w2: false, w3: false },
+                    workerLevels: { w1: 1, w2: 1, w3: 1 },
+                    workerStamina: { w1: 0, w2: 0, w3: 0 },
+                    blessings: { goldBonus: 0, qteSpeed: 0 },
+                    warehouse: [], catalog: {},
+                    stats: { casts: 0, catches: 0, successPull: 0, failPull: 0 }
+                };
+                return;
+            }
+
+            let saved = null;
+            try {
+                saved = localStorage.getItem('serene_harbor_v3_save');
+            } catch (e) {
+                console.warn("Storage getItem blocked: ", e);
+            }
+
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    // 安全深層合併
+                    deepMerge(state, parsed);
+                    
+                    // 同步目前選用魚竿之最高解鎖等級
+                    state.rodLevel = state.unlockedRods[state.activeRodType] || 1;
+                } catch(e) {
+                    console.error("載入存檔異常，自動建立初始設定。");
+                }
+            } else {
+                state.gold = 150;
+                state.baitInventory.worm = 10;
+                state.baitInventory.lure = 5;
+                state.baitInventory.dough = 2;
+                state.rodDurability = 50;
+            }
+        }
+
+        function saveGameState() {
+            try {
+                localStorage.setItem('serene_harbor_v3_save', JSON.stringify(state));
+            } catch (e) {
+                console.warn("Storage setItem blocked: ", e);
+            }
+        }
+
+        // ==================== 4. 安全 Base64 存檔匯出/入演算法 (防 Unicode 中文崩潰與沙盒崩潰) ====================
+        
+        function exportSave() {
+            try {
+                const jsonStr = JSON.stringify(state);
+                
+                // 安全 UTF-8 轉 Base64 演算法
+                const base64Save = btoa(encodeURIComponent(jsonStr).replace(/%([0-9A-F]{2})/g, function(match, p1) {
+                    return String.fromCharCode('0x' + p1);
+                }));
+                
+                const tempInput = document.createElement("input");
+                tempInput.value = base64Save;
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                
+                try {
+                    document.execCommand('copy');
+                    showToast("【匯出成功】安全備份存檔代碼已複製到您的剪貼簿！", "success", 5000);
+                } catch (e) {
+                    // 如果被沙盒環境禁止複製，直接顯示在文字框供手動複製
+                    showToast("複製功能受限，請手動複製控制台或彈窗內的文字！", "info", 5000);
+                    console.log("存檔代碼：", base64Save);
+                }
+                document.body.removeChild(tempInput);
+            } catch (err) {
+                showToast("匯出發生異常，請重試", "error");
+            }
+        }
+
+        // 啟動首頁加載
+        function triggerImportModal() {
+            document.getElementById('import-modal').classList.remove('hidden');
+            document.getElementById('import-text').value = '';
+        }
+
+        function closeImportModal() {
+            document.getElementById('import-modal').classList.add('hidden');
+        }
+
+        function importSave() {
+            const code = document.getElementById('import-text').value.trim();
+            if (!code) {
+                showToast("請貼上正確的存檔代碼！", "error");
+                return;
+            }
+
+            try {
+                // 安全 Base64 解碼回 UTF-8 JSON 字串
+                const decodedJson = decodeURIComponent(atob(code).split('').map(function(c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                
+                const parsed = JSON.parse(decodedJson);
+                
+                if (parsed.gold === undefined || parsed.catalog === undefined) {
+                    throw new Error("非法的存檔結構");
+                }
+
+                // 複寫，同時加入 try-catch 防止 LocalStorage 被沙盒禁止時造成崩潰
+                try {
+                    localStorage.setItem('serene_harbor_v3_save', decodedJson);
+                } catch (e) {
+                    console.warn("Storage setItem blocked during import, falling back to memory-only save.", e);
+                }
+                
+                // 記憶體中立刻加載
+                deepMerge(state, parsed);
+                state.rodLevel = state.unlockedRods[state.activeRodType] || 1;
+
+                closeImportModal();
+                showToast("存檔數據匯入完畢！港灣重啟加載中...", "success");
+                
+                // 沙盒環境可能不支援重新整理，我們同時手動觸發 UI 重繪
+                renderUI();
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+
+            } catch (err) {
+                showToast("匯入存檔失敗，請確認代碼是否完整、無多餘空格或有無格式損壞！", "error");
+            }
+        }
+
+        function confirmResetGame() {
+            document.getElementById('reset-modal').classList.remove('hidden');
+        }
+
+        function closeResetModal() {
+            document.getElementById('reset-modal').classList.add('hidden');
+        }
+
+        function resetGame() {
+            try {
+                localStorage.removeItem('serene_harbor_v3_save');
+            } catch (e) {
+                console.warn("Storage removeItem blocked: ", e);
+            }
+            closeResetModal();
+            location.reload();
+        }
+
+        // ==================== 5. 動態物理魚線繪製與實時動態追蹤 (解決瞬移問題) ====================
+        
+        function drawFishingLine(toX, toY) {
+            const svg = document.getElementById('fishing-line-svg');
+            const line = document.getElementById('fishing-line');
+            const waterArea = document.getElementById('fishing-bobber-area');
+
+            if (!toX || !toY || waterArea.classList.contains('hidden')) {
+                line.classList.add('hidden');
+                return;
+            }
+
+            const rect = svg.getBoundingClientRect();
+            // 固定魚竿尖起點
+            const fromX = rect.width * 0.92;
+            const fromY = rect.height * 0.88;
+
+            // 具有柔和下墜弧度的貝氏曲線
+            const controlX = (fromX + toX) / 2;
+            const controlY = Math.max(fromY, toY) + 14;
+
+            const d = `M ${fromX} ${fromY} Q ${controlX} ${controlY} ${toX} ${toY}`;
+            line.setAttribute('d', d);
+            line.classList.remove('hidden');
+        }
+
+        function clearFishingLine() {
+            document.getElementById('fishing-line').classList.add('hidden');
+        }
+
+        // 開始幀追蹤：實時獲取浮標之 DOM 容器實際在 SVG 中的座標進行無縫繪線
+        function startLineTracking() {
+            lineAnimationActive = true;
+            function track() {
+                if (!lineAnimationActive) return;
+                const bobber = document.getElementById('bobber-body');
+                const bobberArea = document.getElementById('fishing-bobber-area');
+                const svg = document.getElementById('fishing-line-svg');
+                
+                if (bobber && bobberArea && !bobberArea.classList.contains('hidden')) {
+                    const svgRect = svg.getBoundingClientRect();
+                    const bobberRect = bobber.getBoundingClientRect();
+                    
+                    // 精確計算浮標中心相對 SVG 之絕對位置
+                    const toX = bobberRect.left + bobberRect.width / 2 - svgRect.left;
+                    const toY = bobberRect.top + bobberRect.height / 2 - svgRect.top;
+                    
+                    drawFishingLine(toX, toY);
+                } else {
+                    clearFishingLine();
+                }
+                requestAnimationFrame(track);
+            }
+            requestAnimationFrame(track);
+        }
+
+        function stopLineTracking() {
+            lineAnimationActive = false;
+            clearFishingLine();
+        }
+
+        // ==================== 6. 手動垂釣流程與多重防呆機制 ====================
+        
+        function startFishing() {
+            if (isFishingProcess || fishingTimer || qteState.isActive) return;
+
+            if (state.rodDurability <= 0) {
+                showToast("魚竿壞了！請先修復它。", "error");
+                return;
+            }
+            if (state.baitInventory[state.activeBait] <= 0) {
+                showToast("目前使用的魚餌不夠了！請購買或切換其他魚餌。", "error");
+                return;
+            }
+
+            // 防呆完全鎖定狀態
+            isFishingProcess = true;
+            toggleFishingButtons(true);
+
+            // 扣除物資
+            state.baitInventory[state.activeBait] -= 1;
+            state.rodDurability -= 1;
+            state.stats.casts += 1;
+
+            document.getElementById('idle-water-decor').classList.add('hidden');
+            
+            const bobberArea = document.getElementById('fishing-bobber-area');
+            const bobberBody = document.getElementById('bobber-body');
+            const splash = document.getElementById('water-splash');
+            const biteAlert = document.getElementById('bite-alert');
+
+            bobberArea.classList.remove('hidden');
+            splash.classList.add('hidden');
+            biteAlert.classList.add('hidden');
+
+            // 觸發實時動態魚線
+            startLineTracking();
+
+            document.getElementById('game-status').innerText = "「嗖——」您甩動雙臂，將釣線遠遠拋入海中。";
+
+            // 計算咬鉤等待時間
+            const bait = BAIT_DETAILS[state.activeBait];
+            const waitTimeSec = Math.random() * (bait.waitMax - bait.waitMin) + bait.waitMin;
+
+            renderUI();
+            saveGameState();
+
+            let remaining = Math.ceil(waitTimeSec);
+            document.getElementById('wait-timer-ui').innerText = `(約 ${remaining} 秒)`;
+
+            const countdownInterval = setInterval(() => {
+                remaining -= 1;
+                if (remaining > 0 && fishingTimer) {
+                    document.getElementById('wait-timer-ui').innerText = `(約 ${remaining} 秒)`;
+                } else {
+                    clearInterval(countdownInterval);
+                }
+            }, 1000);
+
+            fishingTimer = setTimeout(() => {
+                clearInterval(countdownInterval);
+                triggerFishBite();
+            }, waitTimeSec * 1000);
+        }
+
+        function toggleFishingButtons(disabled) {
+            const btn = document.getElementById('btn-cast');
+            if (disabled) {
+                btn.disabled = true;
+                btn.className = "w-full md:w-2/3 bg-slate-200 text-slate-400 font-bold py-4 px-8 rounded-2xl cursor-not-allowed flex items-center justify-center gap-2 text-base pointer-events-none";
+                btn.innerHTML = `<span>🎣</span> 垂釣中...`;
+            } else {
+                btn.disabled = false;
+                btn.className = "w-full md:w-2/3 bg-gradient-to-r from-sky-500 via-sky-600 to-indigo-500 hover:from-sky-600 hover:to-indigo-600 text-white font-black py-4 px-8 rounded-2xl shadow-lg shadow-sky-100 transition-all active:scale-95 flex items-center justify-center gap-3 text-base";
+                btn.innerHTML = `<i data-lucide="sparkles" class="w-5 h-5 animate-spin" style="animation-duration: 8s;"></i> 拋竿入海`;
+            }
+            lucide.createIcons();
+        }
+
+        function cancelFishing() {
+            if (fishingTimer) {
+                clearTimeout(fishingTimer);
+                fishingTimer = null;
+            }
+            
+            const activeRod = ROD_TEMPLATES[state.activeRodType];
+            state.rodDurability = Math.min(activeRod.levelUpData[state.rodLevel-1].maxDurability, state.rodDurability + 1);
+            state.baitInventory[state.activeBait] += 1;
+            state.stats.casts = Math.max(0, state.stats.casts - 1);
+
+            document.getElementById('game-status').innerText = "您輕輕收回了沒人咬的空線。";
+            
+            isFishingProcess = false;
+            toggleFishingButtons(false);
+            stopLineTracking();
+
+            document.getElementById('idle-water-decor').classList.remove('hidden');
+            document.getElementById('fishing-bobber-area').classList.add('hidden');
+            renderUI();
+            saveGameState();
+        }
+
+        function triggerFishBite() {
+            fishingTimer = null;
+            const chosenFish = rollFish();
+            qteState.currentFish = chosenFish;
+
+            document.getElementById('bite-alert').classList.remove('hidden');
+            document.getElementById('water-splash').classList.remove('hidden');
+            document.getElementById('game-status').innerText = "！！！有大傢伙瘋狂撕咬，快拉竿！";
+
+            startQTE(chosenFish);
+        }
+
+        function rollFish() {
+            const activeRod = ROD_TEMPLATES[state.activeRodType];
+            
+            let rarityWeights = {
+                common: RARITY_DETAILS.common.chance,
+                rare: RARITY_DETAILS.rare.chance,
+                epic: RARITY_DETAILS.epic.chance,
+                legendary: RARITY_DETAILS.legendary.chance,
+                mythic: RARITY_DETAILS.mythic.chance
+            };
+
+            // 1. 魚竿屬性影響機率
+            if (activeRod.rarityChanceMul > 1.0) {
+                const mul = activeRod.rarityChanceMul;
+                rarityWeights.rare *= (mul * 0.8);
+                rarityWeights.epic *= (mul * 0.9);
+                rarityWeights.legendary *= mul;
+                rarityWeights.mythic *= (mul * 1.3);
+            } else if (activeRod.rarityChanceMul < 1.0) {
+                rarityWeights.legendary *= 0.8;
+                rarityWeights.mythic *= 0.5;
+            }
+
+            // 2. 消耗性魚餌權重
+            const bBonus = BAIT_DETAILS[state.activeBait].rarityBonus;
+            if (bBonus === 'medium') {
+                rarityWeights.common *= 0.6;
+                rarityWeights.rare *= 1.4;
+                rarityWeights.epic *= 1.6;
+            } else if (bBonus === 'high') {
+                rarityWeights.common *= 0.25;
+                rarityWeights.rare *= 1.5;
+                rarityWeights.epic *= 2.2;
+                rarityWeights.legendary *= 4.0;
+                rarityWeights.mythic *= 4.5;
+            } else if (bBonus === 'extreme') {
+                rarityWeights.common *= 0.08;
+                rarityWeights.rare *= 1.2;
+                rarityWeights.epic *= 2.8;
+                rarityWeights.legendary *= 5.0;
+                rarityWeights.mythic *= 8.0;
+            }
+
+            const sum = Object.values(rarityWeights).reduce((a, b) => a + b, 0);
+            Object.keys(rarityWeights).forEach(key => rarityWeights[key] /= sum);
+
+            const rand = Math.random();
+            let accumulated = 0;
+            let selectedRarity = 'common';
+            
+            for (let [rarity, weight] of Object.entries(rarityWeights)) {
+                accumulated += weight;
+                if (rand <= accumulated) {
+                    selectedRarity = rarity;
+                    break;
+                }
+            }
+
+            const pool = FISH_DATABASE.filter(f => f.rarity === selectedRarity);
+            const chosen = pool[Math.floor(Math.random() * pool.length)];
+
+            const size = Math.random() * (chosen.baseMaxSize - chosen.baseMinSize) + chosen.baseMinSize;
+            
+            let blessMul = 1 + (state.blessings.goldBonus * 0.05);
+            const avgSize = (chosen.baseMinSize + chosen.baseMaxSize) / 2;
+            const finalPrice = Math.round(chosen.basePrice * Math.sqrt(size / avgSize) * blessMul);
+
+            return { ...chosen, size, price: finalPrice };
+        }
+
+        // ==================== 7. QTE 系統與拉竿判定 ====================
+        
+        function startQTE(fish) {
+            const rarityInfo = RARITY_DETAILS[fish.rarity];
+            const activeRod = ROD_TEMPLATES[state.activeRodType];
+            const currentLevelData = activeRod.levelUpData[state.rodLevel - 1];
+
+            const speedReduct = 1 - (state.blessings.qteSpeed * 0.10);
+            qteState.speed = rarityInfo.qteSpeed * speedReduct;
+            
+            const widthBonus = 1 + (currentLevelData.qteBonus + activeRod.baseQteWidthBonus);
+            
+            qteState.safeWidth = Math.max(10, rarityInfo.qteWidthPct * 100 * widthBonus);
+            qteState.perfectWidth = Math.max(4, (rarityInfo.qteWidthPct * 0.3) * 100 * widthBonus);
+
+            qteState.safeStart = 15 + Math.random() * (85 - qteState.safeWidth - 15);
+            qteState.perfectStart = qteState.safeStart + (qteState.safeWidth / 2) - (qteState.perfectWidth / 2);
+
+            const safeZoneUI = document.getElementById('qte-safe-zone');
+            const perfectZoneUI = document.getElementById('qte-perfect-zone');
+            const difficultyBadge = document.getElementById('qte-difficulty-badge');
+
+            safeZoneUI.style.left = `${qteState.safeStart}%`;
+            safeZoneUI.style.width = `${qteState.safeWidth}%`;
+
+            perfectZoneUI.style.left = `${qteState.perfectStart}%`;
+            perfectZoneUI.style.width = `${qteState.perfectWidth}%`;
+
+            difficultyBadge.innerText = `${rarityInfo.name} 難度`;
+            
+            qteState.isActive = true;
+            qteState.position = 0;
+            qteState.direction = 1;
+
+            renderUI();
+            
+            function updateIndicator() {
+                if (!qteState.isActive) return;
+
+                qteState.position += qteState.speed * qteState.direction;
+
+                if (qteState.position >= 100) {
+                    qteState.position = 100;
+                    qteState.direction = -1;
+                } else if (qteState.position <= 0) {
+                    qteState.position = 0;
+                    qteState.direction = 1;
+                }
+
+                document.getElementById('qte-indicator').style.left = `${qteState.position}%`;
+                qteState.animationId = requestAnimationFrame(updateIndicator);
+            }
+
+            qteState.animationId = requestAnimationFrame(updateIndicator);
+        }
+
+        function executePull() {
+            if (!qteState.isActive) return;
+
+            cancelAnimationFrame(qteState.animationId);
+            qteState.isActive = false;
+
+            const pos = qteState.position;
+            const fish = qteState.currentFish;
+
+            document.getElementById('idle-water-decor').classList.remove('hidden');
+            document.getElementById('fishing-bobber-area').classList.add('hidden');
+            
+            // 延時清理魚線，使魚線有一併拉回的過渡動效
+            setTimeout(() => {
+                stopLineTracking();
+            }, 400);
+
+            isFishingProcess = false;
+            toggleFishingButtons(false);
+
+            if (inPerfect) {
+                handleFishingSuccess(fish, 'perfect');
+            } else if (inSafe) {
+                handleFishingSuccess(fish, 'good');
+            } else {
+                handleFishingFailure(fish);
+            }
+        }
+
+        function handleFishingSuccess(fish, quality) {
+            state.stats.catches += 1;
+            state.stats.successPull += 1;
+
+            let bonusText = "";
+            if (quality === 'perfect') {
+                fish.price = Math.round(fish.price * 1.15);
+                bonusText = "✨ 完美拉竿！控竿手感極致，魚商估值上調 15%！";
+                showToast("Perfect! 完美的拉竿契機！", "success");
+            } else {
+                showToast(`成功釣到了：${fish.name}！`, "success");
+            }
+
+            const prevBest = state.catalog[fish.id];
+            let isNewRecord = false;
+            if (!prevBest || fish.size > prevBest) {
+                state.catalog[fish.id] = fish.size;
+                isNewRecord = true;
+            }
+
+            showCatchModal(fish, isNewRecord, bonusText);
+            renderUI();
+            saveGameState();
+        }
+
+        // 重新補齊因失誤遺漏的 handleFishingFailure 處理邏輯
+        function handleFishingFailure(fish) {
+            state.stats.failPull += 1;
+
+            let extraDurCost = RARITY_DETAILS[fish.rarity].durCost;
+            if (state.activeRodType === 'iron') {
+                extraDurCost = 1;
+            }
+            state.rodDurability = Math.max(0, state.rodDurability - extraDurCost);
+
+            document.getElementById('game-status').innerText = `斷線了！【${fish.name}】猛扯魚鉤，溜走了！`;
+            showToast(`拉竿失誤！魚竿折損了 ${extraDurCost} 點耐久度`, "error");
+
+            renderUI();
+            saveGameState();
+        }
+
+        // ==================== 8. 魚獲處理與放生系統 ====================
+        let pendingFish = null;
+
+        function showCatchModal(fish, isNewRecord, bonusText) {
+            pendingFish = fish;
+            
+            const modal = document.getElementById('catch-modal');
+            const icon = document.getElementById('modal-fish-icon');
+            const name = document.getElementById('modal-fish-name');
+            const size = document.getElementById('modal-fish-size');
+            const rarity = document.getElementById('modal-fish-rarity');
+            const story = document.getElementById('modal-fish-story');
+
+            icon.innerText = fish.emoji;
+            name.innerText = fish.name;
+            size.innerText = `${fish.size.toFixed(1)} cm`;
+            
+            if (isNewRecord) {
+                size.innerHTML += ` <span class="bg-amber-100 text-amber-700 text-[10px] px-1.5 py-0.5 rounded-full ml-1 font-extrabold">🏆 破體長紀錄</span>`;
+            }
+
+            const rar = RARITY_DETAILS[fish.rarity];
+            rarity.innerText = rar.name;
+            rarity.className = `text-xs font-bold tracking-widest uppercase py-1 px-3 rounded-full ${rar.color}`;
+
+            let storyHtml = fish.story;
+            if (bonusText) {
+                storyHtml += `<br><span class="block mt-2 font-bold text-emerald-600">${bonusText}</span>`;
+            }
+            story.innerHTML = storyHtml;
+
+            modal.classList.remove('hidden');
+        }
+
+        function keepFish() {
+            if (pendingFish) {
+                if (state.basket.length >= state.basketCapacity) {
+                    showToast("您的魚簍滿了，裝不下啦！", "error");
+                    return;
+                }
+                state.basket.push(pendingFish);
+                document.getElementById('game-status').innerText = `您將一條【${pendingFish.name}】小心裝進了身旁的背簍。`;
+                closeCatchModal();
+                renderUI();
+                saveGameState();
+            }
+        }
+
+        function releaseFishDirectly() {
+            if (pendingFish) {
+                state.pearls += 1;
+                document.getElementById('game-status').innerText = `放生了【${pendingFish.name}】！它向您點了點頭，留下一顆閃耀的珍珠。`;
+                closeCatchModal();
+                renderUI();
+                saveGameState();
+                showToast("放生生命，海洋與你同在。獲得珍珠 +1", "success");
+            }
+        }
+
+        function closeCatchModal() {
+            document.getElementById('catch-modal').classList.add('hidden');
+            pendingFish = null;
+        }
+
+        // ==================== 9. 背包交易與料理 ====================
+        
+        function sellSingleFish(index) {
+            const fish = state.basket[index];
+            state.gold += fish.price;
+            state.basket.splice(index, 1);
+            showToast(`成功出售一隻【${fish.name}】，賺得金幣 ${fish.price}。`, "success");
+            renderUI();
+            saveGameState();
+        }
+
+        function sellAllFish() {
+            if (state.basket.length === 0) {
+                showToast("魚簍還是空的呢，先垂釣去吧！", "error");
+                return;
+            }
+
+            let profit = 0;
+            state.basket.forEach(fish => profit += fish.price);
+            state.gold += profit;
+            state.basket = [];
+
+            showToast("一鍵清空了隨身魚簍！共收入金幣 " + profit + "！", "success");
+            renderUI();
+            saveGameState();
+        }
+
+        function bakeFish() {
+            const commonIndex = state.basket.findIndex(f => f.rarity === 'common');
+            if (commonIndex === -1) {
+                showToast("隨身魚簍中沒有【普通品質】的小魚可以作為烤魚素材！", "error");
+                return;
+            }
+
+            const fish = state.basket[commonIndex];
+            state.basket.splice(commonIndex, 1);
+            state.bakedFish += 1;
+
+            showToast(`劈啪！您在舒適的營火旁將【${fish.name}】烤製成了噴香可口的小魚乾！`, "success");
+            renderUI();
+            saveGameState();
+        }
+
+        // ==================== 10. 珍珠神殿祝福 (珍珠實用系統) ====================
+        
+        function buyBlessing(type) {
+            const bless = SHRINE_BLESSINGS[type];
+            const currentLvl = state.blessings[type] || 0;
+            if (currentLvl >= bless.maxLevel) {
+                showToast("該珍珠祝福已達至極限等級！", "info");
+                return;
+            }
+
+            const cost = Math.round(bless.baseCost * Math.pow(bless.costMultiplier, currentLvl));
+            if (state.pearls >= cost) {
+                state.pearls -= cost;
+                state.blessings[type] = currentLvl + 1;
+                showToast(`🙏 神殿散發神聖光芒！您的被動祝福【${bless.name}】已成功升至 Lv.${state.blessings[type]}！`, "success");
+                renderUI();
+                saveGameState();
+            } else {
+                showToast("神明搖了搖頭... 您的靈魂中缺乏足夠的放生珍珠！", "error");
+            }
+        }
+
+        function castCatHeal() {
+            const hasHired = Object.values(state.hiredWorkers).some(v => v === true);
+            if (!hasHired) {
+                showToast("您尚未僱用任何貓咪工人！神明不願空降光芒。", "error");
+                return;
+            }
+
+            if (state.pearls >= 2) {
+                state.pearls -= 2;
+                Object.keys(WORKERS_BASE).forEach(wid => {
+                    if (state.hiredWorkers[wid]) {
+                        const maxStam = getCatMaxStamina(wid, state.workerLevels[wid]);
+                        state.workerStamina[wid] = maxStam;
+                    }
+                });
+                showToast("🌟 降臨治癒之光！璀璨光柱籠罩港口，您所有貓工人的體力瞬間100%全滿！", "success", 4000);
+                renderUI();
+                saveGameState();
+            } else {
+                showToast("珍珠數量不足！需要 2 珍珠施展群體治癒術！", "error");
+            }
+        }
+
+        // ==================== 11. 貓咪僱用、升級與放置自動化 ====================
+        
+        function getCatMaxStamina(wid, level) {
+            const base = WORKERS_BASE[wid];
+            const step = wid === 'w3' ? 30 : 20;
+            return base.baseMaxStamina + (level - 1) * step;
+        }
+
+        function getCatSpeedInterval(wid, level) {
+            const base = WORKERS_BASE[wid];
+            const step = wid === 'w1' ? 3 : (wid === 'w2' ? 4 : 5);
+            return Math.max(5, base.baseSpeed - (level - 1) * step);
+        }
+
+        function getCatUpgradeCost(wid, currentLevel) {
+            const baseCost = wid === 'w1' ? 100 : (wid === 'w2' ? 200 : 350);
+            return Math.round(baseCost * Math.pow(1.6, currentLevel - 1));
+        }
+
+        function renderWorkersUI() {
+            Object.keys(WORKERS_BASE).forEach(wid => {
+                const base = WORKERS_BASE[wid];
+                const hired = state.hiredWorkers[wid];
+                const level = state.workerLevels[wid] || 1;
+                const stamina = state.workerStamina[wid] || 0;
+                
+                const card = document.getElementById(`worker-card-${wid}`);
+                const statusSpan = document.getElementById(`${wid}-status`);
+                const staminaText = document.getElementById(`${wid}-stamina-text`);
+                const staminaBar = document.getElementById(`${wid}-stamina-bar`);
+                const hireBtn = document.getElementById(`${wid}-hire-btn`);
+                const feedBakeBtn = document.getElementById(`${wid}-feed-bake-btn`);
+                const feedBentoBtn = document.getElementById(`${wid}-feed-bento-btn`);
+                
+                const levelBadge = document.getElementById(`${wid}-level-badge`);
+                const upgradeBtn = document.getElementById(`${wid}-upgrade-btn`);
+                const upgradeCostUI = document.getElementById(`${wid}-upgrade-cost`);
+                const descText = document.getElementById(`${wid}-desc-text`);
+
+                const maxStam = getCatMaxStamina(wid, level);
+                const curInterval = getCatSpeedInterval(wid, level);
+
+                levelBadge.innerText = `Lv.${level}`;
+                staminaText.innerText = `${stamina}/${maxStam}`;
+                const staminaPct = (stamina / maxStam) * 100;
+                staminaBar.style.width = `${staminaPct}%`;
+
+                if (wid === 'w1') {
+                    descText.innerText = `慢吞吞的橘貓。捕魚間隔: ${curInterval}秒。體力上限: ${maxStam}。每次工作耗體5。`;
+                } else if (wid === 'w2') {
+                    descText.innerText = `活潑好動的三花。捕魚間隔: ${curInterval}秒。體力上限: ${maxStam}。每次工作耗體6。`;
+                } else {
+                    descText.innerText = `黑夜專家。捕魚間隔: ${curInterval}秒。體力上限: ${maxStam}。每次工作耗體8。`;
+                }
+
+                if (hired) {
+                    statusSpan.innerText = stamina > 0 ? "🎣 捕魚中" : "💤 體力耗盡休息中";
+                    statusSpan.className = stamina > 0 ? "text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full" : "text-[10px] font-bold text-rose-500 bg-rose-50 px-2 py-0.5 rounded-full animate-pulse";
+                    card.className = "border border-sky-200 rounded-2xl p-4 flex flex-col justify-between gap-3 bg-sky-50/20";
+                    
+                    text = "捕魚中";
+                    hireBtn.classList.add('hidden');
+                    feedBakeBtn.classList.remove('hidden');
+                    feedBentoBtn.classList.remove('hidden');
+                    
+                    if (level >= 5) {
+                        upgradeBtn.classList.remove('hidden');
+                        upgradeBtn.disabled = true;
+                        upgradeBtn.innerText = "已達到最高等級 (Lv.5)";
+                        upgradeBtn.className = "w-full text-xs bg-slate-100 text-slate-400 font-bold py-1.5 rounded-xl cursor-not-allowed border border-slate-200";
+                    } else {
+                        upgradeBtn.classList.remove('hidden');
+                        upgradeBtn.disabled = false;
+                        const uCost = getCatUpgradeCost(wid, level);
+                        upgradeCostUI.innerText = `${uCost}g`;
+                        upgradeBtn.className = "w-full text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold py-1.5 rounded-xl border border-indigo-200 transition-all flex items-center justify-center gap-1";
+                    }
+                } else {
+                    statusSpan.innerText = "閒置中";
+                    statusSpan.className = "text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full";
+                    card.className = "border border-slate-200 rounded-2xl p-4 flex flex-col justify-between gap-3 bg-slate-50/50";
+
+                    hireBtn.classList.remove('hidden');
+                    feedBakeBtn.classList.add('hidden');
+                    feedBentoBtn.classList.add('hidden');
+                    upgradeBtn.classList.add('hidden');
+                }
+            });
+        }
+
+        function hireWorker(wid) {
+            const base = WORKERS_BASE[wid];
+            if (state.hiredWorkers[wid]) return;
+
+            if (state.gold >= base.cost) {
+                state.gold -= base.cost;
+                state.hiredWorkers[wid] = true;
+                state.workerLevels[wid] = 1;
+                state.workerStamina[wid] = getCatMaxStamina(wid, 1);
+                showToast(`邀請了 【${base.name}】 入營捕魚！海港一陣歡騰的喵鳴！`, "success");
+                renderUI();
+                saveGameState();
+            } else {
+                showToast("金幣不足，付不起僱傭經費！", "error");
+            }
+        }
+
+        function upgradeWorker(wid) {
+            const level = state.workerLevels[wid] || 1;
+            if (level >= 5) return;
+
+            const uCost = getCatUpgradeCost(wid, level);
+            if (state.gold >= uCost) {
+                state.gold -= uCost;
+                state.workerLevels[wid] = level + 1;
+                
+                const newMaxStam = getCatMaxStamina(wid, level + 1);
+                state.workerStamina[wid] = newMaxStam;
+
+                showToast(`🐈 貓咪升級！【${WORKERS_BASE[wid].name}】升至 Lv.${level + 1}，行動速度與最大耐力增強！`, "success");
+                renderUI();
+                saveGameState();
+            } else {
+                showToast("您的金幣不足以支付訓練和升級費用！", "error");
+            }
+        }
+
+        function feedWorker(wid, foodType) {
+            const base = WORKERS_BASE[wid];
+            const level = state.workerLevels[wid] || 1;
+            if (!state.hiredWorkers[wid]) return;
+
+            const maxStam = getCatMaxStamina(wid, level);
+            if (state.workerStamina[wid] >= maxStam) {
+                showToast(`${base.name} 肚子好飽，已經不想再吃啦！`, "info");
+                return;
+            }
+
+            if (foodType === 'bake') {
+                if (state.bakedFish > 0) {
+                    state.bakedFish -= 1;
+                    state.workerStamina[wid] = Math.min(maxStam, state.workerStamina[wid] + 30);
+                    showToast("你餵給 " + base.name + " 一串黃金烤魚，好感度上升！體力恢復 30 點", "success");
+                } else {
+                    showToast("您沒有黃金烤魚！請用背包裡的【普通魚】烘烤一串。", "error");
+                }
+            } else if (foodType === 'bento') {
+                if (state.bentoCount > 0) {
+                    state.bentoCount -= 1;
+                    state.workerStamina[wid] = maxStam;
+                    showToast(`你拆開一罐昂貴的貓罐罐，${base.name} 體力瞬間全滿！`, "success");
+                } else {
+                    showToast("您口袋中已無貓罐罐物資，請到雜貨鋪買一些備用。", "error");
+                }
+            }
+
+            renderUI();
+            saveGameState();
+        }
+
+        function rollWorkerFish(allowedRarities) {
+            let customWeights = { common: 0, rare: 0, epic: 0, legendary: 0, mythic: 0 };
+            
+            allowedRarities.forEach(rarity => {
+                if (rarity === 'common') customWeights.common = 0.90;
+                if (rarity === 'rare') customWeights.rare = 0.08;
+                if (rarity === 'epic') customWeights.epic = 0.019;
+                if (rarity === 'legendary') customWeights.legendary = 0.0009;
+                if (rarity === 'mythic') customWeights.mythic = 0.0001;
+            });
+
+            const total = Object.values(customWeights).reduce((a, b) => a + b, 0);
+            Object.keys(customWeights).forEach(k => customWeights[k] /= total);
+
+            const r = Math.random();
+            let sum = 0;
+            let selected = 'common';
+            for (let [key, val] of Object.entries(customWeights)) {
+                sum += val;
+                if (r <= sum) {
+                    selected = key;
+                    break;
+                }
+            }
+
+            const pool = FISH_DATABASE.filter(f => f.rarity === selected);
+            const baseFish = pool[Math.floor(Math.random() * pool.length)];
+
+            const size = Math.random() * (baseFish.baseMaxSize - baseFish.baseMinSize) + baseFish.baseMinSize;
+            const avgSize = (baseFish.baseMinSize + baseFish.baseMaxSize) / 2;
+            const price = Math.round(baseFish.basePrice * Math.sqrt(size / avgSize));
+
+            return { ...baseFish, size, price };
+        }
+
+        let workerTicks = { w1: 0, w2: 0, w3: 0 };
+
+        function startWorkerAutomationLoop() {
+            workerTimer = setInterval(() => {
+                let stateChanged = false;
+
+                Object.keys(WORKERS_BASE).forEach(wid => {
+                    if (!state.hiredWorkers[wid]) return;
+                    
+                    const level = state.workerLevels[wid] || 1;
+                    const stamina = state.workerStamina[wid];
+                    const interval = getCatSpeedInterval(wid, level);
+
+                    if (stamina > 0) {
+                        workerTicks[wid] += 1;
+
+                        if (workerTicks[wid] >= interval) {
+                            workerTicks[wid] = 0;
+
+                            const cost = wid === 'w1' ? 5 : (wid === 'w2' ? 6 : 8);
+                            state.workerStamina[wid] = Math.max(0, stamina - cost);
+
+                            if (state.warehouse.length < 20) {
+                                const base = WORKERS_BASE[wid];
+                                const caught = rollWorkerFish(base.targetRarity);
+                                state.warehouse.push(caught);
+                                showToast(`🐾 【貓咪營地】: ${base.name} 出海歸來，將漁獲【${caught.name}】置入倉庫。`, "info");
+                            } else {
+                                showToast(`🐾 【貓咪營地】: 臨時倉庫塞滿了，貓咪們罷工去曬日光浴了！`, "info");
+                            }
+                            stateChanged = true;
+                        }
+                    }
+                });
+
+                if (stateChanged) {
+                    renderUI();
+                    saveGameState();
+                }
+            }, 1000);
+        }
+
+        // ==================== 12. 放置倉庫管理 ====================
+        
+        function renderWarehouseUI() {
+            const emptyState = document.getElementById('warehouse-empty-state');
+            const grid = document.getElementById('warehouse-grid');
+            const counter = document.getElementById('warehouse-count');
+
+            counter.innerText = `${state.warehouse.length}/20`;
+
+            if (state.warehouse.length === 0) {
+                emptyState.classList.remove('hidden');
+                grid.classList.add('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            grid.classList.remove('hidden');
+            grid.innerHTML = '';
+
+            state.warehouse.forEach((item) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = "aspect-square flex flex-col items-center justify-center bg-white border border-slate-200 rounded-xl relative hover:border-sky-300 shadow-sm transition-colors cursor-help";
+                itemDiv.innerHTML = `
+                    <span class="text-xl">${item.emoji}</span>
+                    <span class="text-[8px] text-slate-400 absolute bottom-1">${item.price}g</span>
+                `;
+                itemDiv.title = `${item.name} (${item.size.toFixed(1)} cm)`;
+                grid.appendChild(itemDiv);
+            });
+        }
+
+        function sellAllWarehouse() {
+            if (state.warehouse.length === 0) {
+                showToast("倉庫空無一物，等貓咪們補完魚再說吧！", "error");
+                return;
+            }
+
+            let totalProfit = 0;
+            let commissionRate = 0.10;
+            if (state.hiredWorkers.w3) commissionRate = 0.20;
+            else if (state.hiredWorkers.w2) commissionRate = 0.15;
+
+            let blessMul = 1 + (state.blessings.goldBonus * 0.05);
+
+            state.warehouse.forEach(fish => {
+                const finalShare = 1 - commissionRate;
+                totalProfit += Math.round(fish.price * finalShare * blessMul);
+            });
+
+            state.gold += totalProfit;
+            const fishCount = state.warehouse.length;
+            state.warehouse = [];
+
+            showToast(`成功出售倉庫內全部 ${fishCount} 隻漁獲！扣除僱工抽成後，淨收益金幣 ${totalProfit} 入帳！`, "success");
+            renderUI();
+            saveGameState();
+        }
+
+        // ==================== 13. 鐵匠鋪保養與商店升級 ====================
+        
+        function repairRod() {
+            const activeRod = ROD_TEMPLATES[state.activeRodType];
+            const currentLevelData = activeRod.levelUpData[state.rodLevel - 1];
+            
+            const needed = currentLevelData.maxDurability - state.rodDurability;
+            if (needed <= 0) return;
+
+            const cost = Math.ceil(needed * activeRod.repairCostPerPoint);
+            if (state.gold >= cost) {
+                state.gold -= cost;
+                state.rodDurability = currentLevelData.maxDurability;
+                showToast("鐵匠手藝果然不凡，魚竿瞬間修整完美！", "success");
+                renderUI();
+                saveGameState();
+            } else {
+                showToast("金幣不夠！先去賣點魚獲攢積金幣吧。", "error");
+            }
+        }
+
+        function upgradeRod() {
+            const activeRod = ROD_TEMPLATES[state.activeRodType];
+            if (state.rodLevel >= 5) return;
+
+            const nextLevelData = activeRod.levelUpData[state.rodLevel];
+            if (state.gold >= nextLevelData.cost) {
+                state.gold -= nextLevelData.cost;
+                state.rodLevel += 1;
+                
+                // 重要修正：必須同步把強化等級存入已解鎖魚竿庫！
+                state.unlockedRods[state.activeRodType] = state.rodLevel;
+                
+                state.rodDurability = nextLevelData.maxDurability; // 自動補滿耐久
+                showToast(`恭喜！您的魚竿突破成功，強化為 Lv.${state.rodLevel}！拉竿變得更穩！`, "success");
+                renderUI();
+                saveGameState();
+            } else {
+                showToast("強化費用不足！", "error");
+            }
+        }
+
+        function upgradeBasketCapacity() {
+            if (state.basketLevel >= 5) return;
+
+            const cost = BASKET_UPGRADES[state.basketLevel - 1].cost;
+            if (state.gold >= cost) {
+                state.gold -= cost;
+                state.basketLevel += 1;
+                state.basketCapacity = BASKET_UPGRADES[state.basketLevel - 1].capacity;
+                showToast("工藝擴建成功！隨身魚簍格子空間擴容至 " + state.basketCapacity + " 格！", "success");
+                renderUI();
+                saveGameState();
+            } else {
+                showToast("金幣不足，無法擴建魚簍空間！", "error");
+            }
+        }
+
+        function buyBaits(baitType, cost) {
+            if (state.gold >= cost) {
+                state.gold -= cost;
+                
+                let amt = 1;
+                if (baitType === 'worm') amt = 5;
+                else if (baitType === 'lure') amt = 3;
+                else if (baitType === 'dough') amt = 2;
+                
+                state.baitInventory[baitType] = (state.baitInventory[baitType] || 0) + amt;
+                showToast(`物資補給成功！獲得 ${BAIT_DETAILS[baitType].name} x${amt}`, "success");
+                renderUI();
+                saveGameState();
+            } else {
+                showToast("購買失敗：錢包裡的金幣不足！", "error");
+            }
+        }
+
+        function buyBento(cost) {
+            if (state.gold >= cost) {
+                state.gold -= cost;
+                state.bentoCount += 1;
+                showToast("物資購買成功！獲得 1 個貓咪特製罐罐！", "success");
+                renderUI();
+                saveGameState();
+            } else {
+                showToast("金幣不足！", "error");
+            }
+        }
+
+        function unlockShrimpBait() {
+            const cost = 150;
+            if (state.gold >= cost) {
+                state.gold -= cost;
+                state.shrimpUnlocked = true;
+                showToast("神秘研製成功！您在配方中解鎖了高級大魚最愛的「深海磷蝦裝裝」！", "success");
+                renderUI();
+                saveGameState();
+            } else {
+                showToast("金幣不夠！無法購買這份祕傳的古老解鎖配方。", "error");
+            }
+        }
+
+        function buySpecialRod(type, cost) {
+            if (state.gold >= cost) {
+                state.gold -= cost;
+                // 設定此魚竿初始等級為 1
+                state.unlockedRods[type] = 1;
+                showToast(`鍛造解鎖並裝備了：【${ROD_TEMPLATES[type].name}】！`, "success");
+                equipRod(type);
+            } else {
+                showToast("金幣不足，無法購置特色進階裝備！", "error");
+            }
+        }
+
+        function equipRod(type) {
+            if (fishingTimer || qteState.isActive) {
+                showToast("釣線在水中，無法進行裝備切換！", "error");
+                return;
+            }
+            // 更換裝備時，載入對應魚竿保存的等級
+            state.activeRodType = type;
+            state.rodLevel = state.unlockedRods[type] || 1;
+            
+            const activeRod = ROD_TEMPLATES[type];
+            state.rodDurability = activeRod.levelUpData[state.rodLevel - 1].maxDurability;
+            
+            showToast(`切換手持魚竿為：${activeRod.name}`, "info");
+            renderUI();
+            saveGameState();
+        }
+
+        // ==================== 14. 魚餌選擇切換修正 (解決渲染問題) ====================
+        function selectBait(baitType) {
+            if (fishingTimer || qteState.isActive) {
+                showToast("正在釣魚呢，可不能隨便驚動海面上的餌！", "error");
+                return;
+            }
+            if ((state.baitInventory[baitType] || 0) <= 0) {
+                showToast(`你身上的【${BAIT_DETAILS[baitType].name}】已經用光了，請先到商店購買！`, "error");
+                return;
+            }
+            state.activeBait = baitType;
+            showToast(`已成功裝載魚餌：${BAIT_DETAILS[baitType].name}`, "info");
+            renderUI();
+            saveGameState();
+        }
+
+        // ==================== 15. 珍珠神殿 & 背包收藏與 UI 渲染 ====================
+        
+        function updateBlessingUI() {
+            Object.keys(SHRINE_BLESSINGS).forEach(type => {
+                const bless = SHRINE_BLESSINGS[type];
+                const currentLvl = state.blessings[type] || 0;
+                
+                const badge = document.getElementById(`bless-${type}-badge`);
+                const costUI = document.getElementById(`bless-${type}-cost`);
+                const btn = document.getElementById(`btn-bless-${type}`);
+
+                if (badge) badge.innerText = `Lv.${currentLvl}`;
+
+                if (currentLvl >= bless.maxLevel) {
+                    if (costUI) costUI.innerText = '--';
+                    if (btn) {
+                        btn.disabled = true;
+                        btn.innerText = "已臻化境";
+                        btn.className = "bg-slate-100 text-slate-400 font-bold text-xs py-1.5 px-3 rounded-xl cursor-not-allowed";
+                    }
+                } else {
+                    const cost = Math.round(bless.baseCost * Math.pow(bless.costMultiplier, currentLvl));
+                    if (costUI) costUI.innerText = cost;
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.className = "bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-1.5 px-3 rounded-xl transition-all active:scale-95";
+                        btn.innerText = "祈願祝福";
+                    }
+                }
+            });
+        }
+
+        // 實時動態渲染背包下之「我的魚竿收藏庫」並提供免費即時切換裝備
+        function renderOwnedRods() {
+            const listContainer = document.getElementById('owned-rods-list');
+            if (!listContainer) return;
+            listContainer.innerHTML = '';
+
+            Object.keys(ROD_TEMPLATES).forEach(type => {
+                const level = state.unlockedRods[type];
+                const isOwned = level > 0;
+                
+                if (!isOwned) return;
+
+                const template = ROD_TEMPLATES[type];
+                const isEquipped = state.activeRodType === type;
+
+                const itemDiv = document.createElement('div');
+                itemDiv.className = `flex justify-between items-center p-2 rounded-2xl text-xs transition-all ${isEquipped ? 'bg-sky-50 border border-sky-300' : 'bg-slate-50 border border-slate-100 hover:bg-slate-100'}`;
+                
+                itemDiv.innerHTML = `
+                    <div class="flex flex-col">
+                        <span class="font-extrabold text-slate-800">${template.name}</span>
+                        <span class="text-[9px] text-slate-500">當前等級: <span class="text-indigo-600 font-bold">Lv.${level}</span> | 耐久: ${template.levelUpData[level-1].maxDurability}</span>
+                    </div>
+                    ${isEquipped 
+                        ? `<span class="bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-lg text-[10px] font-black">手持中</span>`
+                        : `<button onclick="equipRod('${type}')" class="bg-sky-500 hover:bg-sky-600 text-white font-bold px-2.5 py-1 rounded-lg text-[10px] shadow-sm transition-all">裝備</button>`
+                    }
+                `;
+                listContainer.appendChild(itemDiv);
+            });
+        }
+
+        function initCatalogGrid() {
+            const grid = document.getElementById('catalog-grid');
+            grid.innerHTML = '';
+            
+            FISH_DATABASE.forEach(fish => {
+                const card = document.createElement('div');
+                card.id = `catalog-card-${fish.id}`;
+                card.className = "border border-slate-100 rounded-2xl p-1.5 text-center bg-slate-50 opacity-40 transition-all flex flex-col items-center justify-center h-16";
+                card.innerHTML = `
+                    <span class="text-xl filter grayscale" id="cat-emoji-${fish.id}">❓</span>
+                    <span class="text-[8px] mt-0.5 font-bold text-slate-400 block truncate w-full" id="cat-name-${fish.id}">未解鎖</span>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function updateCatalogProgress() {
+            let unlockedCount = 0;
+            FISH_DATABASE.forEach(fish => {
+                const record = state.catalog[fish.id];
+                const card = document.getElementById('catalog-card-' + fish.id);
+                const emojiSpan = document.getElementById('cat-emoji-' + fish.id);
+                const nameSpan = document.getElementById('cat-name-' + fish.id);
+                
+                if (record) {
+                    unlockedCount += 1;
+                    if (card && emojiSpan && nameSpan) {
+                        card.className = "border border-sky-100 rounded-2xl p-1.5 text-center bg-sky-50/50 hover:bg-sky-50 transition-all cursor-pointer flex flex-col items-center justify-center h-16 shadow-sm";
+                        emojiSpan.innerText = fish.emoji;
+                        emojiSpan.classList.remove('grayscale');
+                        nameSpan.innerText = fish.name;
+                        nameSpan.className = "text-[8px] mt-0.5 font-extrabold text-sky-900 block truncate w-full";
+                        
+                        card.onclick = () => {
+                            showToast(`📖 ${fish.name} | 最大體長: ${record.toFixed(1)} cm\n【故事】: ${fish.story}`, "info", 5000);
+                        };
+                    }
+                }
+            });
+
+            document.getElementById('catalog-progress').innerText = `${unlockedCount}/${FISH_DATABASE.length}`;
+        }
+
+        function renderUI() {
+            // 安全防崩潰：避免當前等級超出索引範圍
+            if (state.rodLevel > 5) state.rodLevel = 5;
+            if (state.rodLevel < 1) state.rodLevel = 1;
+
+            document.getElementById('player-gold').innerText = Math.floor(state.gold);
+            document.getElementById('player-pearls').innerText = state.pearls;
+            document.getElementById('player-bakedfish').innerText = state.bakedFish;
+
+            renderWorkersUI();
+            renderWarehouseUI();
+            updateBlessingUI();
+            updateCatalogProgress();
+            renderBasket();
+            renderOwnedRods();
+
+            // 魚竿與控制
+            const activeRod = ROD_TEMPLATES[state.activeRodType];
+            const currentLevelData = activeRod.levelUpData[state.rodLevel - 1];
+            document.getElementById('hud-rod-name').innerText = `${activeRod.name} (Lv.${state.rodLevel})`;
+            
+            const durPct = (state.rodDurability / currentLevelData.maxDurability) * 100;
+            const durBar = document.getElementById('hud-rod-durability-bar');
+            durBar.style.width = `${durPct}%`;
+            document.getElementById('hud-rod-durability-text').innerText = `${state.rodDurability}/${currentLevelData.maxDurability}`;
+
+            // 魚餌數量同步
+            Object.keys(BAIT_DETAILS).forEach(baitType => {
+                const countSpan = document.getElementById(`bait-count-${baitType}`);
+                if (countSpan) countSpan.innerText = state.baitInventory[baitType] || 0;
+            });
+
+            // 魚餌高亮選取效果與描述文字實時同步
+            document.querySelectorAll('.bait-btn').forEach(btn => {
+                btn.className = "bait-btn px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition-all text-slate-500 hover:bg-slate-100";
+            });
+            const activeBaitBtn = document.getElementById(`bait-btn-${state.activeBait}`);
+            if (activeBaitBtn) {
+                let themeClass = "bg-sky-100 text-sky-950 border border-sky-300 shadow-sm";
+                if (state.activeBait === 'lure') themeClass = "bg-amber-100 text-amber-950 border border-amber-300 shadow-sm";
+                if (state.activeBait === 'dough') themeClass = "bg-orange-100 text-orange-950 border border-orange-300 shadow-sm";
+                if (state.activeBait === 'magic') themeClass = "bg-indigo-100 text-indigo-950 border border-indigo-300 shadow-sm";
+                if (state.activeBait === 'shrimp') themeClass = "bg-purple-100 text-purple-950 border border-purple-300 shadow-sm";
+                activeBaitBtn.className = `bait-btn px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition-all ${themeClass}`;
+            }
+            const baitDescEl = document.getElementById('bait-desc');
+            if (baitDescEl) {
+                const baitInfo = BAIT_DETAILS[state.activeBait];
+                baitDescEl.innerText = `${baitInfo.name} (${baitInfo.desc})`;
+            }
+
+            // 磷蝦配方
+            if (state.shrimpUnlocked) {
+                document.getElementById('bait-btn-shrimp').classList.remove('hidden');
+                document.getElementById('shrimp-unlock-card').classList.add('hidden');
+                document.getElementById('shrimp-buy-card').classList.remove('hidden');
+            } else {
+                document.getElementById('bait-btn-shrimp').classList.add('hidden');
+                document.getElementById('shrimp-unlock-card').classList.remove('hidden');
+                document.getElementById('shrimp-buy-card').classList.add('hidden');
+            }
+
+            // 特色魚竿裝備商店按鍵鎖定同步 (已買之魚竿變更按鈕顯示)
+            ['lucky', 'iron'].forEach(type => {
+                const isUnlocked = state.unlockedRods[type] > 0;
+                const buyBtn = document.getElementById(`btn-buy-rod-${type}`);
+                if (buyBtn) {
+                    if (isUnlocked) {
+                        buyBtn.className = "text-xs bg-emerald-50 text-emerald-800 px-2.5 py-1.5 rounded-lg font-bold cursor-default flex items-center gap-0.5 border border-emerald-200 pointer-events-none";
+                        buyBtn.innerText = "✔ 已獲得";
+                        buyBtn.disabled = true;
+                    } else {
+                        buyBtn.className = "text-xs bg-slate-100 hover:bg-slate-700 hover:text-white px-2.5 py-1.5 rounded-lg font-bold transition-all text-slate-700 flex items-center gap-0.5";
+                        buyBtn.disabled = false;
+                        buyBtn.innerHTML = `<i data-lucide="coins" class="w-3.5 h-3.5"></i>${type === 'lucky' ? 150 : 220}`;
+                    }
+                }
+            });
+
+            // 控制面板控制
+            const castBtnGroup = document.getElementById('control-idle-group');
+            const waitGroup = document.getElementById('control-waiting-group');
+            const qteGroup = document.getElementById('control-qte-group');
+            const brokenGroup = document.getElementById('control-broken-group');
+
+            castBtnGroup.classList.add('hidden');
+            waitGroup.classList.add('hidden');
+            qteGroup.classList.add('hidden');
+            brokenGroup.classList.add('hidden');
+
+            if (state.rodDurability <= 0) {
+                brokenGroup.classList.remove('hidden');
+            } else if (qteState.isActive) {
+                qteGroup.classList.remove('hidden');
+            } else if (fishingTimer) {
+                waitGroup.classList.remove('hidden');
+            } else {
+                castBtnGroup.classList.remove('hidden');
+                toggleFishingButtons(isFishingProcess);
+            }
+
+            // 魚簍升級 UI 同步
+            const isMaxBasket = state.basketLevel >= 5;
+            const basketBtn = document.getElementById('btn-upgrade-basket');
+            const basketBadge = document.getElementById('basket-upgrade-badge');
+            const basketCostUI = document.getElementById('basket-upgrade-cost');
+            const basketDescUI = document.getElementById('basket-upgrade-desc');
+
+            if (isMaxBasket) {
+                basketBadge.innerText = `Max: ${state.basketCapacity}格`;
+                basketDescUI.innerText = "您的魚簍已是極致容量！";
+                basketCostUI.innerText = '--';
+                basketBtn.disabled = true;
+                basketBtn.className = "bg-slate-100 text-slate-400 font-bold text-xs py-1.5 px-3.5 rounded-xl cursor-not-allowed";
+            } else {
+                const nextUpgrade = BASKET_UPGRADES[state.basketLevel - 1];
+                const nextConfig = BASKET_UPGRADES[state.basketLevel];
+                basketBadge.innerText = `當前: ${state.basketCapacity}格`;
+                basketDescUI.innerText = `擴展格子空間至：${nextConfig.capacity} 格。`;
+                basketCostUI.innerText = nextUpgrade.cost;
+
+                const canBasketUpgrade = state.gold >= nextUpgrade.cost;
+                basketBtn.disabled = !canBasketUpgrade;
+                if (canBasketUpgrade) {
+                    basketBtn.className = "bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs py-1.5 px-3.5 rounded-xl transition-all shadow-sm active:scale-95";
+                } else {
+                    basketBtn.className = "bg-slate-100 text-slate-400 font-bold text-xs py-1.5 px-3.5 rounded-xl cursor-not-allowed";
+                }
+            }
+
+            // 鐵匠鋪升級成本與描述
+            const upgradeBtn = document.getElementById('btn-upgrade');
+            const isRodMax = state.rodLevel >= 5;
+            if (isRodMax) {
+                document.getElementById('upgrade-next-level').innerText = 'Max';
+                document.getElementById('upgrade-bonus-desc').innerText = '這支魚竿已被神祕海洋之力附魔，達至黃金極限。';
+                document.getElementById('upgrade-cost-ui').innerText = '--';
+                upgradeBtn.disabled = true;
+                upgradeBtn.className = "bg-slate-100 text-slate-400 font-bold text-xs py-1.5 px-3.5 rounded-xl cursor-not-allowed";
+            } else {
+                const nextLevelData = activeRod.levelUpData[state.rodLevel];
+                document.getElementById('upgrade-next-level').innerText = `Lv.${state.rodLevel + 1}`;
+                
+                const curBonus = currentLevelData.qteBonus * 100;
+                const nextBonus = nextLevelData.qteBonus * 100;
+                
+                document.getElementById('upgrade-bonus-desc').innerText = `耐久度: ${currentLevelData.maxDurability} ➜ ${nextLevelData.maxDurability} | 判定區: +${curBonus}% ➜ +${nextBonus}%`;
+                document.getElementById('upgrade-cost-ui').innerText = nextLevelData.cost;
+
+                const canUpgrade = state.gold >= nextLevelData.cost;
+                upgradeBtn.disabled = !canUpgrade;
+                if (canUpgrade) {
+                    upgradeBtn.className = "bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-1.5 px-3.5 rounded-xl transition-all active:scale-95 shadow-sm";
+                } else {
+                    upgradeBtn.className = "bg-slate-100 text-slate-400 font-bold text-xs py-1.5 px-3.5 rounded-xl cursor-not-allowed";
+                }
+            }
+
+            // 統計
+            document.getElementById('stat-total-casts').innerText = state.stats.casts;
+            document.getElementById('stat-total-fish').innerText = state.stats.catches;
+            const totalPulls = state.stats.successPull + state.stats.failPull;
+            const rate = totalPulls > 0 ? Math.round((state.stats.successPull / totalPulls) * 100) : 0;
+            document.getElementById('stat-rate').innerText = `${rate}%`;
+
+            document.getElementById('basket-count-indicator').innerText = `${state.basket.length}/${state.basketCapacity}`;
+
+            lucide.createIcons();
+        }
+
+        function renderBasket() {
+            const emptyState = document.getElementById('basket-empty-state');
+            const listContainer = document.getElementById('basket-list');
+            
+            if (state.basket.length === 0) {
+                emptyState.classList.remove('hidden');
+                listContainer.classList.add('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            listContainer.classList.remove('hidden');
+            listContainer.innerHTML = '';
+
+            state.basket.forEach((item, index) => {
+                const rar = RARITY_DETAILS[item.rarity];
+                const itemDiv = document.createElement('div');
+                itemDiv.className = "flex justify-between items-center bg-slate-50 border border-slate-100 p-2.5 rounded-2xl text-xs hover:bg-slate-100/70 transition-all";
+                itemDiv.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span class="text-2xl">${item.emoji}</span>
+                        <div class="flex flex-col">
+                            <span class="font-extrabold text-slate-800">${item.name}</span>
+                            <span class="text-[10px] text-slate-400">${item.size.toFixed(1)} cm | <span class="${getRarityColorText(item.rarity)} font-semibold">${rar.name}</span></span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold text-amber-700 flex items-center gap-0.5 mr-1">
+                            <i data-lucide="coins" class="w-3.5 h-3.5"></i> ${item.price}
+                        </span>
+                        <button onclick="sellSingleFish(${index})" class="p-1 hover:bg-rose-50 text-slate-400 hover:text-rose-500 rounded-lg transition-colors" title="售出此魚">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                `;
+                listContainer.appendChild(itemDiv);
+            });
+        }
+
+        function getRarityColorText(rarity) {
+            switch(rarity) {
+                case 'common': return 'text-slate-500';
+                case 'rare': return 'text-sky-600';
+                case 'epic': return 'text-indigo-600';
+                case 'legendary': return 'text-amber-600';
+                case 'mythic': return 'text-rose-600 animate-pulse';
+                default: return 'text-slate-500';
+            }
+        }
+
+        // ==================== 16. 輔助 Toast 提示 ====================
+        function showToast(message, type = "info", duration = 3000) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            let bgClass = "bg-slate-900 text-white";
+            let icon = "💡";
+            
+            if (type === "success") {
+                bgClass = "bg-emerald-50 text-emerald-900 border border-emerald-200 shadow-emerald-50";
+                icon = "✨";
+            } else if (type === "error") {
+                bgClass = "bg-rose-50 text-rose-900 border border-rose-200 shadow-rose-50";
+                icon = "⚠️";
+            } else if (type === "info") {
+                bgClass = "bg-sky-50 text-sky-900 border border-sky-200 shadow-sky-50";
+                icon = "🐳";
+            }
+
+            toast.className = `${bgClass} p-3 rounded-2xl text-xs font-bold shadow-md pointer-events-auto flex items-center gap-2 max-w-sm transition-all duration-300 transform translate-y-2 opacity-0`;
+            toast.innerHTML = `<span>${icon}</span> <div class="whitespace-pre-line leading-relaxed">${message}</div>`;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('translate-y-2', 'opacity-0');
+                setTimeout(() => {
+                    toast.remove();
+                }, 300);
+            }, duration);
+        }
+
+        // 啟動首頁加載
+        initCatalogGrid();
+    </script>
+</body>
+</html>
