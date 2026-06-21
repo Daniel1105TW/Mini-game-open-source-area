@@ -1,0 +1,2688 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Brawl Stars P2P 1v1 - 荒野大亂鬥網頁版</title>
+    <!-- 引入 Tailwind CSS 進行精美 UI 排版 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Phaser 3 遊戲引擎 -->
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+    <!-- 引入 PeerJS WebRTC P2P 庫 -->
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <style>
+        body {
+            touch-action: none;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            background-color: #0b0f19;
+            margin: 0;
+            overflow: hidden;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+    </style>
+</head>
+<body class="relative w-screen h-screen flex flex-col items-center justify-center select-none overflow-hidden text-white bg-[#0b0f19]">
+
+    <!-- 阻止右鍵選單彈出以利手動右鍵瞄準 -->
+    <script>
+        window.addEventListener('contextmenu', e => e.preventDefault());
+    </script>
+
+    <!-- 遊戲大廳 UI (極簡精美首頁) -->
+    <div id="lobby-menu" class="absolute inset-0 z-40 flex flex-col items-center justify-between bg-gradient-to-b from-slate-900 to-slate-950 px-6 py-8">
+        
+        <!-- 頂部資訊欄 -->
+        <div class="w-full max-w-6xl flex justify-between items-center bg-slate-900/80 px-6 py-3 rounded-2xl border border-slate-800 backdrop-blur-md">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-yellow-500 border-2 border-white flex items-center justify-center text-slate-900 font-black">BS</div>
+                <div>
+                    <h2 class="text-sm font-black tracking-wide text-yellow-400 italic">BRAWL STARS</h2>
+                    <p class="text-3xs text-gray-400">泡沫水槍大作戰 (健康休閒版)</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-4 text-xs font-bold">
+                <!-- 真人連線 ID -->
+                <div class="bg-black/50 px-3 py-1.5 rounded-lg border border-slate-800 flex items-center gap-1">
+                    <span class="text-gray-500">我的連線 ID:</span>
+                    <span id="my-peer-id" class="font-mono text-green-400 font-black">正在取得...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 首頁中心：主英雄預覽與精美動作按鈕 -->
+        <div class="flex flex-col items-center justify-center my-auto transform scale-105 transition-all text-center">
+            <h1 class="text-6xl font-black tracking-widest text-yellow-400 italic mb-2 drop-shadow-lg">BRAWL STARS</h1>
+            <p class="text-xs text-slate-400 tracking-wider mb-8 font-extrabold uppercase">英雄大對決 - 水槍泡沫對戰</p>
+            
+            <!-- 大號主功能面板 -->
+            <div class="flex flex-col sm:flex-row gap-4 w-full max-w-md mb-4">
+                <button id="btn-open-mode-select" class="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 border-b-4 border-indigo-900 text-white py-4 px-6 rounded-2xl font-black text-sm shadow-lg tracking-wider transition">
+                    ⚔️ 選擇玩法模式
+                </button>
+                <button id="btn-open-config" class="flex-1 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 border-b-4 border-teal-900 text-white py-4 px-6 rounded-2xl font-black text-sm shadow-lg tracking-wider transition">
+                    👤 英雄與連線配置
+                </button>
+            </div>
+
+            <button id="btn-start-brawl" class="w-full max-w-md bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-400 hover:to-amber-500 text-slate-950 font-black py-4 rounded-2xl shadow-xl border-b-4 border-amber-800 text-lg tracking-widest transition uppercase animate-pulse">
+                🔥 立即開戰 🔥
+            </button>
+        </div>
+
+        <!-- 底部控制提示 -->
+        <div class="w-full max-w-6xl text-center text-3xs text-slate-500 border-t border-slate-800/60 pt-4 flex flex-col sm:flex-row justify-between gap-1">
+            <span>💻 電腦：[WASD] 移動 / [滑鼠滑動] 瞄準 / [滑鼠左鍵] 點按自動射擊 / [滑鼠右鍵] 長按手動範圍瞄準並釋放 / [F 鍵] 大招</span>
+            <span>📱 手機：[左搖桿] 移動 / [右搖桿] 拖曳範圍瞄準發射、點按自動射擊 / [黃色大按鈕] 釋放大招</span>
+        </div>
+    </div>
+
+    <!-- 彈窗 1：玩法模式選擇彈窗 (精美網格) -->
+    <div id="modal-mode-select" class="absolute inset-0 z-50 bg-black/90 flex items-center justify-center p-4 hidden">
+        <div class="max-w-4xl w-full bg-slate-900 border-2 border-emerald-500 rounded-3xl p-6 shadow-2xl text-center">
+            <h3 class="text-xl font-black text-emerald-400 italic mb-4 flex items-center justify-center gap-2">⚔️ 選擇遊戲模式</h3>
+            
+            <div id="single-modes-list" class="grid grid-cols-2 md:grid-cols-4 gap-2.5 max-h-96 overflow-y-auto p-1.5">
+                <!-- 動態生成模式 -->
+            </div>
+
+            <div id="mode-details" class="mt-4 p-3 bg-black/40 rounded-2xl text-left text-xs text-gray-300">
+                <p class="font-bold text-emerald-300 text-sm" id="mode-detail-name">模式說明</p>
+                <p id="mode-detail-desc" class="text-gray-400 mt-1">請在上方點選模式以查閱詳情</p>
+            </div>
+
+            <button id="btn-close-mode-modal" class="mt-5 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-2 px-8 rounded-xl transition text-sm">
+                確認選擇
+            </button>
+        </div>
+    </div>
+
+    <!-- 彈窗 2：英雄、裝備與多人連線配置彈窗 (分頁式) -->
+    <div id="modal-config" class="absolute inset-0 z-50 bg-black/90 flex items-center justify-center p-4 hidden">
+        <div class="max-w-5xl w-full bg-slate-900 border-2 border-yellow-500 rounded-3xl p-6 shadow-2xl flex flex-col justify-between max-h-[90vh]">
+            
+            <!-- 彈窗標題與 Tab 切換 -->
+            <div class="flex flex-col sm:flex-row justify-between items-center border-b border-slate-800 pb-3 gap-3">
+                <h3 class="text-lg font-black text-yellow-400 italic">👤 戰備與連線配置</h3>
+                <div class="flex gap-1.5 bg-black/40 p-1 rounded-xl border border-slate-800">
+                    <button id="tab-btn-hero" class="px-4 py-1.5 rounded-lg text-xs font-black transition bg-yellow-500 text-black">選擇英雄</button>
+                    <button id="tab-btn-gear" class="px-4 py-1.5 rounded-lg text-xs font-black transition text-gray-400 hover:text-white">配置裝備</button>
+                    <button id="tab-btn-multi" class="px-4 py-1.5 rounded-lg text-xs font-black transition text-gray-400 hover:text-white">多人聯機</button>
+                </div>
+            </div>
+
+            <!-- Tab 1: 選擇英雄 -->
+            <div id="tab-hero" class="tab-content py-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div id="char-list" class="grid grid-cols-5 gap-1.5 max-h-60 overflow-y-auto pr-1">
+                    <!-- 動態生成角色 -->
+                </div>
+                <div class="bg-black/40 p-3 rounded-2xl text-left text-xs flex flex-col justify-between">
+                    <div>
+                        <p class="font-bold text-yellow-300 text-sm mb-1" id="detail-name">載入中...</p>
+                        <p class="text-gray-300 text-2xs leading-relaxed h-12 overflow-hidden" id="detail-desc">說明</p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 pt-3 text-gray-400 border-t border-slate-800 text-2xs">
+                        <span>生命值: <strong id="stat-hp" class="text-green-400">--</strong></span>
+                        <span>移動速度: <strong id="stat-speed" class="text-blue-400">--</strong></span>
+                        <span>基礎傷害: <strong id="stat-dmg" class="text-red-400">--</strong></span>
+                        <span>子彈速度: <strong id="stat-bspeed" class="text-purple-400">--</strong></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: 配置裝備 -->
+            <div id="tab-gear" class="tab-content py-4 grid grid-cols-1 md:grid-cols-2 gap-4 hidden">
+                <div id="gear-list" class="grid grid-cols-5 gap-1.5 max-h-60 overflow-y-auto pr-1">
+                    <!-- 動態生成裝備 -->
+                </div>
+                <div class="bg-black/40 p-3 rounded-2xl text-left text-xs flex flex-col justify-between">
+                    <div>
+                        <p class="font-bold text-cyan-300 text-sm mb-1" id="gear-detail-name">未選擇</p>
+                        <p class="text-gray-300 text-2xs leading-relaxed h-12 overflow-hidden" id="gear-detail-desc">無</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 3: 多人聯機 -->
+            <div id="tab-multi" class="tab-content py-4 grid grid-cols-1 md:grid-cols-2 gap-4 hidden text-left text-xs">
+                <div class="space-y-3 bg-black/40 p-4 rounded-2xl border border-slate-800">
+                    <div class="flex items-center justify-between bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
+                        <span class="font-bold text-gray-400">選擇我方陣營:</span>
+                        <div class="flex bg-black/60 p-0.5 rounded-lg border border-slate-700">
+                            <button id="btn-select-blue" class="px-3 py-1 rounded-md text-xs font-black transition bg-blue-600 text-white">藍隊</button>
+                            <button id="btn-select-red" class="px-3 py-1 rounded-md text-xs font-black transition text-gray-400 hover:text-white">紅隊</button>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center justify-between bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
+                        <span class="font-bold text-gray-400">總人數規模:</span>
+                        <div class="flex items-center gap-2">
+                            <input id="range-team-size" type="range" min="1" max="6" value="1" class="accent-blue-500 cursor-pointer w-24">
+                            <span id="text-team-size" class="text-xs font-black text-blue-400 bg-black/50 px-2.5 py-0.5 rounded-md">1v1</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-3 bg-black/40 p-4 rounded-2xl border border-slate-800">
+                    <div class="flex gap-2">
+                        <button id="btn-create-room" class="flex-1 bg-blue-700 hover:bg-blue-600 text-white font-bold py-2 rounded-lg border-b-2 border-blue-900 transition text-xs">
+                            創建房間碼
+                        </button>
+                        <input id="input-room-code" type="text" placeholder="好友代碼" class="w-1/3 bg-black border border-slate-800 rounded-lg text-center font-mono font-bold text-yellow-400 text-xs uppercase focus:outline-none">
+                        <button id="btn-join-room" class="bg-purple-700 hover:bg-purple-600 text-white font-bold py-2 px-3 rounded-lg border-b-2 border-purple-900 transition text-xs">
+                            加入房間
+                        </button>
+                    </div>
+                    
+                    <div class="flex gap-2 pt-2 border-t border-slate-800">
+                        <button id="btn-quick-match" class="flex-1 bg-amber-600 hover:bg-amber-500 text-white font-black py-2.5 rounded-xl border-b-4 border-amber-800 text-xs">
+                            ⚡ 快速隨機配對
+                        </button>
+                        <button id="btn-start-multi" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-black py-2.5 rounded-xl border-b-4 border-blue-800 text-xs hidden">
+                            ⚔️ 開始多人對決
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <button id="btn-close-config-modal" class="mt-4 bg-yellow-500 hover:bg-yellow-400 text-slate-900 font-black py-2 px-8 rounded-xl transition text-sm">
+                完成配置
+            </button>
+        </div>
+    </div>
+
+    <!-- 防呆戰術提示彈窗 -->
+    <div id="alert-modal" class="absolute inset-0 z-50 bg-black/80 flex flex-col items-center justify-center hidden">
+        <div class="bg-slate-800 border-4 border-yellow-500 rounded-3xl p-6 text-center text-white max-w-sm w-full mx-4 shadow-2xl">
+            <h3 class="text-2xl font-black mb-2 tracking-wide text-yellow-400 flex items-center justify-center gap-1">⚠️ 戰術防呆警告</h3>
+            <p id="alert-message" class="text-gray-300 mb-6 text-sm">兩位玩家不能選擇同一隊且沒有 AI 補位！請更改隊伍或增加人數規模。</p>
+            <button id="btn-close-alert" class="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-black py-2.5 rounded-xl border-b-4 border-yellow-800 transition active:translate-y-0.5 text-sm">
+                我知道了
+            </button>
+        </div>
+    </div>
+
+    <!-- 狀態通知橫幅 -->
+    <div id="status-banner" class="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-yellow-500 text-black px-6 py-2.5 rounded-full font-bold shadow-lg transform -translate-y-20 transition-all duration-300 flex items-center gap-2 max-w-md">
+        <svg class="animate-spin h-5 w-5 text-black flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span id="status-text" class="text-sm">連線處理中...</span>
+        <button id="btn-cancel-conn" class="bg-black text-white text-xs px-2 py-0.5 rounded hover:bg-gray-800 font-bold transition ml-2">取消</button>
+    </div>
+
+    <!-- 房間資訊頂部條 -->
+    <div id="room-info-bar" class="absolute top-4 left-4 z-30 bg-black/70 text-white px-4 py-2 rounded-xl border border-slate-700/50 backdrop-blur-md hidden flex-col text-xs text-left">
+        <span class="text-2xs text-gray-400 font-bold uppercase tracking-wider">目前模式與陣容</span>
+        <span id="room-info-id" class="font-mono font-bold text-yellow-400">---</span>
+    </div>
+
+    <!-- 遊戲結算畫面 -->
+    <div id="gameover-menu" class="absolute inset-0 z-40 bg-black/85 flex flex-col items-center justify-center hidden">
+        <div class="bg-slate-800 border-4 border-red-500 rounded-3xl p-8 text-center text-white max-w-sm w-full mx-4 shadow-2xl">
+            <h2 id="gameover-title" class="text-4xl font-black mb-2 tracking-wide italic text-red-500">YOU LOSE</h2>
+            <p id="gameover-desc" class="text-gray-400 mb-6 text-sm">你被對手擊敗了！</p>
+            <button id="btn-back-lobby" class="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-black py-4 rounded-xl border-b-4 border-yellow-800 transition active:translate-y-0.5 text-lg">
+                返回主畫面
+            </button>
+        </div>
+    </div>
+
+    <!-- 虛擬雙搖桿 overlays -->
+    <div id="joystick-left" class="joystick-container">
+        <div id="joystick-left-handle" class="joystick-handle"></div>
+    </div>
+    <div id="joystick-right" class="joystick-container">
+        <div id="joystick-right-handle" class="joystick-handle"></div>
+    </div>
+
+    <!-- 大招虛擬按鍵 -->
+    <button id="btn-mobile-super">SUPER</button>
+
+    <!-- Phaser 遊戲渲染畫布容器 -->
+    <div id="game-container" class="w-full h-full"></div>
+
+    <!-- 所有的 JavaScript 整合在單一 script 中，並放置在 body 結束之前，以保證 DOM 已完全載入 -->
+    <script>
+        // --- 全域變數安全與環境辨識初始化 ---
+        window.isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+        window.isMatching = false; 
+
+        // --- Web Audio API 音效合成引擎 ---
+        const SoundEngine = {
+            ctx: null,
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            },
+            play(type) {
+                this.init();
+                if (!this.ctx) return;
+                try {
+                    const now = this.ctx.currentTime;
+                    switch(type) {
+                        case 'shoot':
+                            const oscS = this.ctx.createOscillator();
+                            const gainS = this.ctx.createGain();
+                            oscS.type = 'triangle';
+                            oscS.frequency.setValueAtTime(580, now);
+                            oscS.frequency.exponentialRampToValueAtTime(120, now + 0.15);
+                            gainS.gain.setValueAtTime(0.2, now);
+                            gainS.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                            oscS.connect(gainS);
+                            gainS.connect(this.ctx.destination);
+                            oscS.start(now);
+                            oscS.stop(now + 0.15);
+                            break;
+                        case 'hit':
+                            const bufferSize = this.ctx.sampleRate * 0.1;
+                            const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                            const data = buffer.getChannelData(0);
+                            for (let i = 0; i < bufferSize; i++) {
+                                data[i] = Math.random() * 2 - 1;
+                            }
+                            const noiseNode = this.ctx.createBufferSource();
+                            noiseNode.buffer = buffer;
+                            const noiseFilter = this.ctx.createBiquadFilter();
+                            noiseFilter.type = 'lowpass';
+                            noiseFilter.frequency.setValueAtTime(400, now);
+                            const gainH = this.ctx.createGain();
+                            gainH.gain.setValueAtTime(0.15, now);
+                            gainH.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                            noiseNode.connect(noiseFilter);
+                            noiseFilter.connect(gainH);
+                            gainH.connect(this.ctx.destination);
+                            noiseNode.start(now);
+                            break;
+                        case 'super':
+                            const oscSu = this.ctx.createOscillator();
+                            const gainSu = this.ctx.createGain();
+                            oscSu.type = 'sawtooth';
+                            oscSu.frequency.setValueAtTime(220, now);
+                            oscSu.frequency.exponentialRampToValueAtTime(1100, now + 0.4);
+                            gainSu.gain.setValueAtTime(0.25, now);
+                            gainSu.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                            oscSu.connect(gainSu);
+                            gainSu.connect(this.ctx.destination);
+                            oscSu.start(now);
+                            oscSu.stop(now + 0.4);
+                            break;
+                        case 'kill':
+                            const freqs = [523.25, 659.25, 783.99, 1046.50];
+                            freqs.forEach((f, idx) => {
+                                const oscK = this.ctx.createOscillator();
+                                const gainK = this.ctx.createGain();
+                                oscK.type = 'sine';
+                                oscK.frequency.setValueAtTime(f, now + idx * 0.08);
+                                gainK.gain.setValueAtTime(0.12, now + idx * 0.08);
+                                gainK.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.3);
+                                oscK.connect(gainK);
+                                gainK.connect(this.ctx.destination);
+                                oscK.start(now + idx * 0.08);
+                                oscK.stop(now + idx * 0.08 + 0.3);
+                            });
+                            break;
+                        case 'heal':
+                            const oscHe = this.ctx.createOscillator();
+                            const gainHe = this.ctx.createGain();
+                            oscHe.type = 'sine';
+                            oscHe.frequency.setValueAtTime(440, now);
+                            oscHe.frequency.linearRampToValueAtTime(880, now + 0.25);
+                            gainHe.gain.setValueAtTime(0.15, now);
+                            gainHe.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                            oscHe.connect(gainHe);
+                            gainHe.connect(this.ctx.destination);
+                            oscHe.start(now);
+                            oscHe.stop(now + 0.25);
+                            break;
+                        case 'gameover':
+                            const oscG = this.ctx.createOscillator();
+                            const gainG = this.ctx.createGain();
+                            oscG.type = 'sawtooth';
+                            oscG.frequency.setValueAtTime(330, now);
+                            oscG.frequency.linearRampToValueAtTime(80, now + 0.6);
+                            gainG.gain.setValueAtTime(0.2, now);
+                            gainG.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
+                            oscG.connect(gainG);
+                            gainG.connect(this.ctx.destination);
+                            oscG.start(now);
+                            oscG.stop(now + 0.6);
+                            break;
+                    }
+                } catch(e) {
+                    console.warn("Audio Context Playback blocked or not initialized.");
+                }
+            }
+        };
+
+        // --- 12 種經典與全新對局模式定義 ---
+        const SINGLE_MODES = {
+            survival: { id: "survival", name: "💀 大逃殺生存", desc: "與多名高智能 AI 進行大亂鬥！擊毀地圖上的木箱收集綠色能量塊提升自身血量與射擊威力！" },
+            gems: { id: "gems", name: "💎 寶石爭霸", desc: "地圖中央定時吐出寶石，收集並持有 10 顆寶石觸發 15 秒倒數，守住即獲勝！擊殺敵人其寶石會全數散落在地。" },
+            brawl: { id: "brawl", name: "⚽ 團隊死鬥", desc: "經典團隊大對決！藍紅陣營兩隊在 120 秒內，率先獲得 20 個擊殺數的陣營奪取勝利！" },
+            hotzone: { id: "hotzone", name: "🏰 據點爭奪", desc: "佔領地圖中央的圓形發光熱區，在熱區內停留即可為己方隊伍累計進度條，先達到 100% 獲勝！" },
+            bossfight: { id: "bossfight", name: "🦖 巨大機甲 Boss", desc: "地圖中央生成萬血的超級機甲 Boss！它裝有 BFS 避障高智能尋路，會朝你發動狂暴導引彈幕，引領隊友擊碎它。" },
+            defense: { id: "defense", name: "🧟 屍潮金庫防禦", desc: "防守中央金庫！大量殭屍群會不斷一隻一隻傳送刷新直衝金庫，消滅它們，金庫被擊毀則宣告失敗！" },
+            target: { id: "target", name: "🎯 移動標靶訓練", desc: "在 60 秒限時內，擊碎盡可能多高速不規則運動的移動練習標靶以獲取高分！" },
+            bounty: { id: "bounty", name: "⭐ 獵星懸賞", desc: "擊殺對手奪取星星。被擊殺會使己方星星重置，120 秒結束時隊伍總星星高的一方獲勝。" },
+            escort: { id: "escort", name: "🚚 護送推車", desc: "站在藍色礦車旁能推動其前進，阻止敵方推車！在 120 秒內率先將礦車推到終點獲得勝利。" },
+            robbery: { id: "robbery", name: "⚡ 閃電搶分", desc: "地圖中隨機散落金幣，在 AI 的強大火力堵截下，60 秒內收集滿 15 枚金幣獲勝！" },
+            king: { id: "king", name: "👑 王者獵殺", desc: "地圖中有一個帶有王冠的主宰 AI，他擁有強大的火力和生命值，避開其他對手聯手擊殺他奪取王冠！" },
+            chaos: { id: "chaos", name: "🎲 混戰亂鬥", desc: "戰場中沒有隊友！所有人都是你的對手，在隨機地圖障礙物中小心走位，堅持到最後一刻！" }
+        };
+
+        // --- 10+ 戰術隨機地圖配置定義 ---
+        const MAP_PRESETS = [
+            {
+                name: " Skull Creek (荒野谷地)",
+                obstacles: [{x:300,y:300,w:2,h:1},{x:500,y:600,w:1,h:2},{x:1300,y:900,w:2,h:2},{x:800,y:400,w:1,h:1},{x:1100,y:1600,w:2,h:1}],
+                bushes: [{x:300,y:200},{x:300,y:528},{x:1300,y:1000},{x:1300,y:672},{x:500,y:500},{x:1100,y:700}]
+            },
+            {
+                name: " Rockwall Brawl (石牆大亂鬥)",
+                obstacles: [{x:400,y:400,w:2,h:2},{x:1200,y:800,w:2,h:1},{x:800,y:600,w:2,h:2},{x:800,y:1600,w:1,h:3}],
+                bushes: [{x:400,y:500},{x:464,y:300},{x:1200,y:700},{x:1136,y:900},{x:800,y:300},{x:800,y:900}]
+            },
+            {
+                name: " Feast or Famine (巨草荒原)",
+                obstacles: [{x:200,y:200,w:1,h:2},{x:1400,y:1000,w:1,h:2},{x:200,y:1000,w:2,h:1},{x:1400,y:200,w:2,h:1}],
+                bushes: [{x:800,y:600},{x:1600,y:1200},{x:1500,y:1100},{x:1700,y:1300},{x:800,y:536},{x:800,y:664},{x:736,y:600}]
+            },
+            {
+                name: " Snake Prairie (綠意巨蛇草原)",
+                obstacles: [{x:800,y:600,w:1,h:1},{x:1600,y:800,w:3,h:1}],
+                bushes: [{x:200,y:200},{x:400,y:200},{x:600,y:200},{x:1000,y:1000},{x:1200,y:1000},{x:1400,y:1000},{x:400,y:600},{x:1200,y:600}]
+            }
+        ];
+
+        // --- 10 種角色定義與屬性參數 ---
+        const CHARACTERS = {
+            shelly: { id: "shelly", name: "雪莉 (Shelly)", hp: 100, speed: 280, dmg: 16, bSpeed: 650, bSize: 1.0, fireRate: 400, color: 0x22c55e, desc: "均衡型英雄，血量與彈速十分穩定。大招：散射穿透重砲。" },
+            colt: { id: "colt", name: "柯爾特 (Colt)", hp: 80, speed: 320, dmg: 12, bSpeed: 900, bSize: 0.8, fireRate: 260, color: 0x3b82f6, desc: "神槍手，攻速極快，彈丸射程極遠。大招：瘋狂直射穿透彈幕。" },
+            bull: { id: "bull", name: "狂牛 (Bull)", hp: 155, speed: 260, dmg: 24, bSpeed: 480, bSize: 1.5, fireRate: 650, color: 0xf59e0b, desc: "近戰重裝，擁有極高的生命值。大招：蠻牛全圖衝鋒破障。" },
+            elprimo: { id: "elprimo", name: "普里莫 (El Primo)", hp: 180, speed: 300, dmg: 28, bSpeed: 400, bSize: 1.9, fireRate: 500, color: 0xec4899, desc: "超強拳擊手，全遊戲生命值最高。大招：高空躍起猛擊地面震波。" },
+            poco: { id: "poco", name: "波可 (Poco)", hp: 110, speed: 275, dmg: 11, bSpeed: 550, bSize: 2.3, fireRate: 450, color: 0x8b5cf6, desc: "音樂家，彈丸體積極大. 大招：釋放全螢幕治癒音波回復生命。" },
+            mortis: { id: "mortis", name: "莫提斯 (Mortis)", hp: 100, speed: 310, dmg: 18, bSpeed: 500, bSize: 1.1, fireRate: 700, color: 0x6366f1, desc: "奪魂刺客，開火時向前突進。大招：召喚大範圍吸血蝙蝠群。" },
+            spike: { id: "spike", name: "斯派克 (Spike)", hp: 65, speed: 265, dmg: 34, bSpeed: 580, bSize: 1.7, fireRate: 850, color: 0x10b981, desc: "仙人掌，血量雖薄，傷害極其恐怖。大招：拋擲劇毒緩速刺叢。" },
+            leon: { id: "leon", name: "里昂 (Leon)", hp: 90, speed: 330, dmg: 14, bSpeed: 750, bSize: 0.9, fireRate: 350, color: 0x14b8a6, desc: "迅捷忍者，極高的機動性。大招：進入 5 秒完全隱形狀態。" },
+            crow: { id: "crow", name: "鴉 (Crow)", hp: 75, speed: 340, dmg: 10, bSpeed: 820, bSize: 0.7, fireRate: 220, color: 0x06b6d4, desc: "毒刃殺手，移動速度最快. 大招：飛天並朝 360 度周圍釋放毒刃。" },
+            sandy: { id: "sandy", name: "沙迪 (Sandy)", hp: 105, speed: 285, dmg: 13, bSpeed: 600, bSize: 1.6, fireRate: 380, color: 0xd946ef, desc: "沙塵掌控者，射擊帶有黃沙效果。大招：召喚特大隱身沙塵暴。" }
+        };
+
+        const GEARS = {
+            boots: { id: "boots", name: "⚡ 速度腳墊", desc: "大幅強化機動性：移動速度 +15%", mod: (s) => { s.speed *= 1.15; } },
+            armor: { id: "armor", name: "🛡️ 鋼鐵裝甲", desc: "合金防禦：受到傷害降低 15%", mod: (s) => { s.dmgRed = 0.85; } },
+            ammo: { id: "ammo", name: "🔥 重型彈丸", desc: "火力壓制：子彈傷害 +15%", mod: (s) => { s.dmg *= 1.15; } },
+            barrel: { id: "barrel", name: "🎯 鈦合金槍管", desc: "動能蓄力：子彈飛行速度 +20%", mod: (s) => { s.bSpeed *= 1.20; } },
+            bandage: { id: "bandage", name: "🩹 醫療繃帶", desc: "生機不絕：每次命中對手時自我治療 5 點生命", mod: (s) => { s.healOnHit = 5; } },
+            shield: { id: "shield", name: "🔋 能源護盾", desc: "額外防禦：開局與復活時額外獲得 25 點臨時護盾", mod: (s) => { s.shield = 25; } },
+            trigger: { id: "trigger", name: "⚙️ 輕量扳機", desc: "速射模組：射擊冷卻時間縮短 20%", mod: (s) => { s.fireRate *= 0.8; } },
+            bullet: { id: "bullet", name: "🌕 巨型彈丸", desc: "震撼衝擊：子彈體積與碰撞大小增加 50%", mod: (s) => { s.bSize *= 1.5; } },
+            fang: { id: "fang", name: "🩸 猛毒吸血", desc: "生命吸取：造成傷害 of 15% 轉化為自我生命值", mod: (s) => { s.lifesteal = 0.15; } },
+            core: { id: "core", name: "💎 超頻核心", desc: "全能載體：傷害 +8% 且 移動速度 +8%", mod: (s) => { s.dmg *= 1.08; s.speed *= 1.08; } }
+        };
+
+        // --- 選擇狀態儲存 ---
+        let selectedCharId = "shelly";
+        let selectedGearId = "boots";
+        let selectedSingleModeId = "survival";
+        let teamSize = 1; 
+        let mySelectedTeam = "blue"; // 'blue' or 'red'
+
+        // --- 連線與 P2P 設定 ---
+        const PEER_PREFIX = "brawl-1v1-";
+        let peer = null;
+        let conn = null;
+        let isHost = false;
+        let myId = "";
+        let targetPeerId = "";
+        let gameInstance = null;
+        let isMatched = false;
+        let isBotMode = true; 
+        let remotePlayerConfigs = null;
+        let targetMatchRoomId = "";
+
+        // --- DOM 選擇器 (在全域範疇中安全獲取，徹底根除 Null 執行期錯誤) ---
+        const rangeTeamSize = document.getElementById('range-team-size');
+        const textTeamSize = document.getElementById('text-team-size');
+        const lobbyMenu = document.getElementById('lobby-menu');
+        const myPeerIdEl = document.getElementById('my-peer-id');
+        const btnCreateRoom = document.getElementById('btn-create-room');
+        const btnJoinRoom = document.getElementById('btn-join-room');
+        const btnQuickMatch = document.getElementById('btn-quick-match');
+        const btnStartMulti = document.getElementById('btn-start-multi');
+        const btnStartBrawl = document.getElementById('btn-start-brawl');
+        const inputRoomCode = document.getElementById('input-room-code');
+        const statusBanner = document.getElementById('status-banner');
+        const statusText = document.getElementById('status-text');
+        const btnCancelConn = document.getElementById('btn-cancel-conn');
+        const roomInfoBar = document.getElementById('room-info-bar');
+        const roomInfoId = document.getElementById('room-info-id');
+        const gameoverMenu = document.getElementById('gameover-menu');
+        const gameoverTitle = document.getElementById('gameover-title');
+        const gameoverDesc = document.getElementById('gameover-desc');
+        const btnBackLobby = document.getElementById('btn-back-lobby');
+        const canvasWarning = document.getElementById('canvas-warning');
+        
+        const btnSelectBlue = document.getElementById('btn-select-blue');
+        const btnSelectRed = document.getElementById('btn-select-red');
+
+        // 彈窗與分頁 UI 元素
+        const modalModeSelect = document.getElementById('modal-mode-select');
+        const modalConfig = document.getElementById('modal-config');
+        const btnOpenModeSelect = document.getElementById('btn-open-mode-select');
+        const btnCloseModeModal = document.getElementById('btn-close-mode-modal');
+        const btnOpenConfig = document.getElementById('btn-open-config');
+        const btnCloseConfigModal = document.getElementById('btn-close-config-modal');
+        
+        const tabBtnHero = document.getElementById('tab-btn-hero');
+        const tabBtnGear = document.getElementById('tab-btn-gear');
+        const tabBtnMulti = document.getElementById('tab-btn-multi');
+        const tabHero = document.getElementById('tab-hero');
+        const tabGear = document.getElementById('tab-gear');
+        const tabMulti = document.getElementById('tab-multi');
+
+        // --- 彈窗顯示控制與分頁事件監聽 ---
+        btnOpenModeSelect.addEventListener('click', () => {
+            modalModeSelect.classList.remove('hidden');
+        });
+        btnCloseModeModal.addEventListener('click', () => {
+            modalModeSelect.classList.add('hidden');
+        });
+        btnOpenConfig.addEventListener('click', () => {
+            modalConfig.classList.remove('hidden');
+        });
+        btnCloseConfigModal.addEventListener('click', () => {
+            modalConfig.classList.add('hidden');
+        });
+
+        function clearTabs() {
+            tabHero.classList.add('hidden');
+            tabGear.classList.add('hidden');
+            tabMulti.classList.add('hidden');
+            tabBtnHero.className = "px-4 py-1.5 rounded-lg text-xs font-black transition text-gray-400 hover:text-white";
+            tabBtnGear.className = "px-4 py-1.5 rounded-lg text-xs font-black transition text-gray-400 hover:text-white";
+            tabBtnMulti.className = "px-4 py-1.5 rounded-lg text-xs font-black transition text-gray-400 hover:text-white";
+        }
+
+        tabBtnHero.addEventListener('click', () => {
+            clearTabs();
+            tabHero.classList.remove('hidden');
+            tabBtnHero.className = "px-4 py-1.5 rounded-lg text-xs font-black transition bg-yellow-500 text-black";
+        });
+        tabBtnGear.addEventListener('click', () => {
+            clearTabs();
+            tabGear.classList.remove('hidden');
+            tabBtnGear.className = "px-4 py-1.5 rounded-lg text-xs font-black transition bg-yellow-500 text-black";
+        });
+        tabBtnMulti.addEventListener('click', () => {
+            clearTabs();
+            tabMulti.classList.remove('hidden');
+            tabBtnMulti.className = "px-4 py-1.5 rounded-lg text-xs font-black transition bg-yellow-500 text-black";
+        });
+
+        // 紅藍隊選擇
+        btnSelectBlue.addEventListener('click', () => {
+            mySelectedTeam = "blue";
+            btnSelectBlue.className = "px-3 py-1 rounded-md text-xs font-black transition bg-blue-600 text-white";
+            btnSelectRed.className = "px-3 py-1 rounded-md text-xs font-black transition text-gray-400 hover:text-white";
+            sendTeamSelection();
+        });
+
+        btnSelectRed.addEventListener('click', () => {
+            mySelectedTeam = "red";
+            btnSelectRed.className = "px-3 py-1 rounded-md text-xs font-black transition bg-red-600 text-white";
+            btnSelectBlue.className = "px-3 py-1 rounded-md text-xs font-black transition text-gray-400 hover:text-white";
+            sendTeamSelection();
+        });
+
+        function sendTeamSelection() {
+            if (conn && conn.open) {
+                conn.send({
+                    type: 'team_select',
+                    team: mySelectedTeam,
+                    charId: selectedCharId,
+                    gearId: selectedGearId
+                });
+            }
+        }
+
+        // 綁定隊伍人數滑桿
+        rangeTeamSize.addEventListener('input', (e) => {
+            teamSize = parseInt(e.target.value);
+            textTeamSize.innerText = `${teamSize}v${teamSize}`;
+        });
+
+        function showStatus(msg, spinning = true) {
+            statusText.innerText = msg;
+            statusBanner.style.transform = "translateY(0px)";
+            const spinner = statusBanner.querySelector('svg');
+            spinner.style.display = spinning ? 'block' : 'none';
+        }
+
+        function hideStatus() {
+            statusBanner.style.transform = "translateY(-80px)";
+        }
+
+        // 取消連線按鈕
+        btnCancelConn.addEventListener('click', () => {
+            hideStatus();
+            window.isMatching = false;
+            if (conn) {
+                conn.close();
+                conn = null;
+            }
+            if (btnStartMulti) btnStartMulti.classList.add('hidden');
+            if (btnQuickMatch) btnQuickMatch.classList.remove('hidden');
+            showStatus("連線已手動取消", false);
+            setTimeout(hideStatus, 1500);
+        });
+
+        // --- 動態生成大廳 UI 英雄、裝備與模式列表 ---
+        function generateSelectionUI() {
+            const charContainer = document.getElementById('char-list');
+            const gearContainer = document.getElementById('gear-list');
+            const singleModesContainer = document.getElementById('single-modes-list');
+
+            // 生成角色
+            charContainer.innerHTML = "";
+            Object.values(CHARACTERS).forEach(char => {
+                const btn = document.createElement('button');
+                btn.className = `p-1 rounded-lg text-center text-3xs font-bold border transition truncate block ${char.id === selectedCharId ? 'bg-yellow-500 text-black border-white' : 'bg-slate-800 text-white border-slate-700 hover:bg-slate-700'}`;
+                btn.innerText = char.name.split(' ')[0];
+                btn.onclick = () => { selectedCharId = char.id; generateSelectionUI(); sendTeamSelection(); };
+                charContainer.appendChild(btn);
+            });
+
+            // 生成裝備
+            gearContainer.innerHTML = "";
+            Object.values(GEARS).forEach(gear => {
+                const btn = document.createElement('button');
+                btn.className = `p-1 rounded-lg text-center text-3xs font-bold border transition truncate block ${gear.id === selectedGearId ? 'bg-cyan-500 text-black border-white' : 'bg-slate-800 text-white border-slate-700 hover:bg-slate-700'}`;
+                btn.innerText = gear.name.split(' ')[1];
+                btn.onclick = () => { selectedGearId = gear.id; generateSelectionUI(); sendTeamSelection(); };
+                gearContainer.appendChild(btn);
+            });
+
+            // 生成 12 種模式
+            singleModesContainer.innerHTML = "";
+            Object.values(SINGLE_MODES).forEach(mode => {
+                const btn = document.createElement('button');
+                btn.className = `p-1.5 rounded-lg text-left text-3xs font-bold border transition ${mode.id === selectedSingleModeId ? 'bg-emerald-500 text-black border-white font-black' : 'bg-slate-800 text-white border-slate-700 hover:bg-slate-700'}`;
+                btn.innerHTML = `<div>${mode.name}</div>`;
+                btn.onclick = () => { selectedSingleModeId = mode.id; generateSelectionUI(); };
+                singleModesContainer.appendChild(btn);
+            });
+
+            updateDetailsUI();
+        }
+
+        function updateDetailsUI() {
+            const char = CHARACTERS[selectedCharId];
+            const gear = GEARS[selectedGearId];
+
+            document.getElementById('detail-name').innerText = char.name;
+            document.getElementById('detail-desc').innerText = char.desc;
+            document.getElementById('stat-hp').innerText = char.hp;
+            document.getElementById('stat-speed').innerText = char.speed;
+            document.getElementById('stat-dmg').innerText = char.dmg;
+            document.getElementById('stat-bspeed').innerText = char.bSpeed;
+
+            document.getElementById('gear-detail-name').innerText = gear.name;
+            document.getElementById('gear-detail-desc').innerText = gear.desc;
+        }
+
+        generateSelectionUI();
+
+        // --- 虛擬搖桿與按鈕手勢監聽 (手機版專用) ---
+        const leftJoy = { active: false, startX: 0, startY: 0, x: 0, y: 0 };
+        const rightJoy = { active: false, startX: 0, startY: 0, x: 0, y: 0, startTime: 0, isDragging: false };
+        const maxJoyDist = 50; 
+
+        if (window.isMobile) {
+            document.getElementById('joystick-left').style.display = 'flex';
+            document.getElementById('joystick-right').style.display = 'flex';
+            document.getElementById('btn-mobile-super').style.display = 'flex';
+            setupJoysticks();
+        }
+
+        function setupJoysticks() {
+            const leftEl = document.getElementById('joystick-left');
+            const leftHnd = document.getElementById('joystick-left-handle');
+            
+            leftEl.addEventListener('touchstart', (e) => {
+                leftJoy.active = true;
+                const rect = leftEl.getBoundingClientRect();
+                leftJoy.startX = rect.left + rect.width / 2;
+                leftJoy.startY = rect.top + rect.height / 2;
+                handleJoyMove(e.targetTouches[0], leftJoy, leftHnd);
+            }, { passive: true });
+
+            leftEl.addEventListener('touchmove', (e) => {
+                if (!leftJoy.active) return;
+                handleJoyMove(e.targetTouches[0], leftJoy, leftHnd);
+            }, { passive: true });
+
+            leftEl.addEventListener('touchend', () => {
+                leftJoy.active = false;
+                leftJoy.x = 0;
+                leftJoy.y = 0;
+                leftHnd.style.transform = "translate(0px, 0px)";
+            });
+
+            const rightEl = document.getElementById('joystick-right');
+            const rightHnd = document.getElementById('joystick-right-handle');
+
+            rightEl.addEventListener('touchstart', (e) => {
+                rightJoy.active = true;
+                rightJoy.isDragging = false;
+                rightJoy.startTime = Date.now();
+                const rect = rightEl.getBoundingClientRect();
+                rightJoy.startX = rect.left + rect.width / 2;
+                rightJoy.startY = rect.top + rect.height / 2;
+                handleJoyAim(e.targetTouches[0], rightJoy, rightHnd);
+            }, { passive: true });
+
+            rightEl.addEventListener('touchmove', (e) => {
+                if (!rightJoy.active) return;
+                rightJoy.isDragging = true;
+                handleJoyAim(e.targetTouches[0], rightJoy, rightHnd);
+                
+                if (gameInstance && gameInstance.scene.isActive('GameScene')) {
+                    gameInstance.scene.getScene('GameScene').setVirtualAiming(rightJoy.x, rightJoy.y, true);
+                }
+            }, { passive: true });
+
+            rightEl.addEventListener('touchend', () => {
+                if (!rightJoy.active) return;
+                rightJoy.active = false;
+
+                const duration = Date.now() - rightJoy.startTime;
+                
+                if (gameInstance && gameInstance.scene.isActive('GameScene')) {
+                    const scene = gameInstance.scene.getScene('GameScene');
+                    scene.setVirtualAiming(0, 0, false); 
+
+                    if (!rightJoy.isDragging || duration < 180) {
+                        scene.triggerAutoAim(false); 
+                    } else {
+                        scene.mobileShoot(rightJoy.x, rightJoy.y);
+                    }
+                }
+                
+                rightJoy.x = 0;
+                rightJoy.y = 0;
+                rightHnd.style.transform = "translate(0px, 0px)";
+            });
+
+            // 大招
+            const btnSuper = document.getElementById('btn-mobile-super');
+            btnSuper.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (gameInstance && gameInstance.scene.isActive('GameScene')) {
+                    gameInstance.scene.getScene('GameScene').triggerAutoAim(true); 
+                }
+            });
+        }
+
+        function handleJoyMove(touch, joyState, handleEl) {
+            let dx = touch.clientX - joyState.startX;
+            let dy = touch.clientY - joyState.startY;
+            let dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > maxJoyDist) {
+                dx = (dx / dist) * maxJoyDist;
+                dy = (dy / dist) * maxJoyDist;
+            }
+            handleEl.style.transform = `translate(${dx}px, ${dy}px)`;
+            joyState.x = dx / maxJoyDist;
+            joyState.y = dy / maxJoyDist;
+        }
+
+        function handleJoyAim(touch, joyState, handleEl) {
+            let dx = touch.clientX - joyState.startX;
+            let dy = touch.clientY - joyState.startY;
+            let dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > maxJoyDist) {
+                dx = (dx / dist) * maxJoyDist;
+                dy = (dy / dist) * maxJoyDist;
+            }
+            handleEl.style.transform = `translate(${dx}px, ${dy}px)`;
+            joyState.x = dx / maxJoyDist;
+            joyState.y = dy / maxJoyDist;
+        }
+
+        // --- P2P WebRTC 信令及連線功能防堵 ---
+        function handlePeerBlocked() {
+            if (canvasWarning) {
+                canvasWarning.classList.remove('hidden');
+            }
+            if (myPeerIdEl) {
+                myPeerIdEl.innerText = "平台限制：不支援線上對戰";
+            }
+            
+            btnCreateRoom.disabled = true;
+            btnCreateRoom.classList.add('opacity-40', 'cursor-not-allowed');
+            btnJoinRoom.disabled = true;
+            btnJoinRoom.classList.add('opacity-40', 'cursor-not-allowed');
+            btnQuickMatch.disabled = true;
+            btnQuickMatch.classList.add('opacity-40', 'cursor-not-allowed');
+        }
+
+        function initPeer(customId = null) {
+            try {
+                if (peer) peer.destroy();
+                peer = customId ? new Peer(customId) : new Peer();
+
+                peer.on('open', (id) => {
+                    myId = id;
+                    myPeerIdEl.innerText = id.replace(PEER_PREFIX, "");
+                    if (window.isMatching && id === targetMatchRoomId) {
+                        showStatus("成為當前配對擂台主！正在等待挑戰者加入...", true);
+                    }
+                });
+
+                peer.on('connection', (incomingConn) => {
+                    if (conn) {
+                        incomingConn.close();
+                        return;
+                    }
+                    setupConnection(incomingConn);
+                });
+
+                peer.on('error', (err) => {
+                    console.warn("Peer 系統監測到錯誤:", err);
+                    if (err.message && (err.message.includes("not allowed") || err.message.includes("WebSocket") || err.message.includes("security"))) {
+                        handlePeerBlocked();
+                        return;
+                    }
+                    if (err.type === 'id-taken' || (err.message && err.message.includes("taken"))) {
+                        if (window.isMatching) {
+                            console.log("發現匹配房主已在線！我們自動轉為 Client 客端連線。");
+                            isHost = false;
+                            window.isMatching = false; 
+
+                            initPeer();
+                            
+                            const tempOpenHandler = (id) => {
+                                showStatus("成功發現對手！正在全力建立戰術通道...");
+                                const newConn = peer.connect(targetMatchRoomId, { reliable: true });
+                                setupConnection(newConn);
+                                peer.off('open', tempOpenHandler);
+                            };
+                            peer.on('open', tempOpenHandler);
+                            return;
+                        }
+                    }
+                    if (err.type === 'peer-unavailable') {
+                        showStatus("無法連上對手：請確認代碼無誤且對方已創建好房間！", false);
+                        setTimeout(hideStatus, 3000);
+                    }
+                });
+            } catch (e) {
+                handlePeerBlocked();
+            }
+        }
+
+        function setupConnection(establishedConn) {
+            conn = establishedConn;
+            isMatched = true;
+            isBotMode = false;
+
+            conn.on('open', () => {
+                hideStatus();
+                window.isMatching = false;
+                showStatus("聯機建立成功！等待房主下達開戰指令...", false);
+                sendTeamSelection();
+
+                if (isHost) {
+                    if (btnQuickMatch) btnQuickMatch.classList.add('hidden');
+                    if (btnStartMulti) btnStartMulti.classList.remove('hidden');
+                }
+            });
+
+            conn.on('data', (data) => {
+                if (data.type === 'team_select') {
+                    remotePlayerConfigs = {
+                        team: data.team,
+                        charId: data.charId,
+                        gearId: data.gearId
+                    };
+                } else if (data.type === 'start_game') {
+                    hideStatus();
+                    lobbyMenu.style.opacity = "0";
+                    setTimeout(() => { lobbyMenu.classList.add('hidden'); }, 300);
+
+                    selectedSingleModeId = data.modeId;
+                    teamSize = data.teamSize;
+                    
+                    roomInfoBar.classList.remove('hidden');
+                    roomInfoBar.classList.add('flex');
+                    roomInfoId.innerText = `多人聯機對決 (${teamSize}v${teamSize})`;
+
+                    startPhaserGame();
+                } else if (data.type === 'game_result') {
+                    // 多人PK雙向勝負判定：收到對手的對局結束廣播
+                    if (gameInstance && gameInstance.scene.isActive('GameScene')) {
+                        gameInstance.scene.getScene('GameScene').handleMatchOver(data.winnerTeam);
+                    }
+                } else if (gameInstance && gameInstance.scene.isActive('GameScene')) {
+                    gameInstance.scene.getScene('GameScene').handleNetworkData(data);
+                }
+            });
+
+            conn.on('close', () => {
+                showStatus("對手已退出戰局！", false);
+                setTimeout(() => { location.reload(); }, 2500);
+            });
+        }
+
+        // --- 防呆驗證彈窗 ---
+        function validateTeams() {
+            if (!isBotMode) {
+                if (!conn || !conn.open) {
+                    showAlert("⚠️ 無法開戰！需要先與好友建立連線或加入房間。");
+                    return false;
+                }
+                if (!remotePlayerConfigs) {
+                    showAlert("⚠️ 正在等待對方英雄載入，請等對手選好英雄與隊伍後再試！");
+                    return false;
+                }
+                if (teamSize === 1 && mySelectedTeam === remotePlayerConfigs.team) {
+                    showAlert("⚠️ 防呆警告！在 1v1 模式中，雙方沒有 AI 補位。你和對手不能選擇同一個陣營（都是藍隊或紅隊），否則戰場中將沒有任何敵人可對抗！");
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // --- 按鈕開戰事件 ---
+        btnStartBrawl.addEventListener('click', () => {
+            if (isBotMode) {
+                // 直接安全執行單人開火載入
+                SoundEngine.init();
+                isBotMode = true;
+                isHost = true; 
+                lobbyMenu.style.opacity = "0";
+                setTimeout(() => { lobbyMenu.classList.add('hidden'); }, 300);
+
+                roomInfoBar.classList.remove('hidden');
+                roomInfoBar.classList.add('flex');
+                const modeName = SINGLE_MODES[selectedSingleModeId].name;
+                roomInfoId.innerText = `單人: ${modeName}`;
+
+                startPhaserGame();
+            } else {
+                if (btnStartMulti) btnStartMulti.click();
+            }
+        });
+
+        // 2. 創建房間代碼
+        btnCreateRoom.addEventListener('click', () => {
+            isHost = true;
+            isBotMode = false;
+            const shortRoomCode = Math.random().toString(36).substring(2, 7).toUpperCase();
+            const hostId = PEER_PREFIX + shortRoomCode;
+            showStatus("正在建立對局房間碼...");
+            initPeer(hostId);
+
+            peer.on('open', (id) => {
+                hideStatus();
+                myPeerIdEl.innerText = shortRoomCode;
+                showStatus("創立成功！房間代碼: " + shortRoomCode + " 等待好友加入...", true);
+            });
+        });
+
+        // 3. 加入好友房間
+        btnJoinRoom.addEventListener('click', () => {
+            isBotMode = false;
+            const rawCode = inputRoomCode.value.trim().toUpperCase();
+            if (!rawCode) {
+                showStatus("請先輸入代碼！", false);
+                setTimeout(hideStatus, 2000);
+                return;
+            }
+
+            isHost = false;
+            targetPeerId = PEER_PREFIX + rawCode;
+            showStatus("正在連線至房間 " + rawCode + " ...");
+
+            try {
+                const newConn = peer.connect(targetPeerId, { reliable: true });
+                setupConnection(newConn);
+            } catch (e) {
+                console.warn(e);
+            }
+        });
+
+        // 4. 開始多人對決
+        btnStartMulti.addEventListener('click', () => {
+            if (!validateTeams()) return; 
+
+            if (conn && conn.open) {
+                conn.send({
+                    type: 'start_game',
+                    modeId: selectedSingleModeId, 
+                    teamSize: teamSize
+                });
+
+                lobbyMenu.style.opacity = "0";
+                setTimeout(() => { lobbyMenu.classList.add('hidden'); }, 300);
+
+                roomInfoBar.classList.remove('hidden');
+                roomInfoBar.classList.add('flex');
+                roomInfoId.innerText = `多人對決 (${teamSize}v${teamSize})`;
+
+                startPhaserGame();
+            }
+        });
+
+        // 5. 快速隨機配對
+        btnQuickMatch.addEventListener('click', () => {
+            SoundEngine.init();
+            isBotMode = false;
+            window.isMatching = true;
+            isHost = true; 
+
+            const timeInterval = Math.floor(Date.now() / 15000); 
+            targetMatchRoomId = PEER_PREFIX + "match-" + timeInterval;
+
+            showStatus("正在全網搜尋其他配對玩家...", true);
+            initPeer(targetMatchRoomId); 
+        });
+
+        // 6. 返回大廳按鈕監聽 (安全移至此處，完美修復 ReferenceError)
+        btnBackLobby.addEventListener('click', () => {
+            gameoverMenu.classList.add('hidden');
+            lobbyMenu.style.opacity = "1";
+            lobbyMenu.classList.remove('hidden');
+            roomInfoBar.classList.add('hidden');
+            roomInfoBar.classList.remove('flex');
+            
+            if (gameInstance) {
+                gameInstance.destroy(true);
+                gameInstance = null;
+            }
+        });
+    </script>
+
+    <script>
+        // --- Phaser 3 遊戲引擎核心實作 ---
+        function startPhaserGame() {
+            if (gameInstance) {
+                gameInstance.destroy(true);
+            }
+
+            const config = {
+                type: Phaser.AUTO,
+                parent: 'game-container',
+                width: window.innerWidth,
+                height: window.innerHeight,
+                physics: {
+                    default: 'arcade',
+                    arcade: {
+                        gravity: { y: 0 },
+                        debug: false
+                    }
+                },
+                scene: [GameScene]
+            };
+
+            gameInstance = new Phaser.Game(config);
+            window.addEventListener('resize', () => {
+                if (gameInstance) {
+                    gameInstance.scale.resize(window.innerWidth, window.innerHeight);
+                }
+            });
+        }
+
+        class GameScene extends Phaser.Scene {
+            constructor() {
+                super('GameScene');
+            }
+
+            create() {
+                // 1. 地圖大小拓寬至 3200 x 2400
+                this.physics.world.setBounds(0, 0, 3200, 2400);
+                this.add.grid(1600, 1200, 3200, 2400, 64, 64, 0x141b2d, 1, 0x0f1423, 1);
+
+                SoundEngine.init();
+
+                // 隨機自選地圖 preset 
+                this.mapPresetIndex = Phaser.Math.Between(0, MAP_PRESETS.length - 1);
+                this.currentMap = MAP_PRESETS[this.mapPresetIndex];
+                console.log("地圖套用：", this.currentMap.name);
+
+                // 2. 幾何外觀與子彈形狀視覺初始化
+                this.createGameTextures();
+
+                this.localStats = this.calculateCombinedStats(selectedCharId, selectedGearId);
+                this.playerTeam = isBotMode ? 'blue' : mySelectedTeam;
+
+                // 狀態計量器與大招
+                this.superCharge = 0; 
+                this.superCharged = false;
+                this.isSuperCasting = false;
+
+                // 3. 生成本地玩家
+                const spawnPos = this.playerTeam === 'blue' ? { x: 200, y: 1200 } : { x: 3000, y: 1200 };
+                this.player = this.physics.add.sprite(spawnPos.x, spawnPos.y, `player_${selectedCharId}_tex`);
+                this.player.setCollideWorldBounds(true);
+                this.player.setDrag(1200);
+                this.player.hp = this.localStats.hp;
+                this.player.maxHp = this.localStats.hp;
+                this.player.shield = this.localStats.shield || 0;
+                this.player.maxShield = this.localStats.shield || 0;
+                this.player.team = this.playerTeam;
+                this.player.isPlayer = true;
+                this.player.lastDamageTime = 0; // 用於自然回血
+
+                this.applyGearVisuals(this.player, selectedGearId);
+
+                // 團隊
+                this.blueTeam = this.physics.add.group();
+                this.redTeam = this.physics.add.group();
+                
+                if (this.playerTeam === 'blue') {
+                    this.blueTeam.add(this.player);
+                } else {
+                    this.redTeam.add(this.player);
+                }
+
+                // 地圖元素：障礙與草叢
+                this.obstacles = this.physics.add.staticGroup();
+                this.bushes = this.physics.add.staticGroup();
+                this.spawnObstaclesAndBushes();
+
+                this.gridSize = 64;
+                this.gridWidth = 50;
+                this.gridHeight = 38;
+                this.aiGrid = Array(this.gridWidth).fill(0).map(() => Array(this.gridHeight).fill(0));
+                
+                // 標記隨機掩體 A* 網格
+                this.currentMap.obstacles.forEach(pos => {
+                    const blockW = pos.w || 1;
+                    const blockH = pos.h || 1;
+                    for (let xOff = 0; xOff < blockW; xOff++) {
+                        for (let yOff = 0; yOff < blockH; yOff++) {
+                            const gx = Math.floor(pos.x / 64) + xOff;
+                            const gy = Math.floor(pos.y / 64) + yOff;
+                            if (gx >= 0 && gx < this.gridWidth && gy >= 0 && gy < this.gridHeight) {
+                                this.aiGrid[gx][gy] = 1;
+                            }
+                        }
+                    }
+                });
+
+                // 4. 多人 P2P 聯機對手
+                if (!isBotMode && remotePlayerConfigs) {
+                    const enemySpawnPos = remotePlayerConfigs.team === 'blue' ? { x: 200, y: 1200 } : { x: 3000, y: 1200 };
+                    this.remotePlayer = this.physics.add.sprite(enemySpawnPos.x, enemySpawnPos.y, `player_${remotePlayerConfigs.charId}_tex`);
+                    this.remotePlayer.setCollideWorldBounds(true);
+                    this.remotePlayer.setImmovable(true);
+                    
+                    const remoteStats = this.calculateCombinedStats(remotePlayerConfigs.charId, remotePlayerConfigs.gearId);
+                    this.remotePlayer.hp = remoteStats.hp;
+                    this.remotePlayer.maxHp = remoteStats.hp;
+                    this.remotePlayer.shield = remoteStats.shield || 0;
+                    this.remotePlayer.maxShield = remoteStats.shield || 0;
+                    this.remotePlayer.team = remotePlayerConfigs.team;
+                    this.remotePlayer.isRemotePlayer = true;
+                    this.remotePlayer.lastDamageTime = 0;
+
+                    this.applyGearVisuals(this.remotePlayer, remotePlayerConfigs.gearId);
+
+                    if (remotePlayerConfigs.team === 'blue') {
+                        this.blueTeam.add(this.remotePlayer);
+                    } else {
+                        this.redTeam.add(this.remotePlayer);
+                    }
+                }
+
+                // 玩法模式對應之變數（據點、寶石）
+                this.gems = this.physics.add.group(); // 地板上的寶石
+                this.player.gemsCount = 0;
+                if (!isBotMode && this.remotePlayer) {
+                    this.remotePlayer.gemsCount = 0;
+                }
+
+                this.blueScore = 0;
+                this.redScore = 0;
+
+                // 生成對手、盟友與各關卡據點/寶石井
+                this.spawnBotsAndObjectives();
+
+                // 物理判定
+                this.myBullets = this.physics.add.group();
+                this.enemyBullets = this.physics.add.group();
+                this.superObjects = this.physics.add.group(); 
+
+                this.physics.add.collider(this.blueTeam, this.obstacles);
+                this.physics.add.collider(this.redTeam, this.obstacles);
+                this.physics.add.collider(this.myBullets, this.obstacles, (b) => b.destroy());
+                this.physics.add.collider(this.enemyBullets, this.obstacles, (b) => b.destroy());
+
+                // 據點/寶石與子彈命中
+                this.physics.add.overlap(this.blueTeam, this.myBullets, (unit, bullet) => {
+                    if (unit.team !== this.player.team) {
+                        bullet.destroy();
+                        this.damageUnit(unit, bullet.damage || 15);
+                    }
+                });
+                this.physics.add.overlap(this.redTeam, this.myBullets, (unit, bullet) => {
+                    if (unit.team !== this.player.team) {
+                        bullet.destroy();
+                        this.damageUnit(unit, bullet.damage || 15);
+                    }
+                });
+
+                this.physics.add.overlap(this.blueTeam, this.enemyBullets, (unit, bullet) => {
+                    if (unit.team === this.player.team) {
+                        bullet.destroy();
+                        if (unit.isPlayer) {
+                            this.takeDamage(bullet.damage || 15);
+                        } else {
+                            this.damageUnit(unit, bullet.damage || 15);
+                        }
+                    }
+                });
+                this.physics.add.overlap(this.redTeam, this.enemyBullets, (unit, bullet) => {
+                    if (unit.team === this.player.team) {
+                        bullet.destroy();
+                        if (unit.isPlayer) {
+                            this.takeDamage(bullet.damage || 15);
+                        } else {
+                            this.damageUnit(unit, bullet.damage || 15);
+                        }
+                    }
+                });
+
+                // 拾取寶石判定
+                this.physics.add.overlap(this.blueTeam, this.gems, (unit, gem) => {
+                    gem.destroy();
+                    unit.gemsCount = (unit.gemsCount || 0) + 1;
+                    SoundEngine.play('heal');
+                    this.showScoreIndicator(unit.x, unit.y, `💎 +1`, "#ca8a04");
+                });
+                this.physics.add.overlap(this.redTeam, this.gems, (unit, gem) => {
+                    gem.destroy();
+                    unit.gemsCount = (unit.gemsCount || 0) + 1;
+                    SoundEngine.play('heal');
+                    this.showScoreIndicator(unit.x, unit.y, `💎 +1`, "#ca8a04");
+                });
+
+                // 相機與視角 (限縮至 1.5 倍強化挑戰感)
+                this.cameras.main.setBounds(0, 0, 3200, 2400); 
+                this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
+                this.cameras.main.setZoom(1.5); 
+
+                this.cursors = this.input.keyboard.addKeys({
+                    up: Phaser.Input.Keyboard.KeyCodes.W,
+                    down: Phaser.Input.Keyboard.KeyCodes.S,
+                    left: Phaser.Input.Keyboard.KeyCodes.A,
+                    right: Phaser.Input.Keyboard.KeyCodes.D,
+                    superKey: Phaser.Input.Keyboard.KeyCodes.F
+                });
+
+                // PC 點擊瞄準狀態解鎖
+                this.input.mouse.disableContextMenu(); 
+                this.isRightClickAiming = false;
+
+                this.input.on('pointerdown', (pointer) => {
+                    if (window.isMobile) return;
+                    if (pointer.button === 2) { 
+                        this.isRightClickAiming = true;
+                    }
+                });
+
+                this.input.on('pointerup', (pointer) => {
+                    if (window.isMobile) return;
+                    if (pointer.button === 2) { 
+                        if (this.isRightClickAiming) {
+                            const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+                            const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, worldPoint.x, worldPoint.y);
+                            this.firePrimaryBullet(angle);
+                            this.isRightClickAiming = false;
+                            this.setVirtualAiming(0, 0, false);
+                        }
+                    } else if (pointer.button === 0) { 
+                        this.triggerAutoAim(false);
+                    }
+                });
+
+                this.uiGraphics = this.add.graphics().setDepth(100);
+                this.aimLine = this.add.graphics().setDepth(90);
+
+                this.nextFireTime = 0;
+                this.lastSentUpdate = 0;
+                this.virtualAim = { active: false, x: 0, y: 0 };
+
+                // 計時器初始化 (據模式而定)
+                this.timeLeft = 120; // 預設 120 秒
+                if (selectedSingleModeId === 'target' || selectedSingleModeId === 'robbery') {
+                    this.timeLeft = 60;
+                } else if (selectedSingleModeId === 'survival' || selectedSingleModeId === 'bossfight') {
+                    this.timeLeft = 9999; // 大逃殺與 Boss 戰不設限時
+                }
+
+                // 建立計時器與計分文字 UI (加上背景)
+                this.timerBg = this.add.rectangle(1600, 100, 400, 60, 0x000000, 0.6).setScrollFactor(0).setDepth(200);
+                this.timerText = this.add.text(1600, 100, "時間: 120s", { font: "22px Arial Black", fill: "#facc15" }).setOrigin(0.5).setScrollFactor(0).setDepth(201);
+                
+                if (selectedSingleModeId === 'survival' || selectedSingleModeId === 'bossfight') {
+                    this.timerBg.setVisible(false);
+                    this.timerText.setVisible(false);
+                }
+
+                this.time.addEvent({
+                    delay: 1000,
+                    callback: () => {
+                        if (this.timeLeft > 0 && this.timeLeft < 9000) {
+                            this.timeLeft--;
+                            this.updateLobbyStatusText();
+                            if (this.timeLeft <= 0) {
+                                this.timeLeft = 0;
+                                this.evaluateTimerEndVictory();
+                            }
+                        }
+                    },
+                    loop: true
+                });
+            }
+
+            updateLobbyStatusText() {
+                if (selectedSingleModeId === 'gems') {
+                    // 寶石爭霸進度
+                    const blueGems = this.getTeamGemCount('blue');
+                    const redGems = this.getTeamGemCount('red');
+                    this.timerText.setText(`💎 藍隊: ${blueGems} | 紅隊: ${redGems} (${this.timeLeft}s)`);
+                } else if (selectedSingleModeId === 'hotzone') {
+                    this.timerText.setText(`🏰 藍隊: ${Math.floor(this.blueScore)}% | 紅隊: ${Math.floor(this.redScore)}% (${this.timeLeft}s)`);
+                } else {
+                    this.timerText.setText(`時間: ${this.timeLeft}s`);
+                }
+            }
+
+            calculateCombinedStats(charId, gearId) {
+                const char = CHARACTERS[charId];
+                const gear = GEARS[gearId];
+                let stats = {
+                    charId: char.id,
+                    name: char.name,
+                    hp: char.hp,
+                    speed: char.speed,
+                    dmg: char.dmg,
+                    bSpeed: char.bSpeed,
+                    bSize: char.bSize,
+                    fireRate: char.fireRate,
+                    color: char.color,
+                    dmgRed: 1.0,
+                    healOnHit: 0,
+                    shield: 0,
+                    lifesteal: 0.0
+                };
+                if (gear && gear.mod) gear.mod(stats);
+                return stats;
+            }
+
+            applyGearVisuals(sprite, gearId) {
+                sprite.gearId = gearId;
+                if (gearId === 'shield') {
+                    sprite.shieldGlow = this.add.circle(sprite.x, sprite.y, 30, 0x3b82f6, 0.25);
+                } else if (gearId === 'boots') {
+                    sprite.speedRing = this.add.circle(sprite.x, sprite.y, 24, 0x22d3ee, 0.15);
+                }
+            }
+
+            updateGearVisualPositions(sprite) {
+                if (sprite.active && sprite.hp > 0) {
+                    if (sprite.shieldGlow) {
+                        sprite.shieldGlow.x = sprite.x;
+                        sprite.shieldGlow.y = sprite.y;
+                        sprite.shieldGlow.setVisible(sprite.shield > 0);
+                    }
+                    if (sprite.speedRing) {
+                        sprite.speedRing.x = sprite.x;
+                        sprite.speedRing.y = sprite.y;
+                    }
+                } else {
+                    if (sprite.shieldGlow) sprite.shieldGlow.destroy();
+                    if (sprite.speedRing) sprite.speedRing.destroy();
+                }
+            }
+
+            // --- 玩法模式地圖部署與初始化 (漸進生成隊列) ---
+            spawnBotsAndObjectives() {
+                // 1. 大逃殺生存 (5名對手逐隻生成)
+                if (isBotMode && selectedSingleModeId === 'survival') {
+                    let spawned = 0;
+                    this.time.addEvent({
+                        delay: 1000, 
+                        callback: () => {
+                            if (spawned < 5) {
+                                const rx = Phaser.Math.Between(400, 2800);
+                                const ry = Phaser.Math.Between(400, 2000);
+                                const bot = this.redTeam.create(rx, ry, 'enemy_tex'); 
+                                this.initBotUnit(bot, 'red');
+                                spawned++;
+                                this.showSpawnEffect(rx, ry);
+                            }
+                        },
+                        repeat: 4
+                    });
+
+                    // 部署草地能量木箱
+                    this.powerBoxes = this.physics.add.staticGroup();
+                    for (let i = 0; i < 8; i++) {
+                        const bx = Phaser.Math.Between(500, 2700);
+                        const by = Phaser.Math.Between(400, 2000);
+                        const box = this.powerBoxes.create(bx, by, 'box_tex');
+                        box.hp = 60;
+                    }
+                    this.physics.add.collider(this.blueTeam, this.powerBoxes);
+                    this.physics.add.collider(this.redTeam, this.powerBoxes);
+                    this.physics.add.overlap(this.powerBoxes, this.myBullets, (box, bullet) => {
+                        bullet.destroy();
+                        box.hp -= this.localStats.dmg;
+                        if (box.hp <= 0) {
+                            const crystal = this.physics.add.sprite(box.x, box.y, 'bullet_tex');
+                            crystal.setTint(0x22c55e);
+                            crystal.setScale(2);
+                            this.physics.add.overlap(this.player, crystal, (p, cry) => {
+                                cry.destroy();
+                                this.player.maxHp += 20;
+                                this.player.hp = Math.min(this.player.maxHp, this.player.hp + 30);
+                                this.localStats.dmg += 4;
+                                SoundEngine.play('heal');
+                            });
+                            box.destroy();
+                        }
+                    });
+                }
+
+                // 2. 寶石爭霸 (地圖中央自動寶石井)
+                if (selectedSingleModeId === 'gems') {
+                    this.gemSpawners = this.add.circle(1600, 1200, 36, 0x8b5cf6, 0.4).setStrokeStyle(3, 0xffffff);
+                    this.add.text(1600, 1200, "💎 井", { font: "15px Arial Black", fill: "#ffffff" }).setOrigin(0.5);
+                    
+                    // 每 7 秒自動噴出一顆寶石
+                    this.time.addEvent({
+                        delay: 7000,
+                        callback: () => {
+                            const gem = this.physics.add.sprite(1600 + Phaser.Math.Between(-50, 50), 1200 + Phaser.Math.Between(-50, 50), 'bullet_tex');
+                            gem.setTint(0xca8a04);
+                            gem.setScale(1.5);
+                            this.gems.add(gem);
+                        },
+                        loop: true
+                    });
+                }
+
+                // 3. 據點爭奪 (Hot Zone) - 三座戰術城堡
+                if (selectedSingleModeId === 'hotzone') {
+                    this.zones = [
+                        { x: 1000, y: 1200, radius: 100, team: 'neutral', progress: 0, marker: null },
+                        { x: 1600, y: 1200, radius: 120, team: 'neutral', progress: 0, marker: null },
+                        { x: 2200, y: 1200, radius: 100, team: 'neutral', progress: 0, marker: null }
+                    ];
+
+                    this.zones.forEach((zone, idx) => {
+                        zone.marker = this.add.circle(zone.x, zone.y, zone.radius, 0xffffff, 0.08).setStrokeStyle(3.5, 0xffffff);
+                        this.add.text(zone.x, zone.y, `據點 ${idx + 1}`, { font: "16px Arial Black", fill: "#ffffff" }).setOrigin(0.5);
+                    });
+                }
+
+                // 4. 巨大機甲 Boss (導入高智商 BFS 追擊)
+                if (isBotMode && selectedSingleModeId === 'bossfight') {
+                    this.bossRobot = this.redTeam.create(1600, 800, 'enemy_tex');
+                    this.bossRobot.setScale(3.5);
+                    this.bossRobot.hp = 1800;
+                    this.bossRobot.maxHp = 1800;
+                    this.bossRobot.setTint(0xef4444);
+                    this.bossRobot.isBoss = true;
+                    this.bossRobot.setDrag(1500);
+                    this.bossRobot.isAI = true;
+                    this.bossRobot.stats = { speed: 200, dmg: 16, fireRate: 1400, bSize: 1.5, bSpeed: 450 };
+                    this.showSpawnEffect(1600, 800);
+                }
+
+                // 5. 屍潮金庫防禦 (漸進一隻一隻生成)
+                if (isBotMode && selectedSingleModeId === 'defense') {
+                    this.safeVault = this.physics.add.sprite(1600, 1200, 'box_tex');
+                    this.safeVault.setImmovable(true);
+                    this.safeVault.hp = 500;
+                    this.safeVault.maxHp = 500;
+                    this.safeVault.setTint(0x3b82f6); 
+                    this.physics.add.collider(this.blueTeam, this.safeVault);
+                    this.physics.add.collider(this.redTeam, this.safeVault);
+
+                    // 殭屍每隔 3 秒一隻一隻生成
+                    this.time.addEvent({
+                        delay: 3000,
+                        callback: () => {
+                            if (this.player.active && this.player.hp > 0) {
+                                const borderX = Math.random() > 0.5 ? 100 : 3100;
+                                const borderY = Phaser.Math.Between(200, 2200);
+                                const zombie = this.redTeam.create(borderX, borderY, 'enemy_tex');
+                                this.initBotUnit(zombie, 'red');
+                                zombie.stats.speed = 180; 
+                                this.showSpawnEffect(borderX, borderY);
+                            }
+                        },
+                        loop: true
+                    });
+
+                    this.physics.add.overlap(this.redTeam, this.safeVault, (vault, zombie) => {
+                        if (!zombie.lastVaultHit || this.time.now - zombie.lastVaultHit > 1000) {
+                            vault.hp -= 20;
+                            SoundEngine.play('hit');
+                            zombie.lastVaultHit = this.time.now;
+                            if (vault.hp <= 0) {
+                                vault.hp = 0;
+                                this.showGameOverScreen(false);
+                            }
+                        }
+                    });
+                }
+
+                // 6. 移動標靶練習
+                if (isBotMode && selectedSingleModeId === 'target') {
+                    this.spawnPracticeTargets(8);
+                }
+
+                // 7. 藍紅兩陣營補足 AI 隊友與敵人 (3v3 單人或多人不夠皆補齊)
+                if (selectedSingleModeId !== 'survival' && selectedSingleModeId !== 'target' && selectedSingleModeId !== 'chaos') {
+                    const spawnBlueCount = this.playerTeam === 'blue' ? teamSize - 1 : teamSize;
+                    const spawnRedCount = this.playerTeam === 'red' ? teamSize - 1 : teamSize;
+
+                    // 藍隊 AI 一隻一隻漸進生成
+                    if (teamSize > 1) {
+                        let bIndex = 0;
+                        this.time.addEvent({
+                            delay: 800,
+                            callback: () => {
+                                if (bIndex < spawnBlueCount) {
+                                    const bot = this.blueTeam.create(200, 500 + (bIndex + 1) * 200, 'player_tex');
+                                    this.initBotUnit(bot, 'blue');
+                                    this.showSpawnEffect(200, 500 + (bIndex + 1) * 200);
+                                    bIndex++;
+                                }
+                            },
+                            repeat: spawnBlueCount - 1
+                        });
+
+                        // 紅隊 AI 一隻一隻漸進生成
+                        let rIndex = 0;
+                        this.time.addEvent({
+                            delay: 900,
+                            callback: () => {
+                                if (rIndex < spawnRedCount) {
+                                    const bot = this.redTeam.create(3000, 500 + (rIndex + 1) * 200, 'enemy_tex');
+                                    this.initBotUnit(bot, 'red');
+                                    this.showSpawnEffect(3000, 500 + (rIndex + 1) * 200);
+                                    rIndex++;
+                                }
+                            },
+                            repeat: spawnRedCount - 1
+                        });
+                    }
+                } else {
+                    // 單人團隊戰 (Bot 模式)
+                    if (selectedSingleModeId === 'brawl' || selectedSingleModeId === 'gems' || selectedSingleModeId === 'hotzone' || selectedSingleModeId === 'bounty' || selectedSingleModeId === 'escort' || selectedSingleModeId === 'robbery' || selectedSingleModeId === 'king' || selectedSingleModeId === 'chaos') {
+                        const spawnBlueCount = teamSize - 1;
+                        const spawnRedCount = teamSize;
+
+                        for (let i = 0; i < spawnBlueCount; i++) {
+                            const bot = this.blueTeam.create(300, 500 + (i + 1) * 200, 'player_tex');
+                            this.initBotUnit(bot, 'blue');
+                        }
+                        for (let i = 0; i < spawnRedCount; i++) {
+                            const bot = this.redTeam.create(2900, 500 + i * 200, 'enemy_tex');
+                            this.initBotUnit(bot, 'red');
+                        }
+                    }
+                }
+            }
+
+            showSpawnEffect(x, y) {
+                const ring = this.add.circle(x, y, 40, 0xeab308, 0.4);
+                this.tweens.add({
+                    targets: ring,
+                    scale: 0.1,
+                    alpha: 0,
+                    duration: 850,
+                    onComplete: () => ring.destroy()
+                });
+            }
+
+            spawnPracticeTargets(count) {
+                this.targets = this.physics.add.group();
+                for (let i = 0; i < count; i++) {
+                    const tx = Phaser.Math.Between(400, 2800);
+                    const ty = Phaser.Math.Between(300, 2100);
+                    const tar = this.targets.create(tx, ty, 'box_tex');
+                    tar.setTint(0xeab308); 
+                    tar.hp = 30;
+                    tar.setCollideWorldBounds(true);
+                    tar.body.setVelocity(Phaser.Math.Between(-150, 150), Phaser.Math.Between(-150, 150));
+                    tar.body.setBounce(1, 1);
+                }
+                this.physics.add.collider(this.targets, this.obstacles);
+                this.physics.add.overlap(this.targets, this.myBullets, (tar, bullet) => {
+                    bullet.destroy();
+                    tar.hp -= this.localStats.dmg;
+                    if (tar.hp <= 0) {
+                        tar.destroy();
+                        this.targetScore++;
+                        SoundEngine.play('kill');
+                        this.time.delayedCall(2000, () => {
+                            if (this.timeLeft > 0) this.spawnPracticeTargets(1);
+                        });
+                    }
+                });
+            }
+
+            initBotUnit(bot, team) {
+                const charKeys = Object.keys(CHARACTERS);
+                const randomChar = charKeys[Math.floor(Math.random() * charKeys.length)];
+                bot.stats = this.calculateCombinedStats(randomChar, 'boots');
+                bot.hp = bot.stats.hp;
+                bot.maxHp = bot.stats.hp;
+                bot.gemsCount = 0;
+                bot.lastDamageTime = 0;
+                
+                bot.setTexture(`player_${randomChar}_tex`);
+                bot.team = team;
+                bot.setCollideWorldBounds(true);
+                bot.setDrag(1200);
+                bot.lastPathCalcTime = 0; 
+                bot.isAI = true;
+
+                this.applyGearVisuals(bot, 'boots'); 
+            }
+
+            // --- 10 大英雄與子彈材質繪製 (形狀實質差異化) ---
+            createGameTextures() {
+                Object.values(CHARACTERS).forEach(char => {
+                    let g = this.make.graphics({ x: 0, y: 0, add: false });
+                    g.lineStyle(3.5, 0xffffff, 1);
+
+                    if (char.id === 'colt') {
+                        g.fillStyle(char.color, 1);
+                        g.fillRect(8, 8, 32, 32); 
+                        g.strokeRect(8, 8, 32, 32);
+                        g.fillStyle(0xd1d5db, 1);
+                        g.fillRect(10, 4, 6, 22);
+                        g.fillRect(32, 4, 6, 22);
+                    } else if (char.id === 'bull') {
+                        g.fillStyle(char.color, 1);
+                        g.fillEllipse(24, 24, 22, 18);
+                        g.strokeEllipse(24, 24, 22, 18);
+                        g.fillStyle(0xffffff, 1);
+                        g.beginPath();
+                        g.moveTo(6, 12); g.lineTo(2, 2); g.lineTo(10, 10); g.closePath(); g.fill();
+                        g.beginPath();
+                        g.moveTo(42, 12); g.lineTo(46, 2); g.lineTo(38, 10); g.closePath(); g.fill();
+                        g.fillStyle(0x1f2937, 1);
+                        g.fillRect(16, 2, 16, 20);
+                    } else if (char.id === 'poco') {
+                        g.fillStyle(0xffffff, 1); 
+                        g.fillCircle(24, 24, 18);
+                        g.strokeCircle(24, 24, 18);
+                        g.fillStyle(0x111827, 1);
+                        g.fillCircle(16, 20, 4);
+                        g.fillCircle(32, 20, 4);
+                        g.fillStyle(0x78350f, 1);
+                        g.fillRect(21, 0, 6, 18);
+                    } else if (char.id === 'mortis') {
+                        g.fillStyle(0x312e81, 1);
+                        g.beginPath();
+                        g.moveTo(24, 4); g.lineTo(6, 36); g.lineTo(42, 36); g.closePath(); g.fill();
+                        g.strokePath();
+                        g.lineStyle(2, 0xd1d5db, 1);
+                        g.lineBetween(24, 24, 42, 2);
+                        g.fillStyle(0x6b7280, 1);
+                        g.beginPath();
+                        g.moveTo(42, 2); g.lineTo(46, 8); g.lineTo(30, 12); g.closePath(); g.fill();
+                    } else if (char.id === 'spike') {
+                        g.fillStyle(0x15803d, 1);
+                        g.fillCircle(24, 24, 18);
+                        g.strokeCircle(24, 24, 18);
+                        g.fillStyle(0x4ade80, 1);
+                        g.fillRect(4, 22, 4, 4); g.fillRect(40, 22, 4, 4); g.fillRect(22, 4, 4, 4);
+                        g.fillStyle(0xef4444, 1);
+                        g.fillCircle(24, 10, 5);
+                    } else if (char.id === 'leon') {
+                        g.fillStyle(0x047857, 1);
+                        g.fillRoundedRect(6, 6, 36, 36, 12);
+                        g.strokeRoundedRect(6, 6, 36, 36, 12);
+                        g.fillStyle(0xfacc15, 1);
+                        g.fillCircle(24, 38, 6);
+                    } else if (char.id === 'crow') {
+                        g.fillStyle(0x1e293b, 1);
+                        g.beginPath();
+                        g.moveTo(24, 4); g.lineTo(8, 30); g.lineTo(40, 30); g.closePath(); g.fill();
+                        g.strokePath();
+                        g.fillStyle(0xeab308, 1);
+                        g.beginPath();
+                        g.moveTo(21, 16); g.lineTo(24, 0); g.lineTo(27, 16); g.closePath(); g.fill();
+                    } else if (char.id === 'sandy') {
+                        g.fillStyle(0x6b21a8, 1);
+                        g.fillRoundedRect(6, 12, 36, 26, 8);
+                        g.strokeRoundedRect(6, 12, 36, 26, 8);
+                        g.fillStyle(0xfacc15, 1);
+                        g.fillCircle(24, 20, 5);
+                    } else {
+                        g.fillStyle(char.color, 1);
+                        g.fillCircle(24, 24, 20);
+                        g.strokeCircle(24, 24, 20);
+                        g.fillStyle(0x475569, 1);
+                        g.fillRect(22, 0, 4, 24);
+                    }
+
+                    g.generateTexture(`player_${char.id}_tex`, 48, 48);
+                });
+
+                // 2. 專屬幾何子彈
+                Object.values(CHARACTERS).forEach(char => {
+                    let bg = this.make.graphics({ x: 0, y: 0, add: false });
+                    
+                    if (char.id === 'colt') {
+                        bg.fillStyle(0x38bdf8, 1);
+                        bg.fillRect(2, 6, 20, 4);
+                    } else if (char.id === 'bull') {
+                        bg.fillStyle(0x1f2937, 1);
+                        bg.fillCircle(12, 12, 10);
+                        bg.lineStyle(2, 0x4b5563, 1);
+                        bg.strokeCircle(12, 12, 10);
+                    } else if (char.id === 'poco') {
+                        bg.fillStyle(0xca8a04, 1);
+                        bg.fillCircle(8, 16, 5);
+                        bg.fillRect(11, 4, 3, 12);
+                        bg.fillRect(11, 4, 8, 3);
+                    } else if (char.id === 'mortis') {
+                        bg.fillStyle(0x8b5cf6, 1);
+                        bg.beginPath();
+                        bg.moveTo(12, 2);
+                        bg.arc(12, 12, 10, -Math.PI/2, Math.PI/2);
+                        bg.lineTo(12, 18);
+                        bg.arc(12, 12, 6, Math.PI/2, -Math.PI/2, true);
+                        bg.closePath();
+                        bg.fill();
+                    } else if (char.id === 'spike') {
+                        bg.fillStyle(0x22c55e, 1);
+                        bg.fillCircle(12, 12, 8);
+                        bg.fillStyle(0xfacc15, 1);
+                        bg.fillRect(10, 0, 4, 4); bg.fillRect(10, 20, 4, 4);
+                        bg.fillRect(0, 10, 4, 4); bg.fillRect(20, 10, 4, 4);
+                    } else if (char.id === 'leon') {
+                        bg.fillStyle(0x9ca3af, 1);
+                        bg.beginPath();
+                        bg.moveTo(12, 0); bg.lineTo(16, 8); bg.lineTo(24, 12); bg.lineTo(16, 16);
+                        bg.lineTo(12, 24); bg.lineTo(8, 16); bg.lineTo(0, 12); bg.lineTo(8, 8);
+                        bg.closePath();
+                        bg.fill();
+                    } else if (char.id === 'crow') {
+                        bg.fillStyle(0xa855f7, 1);
+                        bg.beginPath();
+                        bg.moveTo(12, 0); bg.lineTo(22, 24); bg.lineTo(2, 24); bg.closePath(); bg.fill();
+                    } else if (char.id === 'sandy') {
+                        bg.fillStyle(0xfacc15, 1);
+                        bg.fillCircle(12, 12, 6);
+                    } else {
+                        bg.fillStyle(0xf97316, 1);
+                        bg.fillCircle(12, 12, 5);
+                    }
+                    bg.generateTexture(`bullet_${char.id}_tex`, 24, 24);
+                });
+
+                // 木箱 (修改 g 為對應的 boxGraphics 變數以修復 ReferenceError)
+                let boxGraphics = this.make.graphics({ x: 0, y: 0, add: false });
+                boxGraphics.fillStyle(0xd97706, 1); 
+                boxGraphics.fillRect(0, 0, 64, 64);
+                boxGraphics.lineStyle(4, 0x78350f, 1);
+                boxGraphics.strokeRect(2, 2, 60, 60);
+                boxGraphics.lineBetween(8, 8, 56, 56);
+                boxGraphics.lineBetween(56, 8, 8, 56);
+                boxGraphics.generateTexture('box_tex', 64, 64);
+
+                let bulletGraphics = this.make.graphics({ x: 0, y: 0, add: false });
+                bulletGraphics.fillStyle(0xfacc15, 1); 
+                bulletGraphics.fillCircle(8, 8, 6);
+                bulletGraphics.generateTexture('bullet_tex', 16, 16);
+
+                let spikeGraphics = this.make.graphics({ x: 0, y: 0, add: false });
+                spikeGraphics.fillStyle(0x10b981, 0.3);
+                spikeGraphics.fillCircle(96, 96, 90);
+                spikeGraphics.lineStyle(2, 0x047857, 0.8);
+                spikeGraphics.strokeCircle(96, 96, 90);
+                spikeGraphics.generateTexture('spike_patch_tex', 192, 192);
+
+                let sandGraphics = this.make.graphics({ x: 0, y: 0, add: false });
+                sandGraphics.fillStyle(0xf59e0b, 0.2);
+                sandGraphics.fillCircle(150, 150, 140);
+                sandGraphics.generateTexture('sand_storm_tex', 300, 300);
+
+                // 草叢貼圖 ( bush_tex )
+                let bushGraphics = this.make.graphics({ x: 0, y: 0, add: false });
+                bushGraphics.fillStyle(0x14532d, 0.85); // 墨綠色草叢
+                bushGraphics.fillCircle(48, 48, 40);
+                bushGraphics.generateTexture('bush_tex', 96, 96);
+            }
+
+            spawnObstaclesAndBushes() {
+                // 1. 部署隨機形狀大小箱子障礙 (1x2, 2x1, 2x2)
+                this.currentMap.obstacles.forEach(pos => {
+                    const blockW = pos.w || 1;
+                    const blockH = pos.h || 1;
+                    
+                    for (let xOff = 0; xOff < blockW; xOff++) {
+                        for (let yOff = 0; yOff < blockH; yOff++) {
+                            const obstacle = this.obstacles.create(pos.x + xOff * 64, pos.y + yOff * 64, 'box_tex');
+                        }
+                    }
+                });
+
+                // 2. 部署戰術草叢
+                this.currentMap.bushes.forEach(pos => {
+                    for(let i=0; i<3; i++) {
+                        const ox = pos.x + Phaser.Math.Between(-30, 30);
+                        const oy = pos.y + Phaser.Math.Between(-30, 30);
+                        const b = this.bushes.create(ox, oy, 'bush_tex');
+                        b.setDepth(10); 
+                    }
+                });
+            }
+
+            setVirtualAiming(x, y, active) {
+                this.virtualAim.active = active;
+                this.virtualAim.x = x;
+                this.virtualAim.y = y;
+            }
+
+            handleDesktopPointerUp(pointer) {
+                if (pointer.button === 2) { 
+                    if (this.virtualAim.active) {
+                        const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+                        const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, worldPoint.x, worldPoint.y);
+                        this.firePrimaryBullet(angle);
+                        this.virtualAim.active = false;
+                    }
+                } else {
+                    // 普通左鍵點擊：自動射擊
+                    this.triggerAutoAim(false);
+                }
+            }
+
+            triggerAutoAim(isSuper) {
+                let nearestEnemy = null;
+                let minDist = 9999;
+                
+                const searchGroup = this.playerTeam === 'blue' ? this.redTeam : this.blueTeam;
+                searchGroup.getChildren().forEach(enemy => {
+                    if (enemy.active && enemy.hp > 0) {
+                        if (enemy.isInBush && Phaser.Math.Distance.Between(this.player.x, this.player.y, enemy.x, enemy.y) > 140) {
+                            return; 
+                        }
+                        const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, enemy.x, enemy.y);
+                        if (d < minDist) {
+                            minDist = d;
+                            nearestEnemy = enemy;
+                        }
+                    }
+                });
+
+                let angle = this.player.rotation; 
+                if (nearestEnemy) {
+                    angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, nearestEnemy.x, nearestEnemy.y);
+                }
+
+                if (isSuper) {
+                    this.releaseUltimate(angle);
+                } else {
+                    this.firePrimaryBullet(angle);
+                }
+            }
+
+            firePrimaryBullet(angle) {
+                const time = this.time.now;
+                if (time < this.nextFireTime || this.isSuperCasting) return;
+
+                this.fireBullet(this.player.x, this.player.y, angle, true, this.localStats.dmg, this.localStats.bSize, this.localStats.bSpeed);
+                SoundEngine.play('shoot');
+
+                if (selectedCharId === 'mortis') {
+                    const targetX = Phaser.Math.Clamp(this.player.x + Math.cos(angle) * 75, 40, 3160);
+                    const targetY = Phaser.Math.Clamp(this.player.y + Math.sin(angle) * 75, 40, 2360);
+                    this.player.x = targetX;
+                    this.player.y = targetY;
+                    this.player.body.reset(this.player.x, this.player.y);
+                }
+
+                this.nextFireTime = time + this.localStats.fireRate;
+            }
+
+            // --- 大招發動與修復失效技能 ---
+            releaseUltimate(angle) {
+                if (!this.superCharged || this.isSuperCasting) return;
+                
+                this.isSuperCasting = true; 
+                this.superCharge = 0;
+                this.superCharged = false;
+                SoundEngine.play('super');
+
+                const startX = this.player.x;
+                const startY = this.player.y;
+
+                switch(selectedCharId) {
+                    case 'shelly':
+                        for (let i = -5; i <= 5; i++) {
+                            this.fireBullet(startX, startY, angle + i * 0.08, true, this.localStats.dmg * 1.5, 1.2, this.localStats.bSpeed * 1.2, true);
+                        }
+                        this.isSuperCasting = false; 
+                        break;
+                    case 'colt':
+                        for (let i = 0; i < 16; i++) {
+                            this.time.delayedCall(i * 35, () => {
+                                if (this.player.active) {
+                                    this.fireBullet(this.player.x, this.player.y, angle, true, this.localStats.dmg * 0.9, 0.9, this.localStats.bSpeed * 1.4, true);
+                                    SoundEngine.play('shoot');
+                                }
+                                if (i === 15) {
+                                    this.isSuperCasting = false; 
+                                }
+                            });
+                        }
+                        break;
+                    case 'bull':
+                        this.player.setTint(0xff0000);
+                        const chargeVelX = Math.cos(angle) * 800;
+                        const chargeVelY = Math.sin(angle) * 800;
+                        this.player.setVelocity(chargeVelX, chargeVelY);
+                        
+                        this.time.delayedCall(800, () => {
+                            if (this.player.active) {
+                                this.player.setTint(this.localStats.color);
+                                this.player.setVelocity(0, 0);
+                                this.player.x = Phaser.Math.Clamp(this.player.x, 40, 3160);
+                                this.player.y = Phaser.Math.Clamp(this.player.y, 40, 2360);
+                                this.player.body.reset(this.player.x, this.player.y);
+                                this.isSuperCasting = false; 
+                            }
+                        });
+                        break;
+                    case 'elprimo':
+                        this.player.setAlpha(0.6);
+                        const targetLeapX = Phaser.Math.Clamp(startX + Math.cos(angle) * 220, 40, 3160);
+                        const targetLeapY = Phaser.Math.Clamp(startY + Math.sin(angle) * 220, 40, 2360);
+                        
+                        this.tweens.add({
+                            targets: this.player,
+                            x: targetLeapX,
+                            y: targetLeapY,
+                            duration: 520,
+                            onComplete: () => {
+                                if (this.player.active) {
+                                    this.player.setAlpha(1);
+                                    const shockwave = this.add.circle(this.player.x, this.player.y, 110, 0xca8a04, 0.35);
+                                    this.time.delayedCall(200, () => shockwave.destroy());
+                                    
+                                    const enemyGroup = this.playerTeam === 'blue' ? this.redTeam : this.blueTeam;
+                                    enemyGroup.getChildren().forEach(enemy => {
+                                        const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, enemy.x, enemy.y);
+                                        if (dist < 110) {
+                                            this.damageUnit(enemy, this.localStats.dmg * 2.5);
+                                        }
+                                    });
+                                    this.player.body.reset(this.player.x, this.player.y);
+                                    this.isSuperCasting = false; 
+                                }
+                            }
+                        });
+                        break;
+                    case 'poco':
+                        SoundEngine.play('heal');
+                        this.player.hp = Math.min(this.player.maxHp, this.player.hp + this.player.maxHp * 0.6);
+                        this.blueTeam.getChildren().forEach(ally => {
+                            ally.hp = Math.min(ally.maxHp, ally.hp + ally.maxHp * 0.6);
+                        });
+                        const healRing = this.add.circle(startX, startY, 250, 0x22c55e, 0.25);
+                        this.tweens.add({ targets: healRing, scale: 1.5, alpha: 0, duration: 400, onComplete: () => healRing.destroy() });
+                        this.isSuperCasting = false; 
+                        break;
+                    case 'mortis':
+                        for (let i = -2; i <= 2; i++) {
+                            const bat = this.physics.add.sprite(startX, startY, 'bullet_tex');
+                            bat.setTint(0x8b5cf6);
+                            bat.setScale(2.5);
+                            this.physics.moveTo(bat, startX + Math.cos(angle + i * 0.15) * 500, startY + Math.sin(angle + i * 0.15) * 500, 500);
+                            
+                            const enemyGroup = this.playerTeam === 'blue' ? this.redTeam : this.blueTeam;
+                            this.physics.add.overlap(enemyGroup, bat, (enemy, b) => {
+                                b.destroy();
+                                this.damageUnit(enemy, this.localStats.dmg * 1.5);
+                                this.player.hp = Math.min(this.player.maxHp, this.player.hp + 20);
+                                SoundEngine.play('heal');
+                            });
+                        }
+                        this.isSuperCasting = false; 
+                        break;
+                    case 'spike':
+                        // 修正：拋出仙人球，在落地點生成緩速 thorny patch
+                        const patchX = startX + Math.cos(angle) * 180;
+                        const patchY = startY + Math.sin(angle) * 180;
+                        const patch = this.superObjects.create(patchX, patchY, 'spike_patch_tex');
+                        patch.name = 'spike_patch';
+                        this.time.delayedCall(4500, () => patch.destroy());
+                        this.isSuperCasting = false; 
+                        break;
+                    case 'leon':
+                        this.player.alpha = 0.15;
+                        this.player.isInvisible = true;
+                        this.time.delayedCall(5000, () => {
+                            if (this.player.active) {
+                                this.player.alpha = 1;
+                                this.player.isInvisible = false;
+                            }
+                        });
+                        this.isSuperCasting = false; 
+                        break;
+                    case 'crow':
+                        for (let i = 0; i < 16; i++) {
+                            const a = (Math.PI * 2 / 16) * i;
+                            this.fireBullet(startX, startY, a, true, this.localStats.dmg * 1.2, 0.8, this.localStats.bSpeed * 1.1, true);
+                        }
+                        this.isSuperCasting = false; 
+                        break;
+                    case 'sandy':
+                        // 修正：生成大範圍沙塵暴物體，為圓形範圍內盟友提供完美隱身
+                        const stormX = startX + Math.cos(angle) * 100;
+                        const stormY = startY + Math.sin(angle) * 100;
+                        const storm = this.superObjects.create(stormX, stormY, 'sand_storm_tex');
+                        storm.name = 'sand_storm';
+                        this.time.delayedCall(6000, () => storm.destroy());
+                        this.isSuperCasting = false; 
+                        break;
+                }
+            }
+
+            fireBullet(startX, startY, angle, isLocal, dmg, bSize, bSpeed, isSuper = false) {
+                const bulletGroup = isLocal ? this.myBullets : this.enemyBullets;
+                const bulletKey = isLocal ? `bullet_${selectedCharId}_tex` : `bullet_shelly_tex`;
+                const bullet = this.physics.add.sprite(startX, startY, bulletKey);
+                
+                if (bullet) {
+                    bulletGroup.add(bullet);
+                    bullet.setActive(true);
+                    bullet.setVisible(true);
+                    bullet.setRotation(angle);
+                    bullet.damage = dmg;
+                    bullet.setScale(bSize);
+
+                    const vx = Math.cos(angle) * bSpeed;
+                    const vy = Math.sin(angle) * bSpeed;
+                    bullet.body.setVelocity(vx, vy);
+
+                    this.time.delayedCall(isSuper ? 600 : 450, () => {
+                        if (bullet && bullet.active) bullet.destroy();
+                    });
+
+                    if (isLocal && !isBotMode) {
+                        this.sendNetworkMessage({
+                            type: 'shoot',
+                            x: startX,
+                            y: startY,
+                            angle: angle,
+                            dmg: dmg,
+                            bSize: bSize,
+                            bSpeed: bSpeed
+                        });
+                    }
+                }
+            }
+
+            takeDamage(amount) {
+                if (this.player.hp <= 0) return;
+
+                this.player.lastDamageTime = this.time.now;
+
+                let actualDmg = amount * (this.localStats.dmgRed || 1.0);
+                if (this.player.shield > 0) {
+                    this.player.shield -= actualDmg;
+                    if (this.player.shield < 0) {
+                        this.player.hp += this.player.shield;
+                        this.player.shield = 0;
+                    }
+                } else {
+                    this.player.hp -= actualDmg;
+                }
+
+                SoundEngine.play('hit');
+
+                if (this.player.hp <= 0) {
+                    this.player.hp = 0;
+                    this.handlePlayerDeath();
+                }
+
+                if (!isBotMode) {
+                    this.sendNetworkMessage({
+                        type: 'hit',
+                        hp: this.player.hp,
+                        shield: this.player.shield
+                    });
+                }
+            }
+
+            damageUnit(unit, amount) {
+                if (!unit.active || unit.hp <= 0) return;
+
+                unit.hp -= amount;
+                unit.lastDamageTime = this.time.now; 
+
+                SoundEngine.play('hit');
+
+                if (this.superCharge < 100) {
+                    this.superCharge = Math.min(100, this.superCharge + 15);
+                    if (this.superCharge >= 100) {
+                        this.superCharged = true;
+                    }
+                }
+
+                const dmgText = this.add.text(unit.x, unit.y - 15, `-${Math.floor(amount)}`, { font: "18px Arial Black", fill: "#f87171" });
+                this.tweens.add({ targets: dmgText, y: unit.y - 45, alpha: 0, duration: 450, onComplete: () => dmgText.destroy() });
+
+                if (unit.hp <= 0) {
+                    unit.hp = 0;
+                    SoundEngine.play('kill');
+                    
+                    if (selectedSingleModeId === 'gems' && unit.gemsCount > 0) {
+                        this.showScoreIndicator(unit.x, unit.y, `散落 ${unit.gemsCount} 寶石!`, "#ca8a04");
+                        for(let i=0; i<unit.gemsCount; i++) {
+                            const dropGem = this.physics.add.sprite(unit.x + Phaser.Math.Between(-60, 60), unit.y + Phaser.Math.Between(-60, 60), 'bullet_tex');
+                            dropGem.setTint(0xca8a04);
+                            dropGem.setScale(1.5);
+                            this.gems.add(dropGem);
+                        }
+                        unit.gemsCount = 0;
+                    }
+
+                    unit.setActive(false);
+                    unit.setVisible(false);
+
+                    if (unit.isBoss) {
+                        this.showGameOverScreen(this.playerTeam); 
+                    } else {
+                        this.checkVictoryConditions();
+                    }
+                }
+            }
+
+            checkVictoryConditions() {
+                const enemyGroup = this.playerTeam === 'blue' ? this.redTeam : this.blueTeam;
+                let aliveEnemy = 0;
+                enemyGroup.getChildren().forEach(e => {
+                    if (e.active && e.hp > 0) aliveEnemy++;
+                });
+
+                if (aliveEnemy === 0) {
+                    this.showGameOverScreen(this.playerTeam);
+                }
+            }
+
+            handlePlayerDeath() {
+                const friendlyGroup = this.playerTeam === 'blue' ? this.blueTeam : this.redTeam;
+                let aliveFriendly = 0;
+                friendlyGroup.getChildren().forEach(f => {
+                    if (f.active && f.hp > 0) aliveFriendly++;
+                });
+
+                if (aliveFriendly === 0) {
+                    this.showGameOverScreen(this.playerTeam === 'blue' ? 'red' : 'blue');
+                }
+            }
+
+            showGameOverScreen(winnerTeam) {
+                this.physics.pause();
+                gameoverMenu.classList.remove('hidden');
+                
+                const isWinner = (winnerTeam === this.playerTeam);
+                if (isWinner) {
+                    gameoverTitle.innerText = "🏆 勝利！";
+                    gameoverTitle.className = "text-4xl font-black mb-2 tracking-wide italic text-yellow-400";
+                    gameoverDesc.innerText = "完美的戰術配合！你贏得了本場戰局。";
+                } else {
+                    gameoverTitle.innerText = "💀 戰敗！";
+                    gameoverTitle.className = "text-4xl font-black mb-2 tracking-wide italic text-red-500";
+                    gameoverDesc.innerText = "被對手徹底摧毀！返回大廳調整戰術。";
+                }
+                SoundEngine.play(isWinner ? 'kill' : 'gameover');
+
+                if (!isBotMode && conn && conn.open) {
+                    conn.send({
+                        type: 'game_result',
+                        winnerTeam: winnerTeam
+                    });
+                }
+            }
+
+            handleMatchOver(winnerTeam) {
+                this.showGameOverScreen(winnerTeam);
+            }
+
+            evaluateTimerEndVictory() {
+                if (selectedSingleModeId === 'gems') {
+                    const blue = this.getTeamGemCount('blue');
+                    const red = this.getTeamGemCount('red');
+                    this.showGameOverScreen(blue >= red ? 'blue' : 'red');
+                } else if (selectedSingleModeId === 'hotzone') {
+                    this.showGameOverScreen(this.blueScore >= this.redScore ? 'blue' : 'red');
+                } else {
+                    this.showGameOverScreen(this.playerTeam);
+                }
+            }
+
+            getTeamGemCount(team) {
+                let count = 0;
+                const group = team === 'blue' ? this.blueTeam : this.redTeam;
+                group.getChildren().forEach(u => {
+                    if (u.active && u.hp > 0) count += (u.gemsCount || 0);
+                });
+                return count;
+            }
+
+            handleMovement() {
+                if (this.isSuperCasting) return; 
+                
+                let vx = 0;
+                let vy = 0;
+                const speed = this.localStats.speed;
+
+                if (window.isMobile && leftJoy.active) {
+                    vx = leftJoy.x * speed;
+                    vy = leftJoy.y * speed;
+                } else {
+                    if (this.cursors.left.isDown) vx = -speed;
+                    else if (this.cursors.right.isDown) vx = speed;
+
+                    if (this.cursors.up.isDown) vy = -speed;
+                    else if (this.cursors.down.isDown) vy = speed;
+                }
+
+                this.player.setVelocity(vx, vy);
+
+                if (Phaser.Input.Keyboard.JustDown(this.cursors.superKey)) {
+                    this.triggerAutoAim(true);
+                }
+
+                if (!window.isMobile) {
+                    const activePointer = this.input.activePointer;
+                    const worldPoint = this.cameras.main.getWorldPoint(activePointer.x, activePointer.y);
+                    const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, worldPoint.x, worldPoint.y);
+                    this.player.rotation = angle;
+                } else if (vx !== 0 || vy !== 0) {
+                    this.player.rotation = Math.atan2(vy, vx);
+                }
+
+                this.player.x = Phaser.Math.Clamp(this.player.x, 32, 3168);
+                this.player.y = Phaser.Math.Clamp(this.player.y, 32, 2368);
+
+                this.updateGearVisualPositions(this.player);
+                if (this.remotePlayer) {
+                    this.updateGearVisualPositions(this.remotePlayer);
+                }
+                this.blueTeam.getChildren().forEach(ally => { if (ally.isAI) this.updateGearVisualPositions(ally); });
+                this.redTeam.getChildren().forEach(enemy => { if (enemy.isAI) this.updateGearVisualPositions(enemy); });
+            }
+
+            handleBotAI(time) {
+                this.blueTeam.getChildren().forEach(bot => {
+                    if (!bot.active || bot.hp <= 0 || !bot.isAI) return;
+                    this.executeUnitAILogic(bot, time, this.blueTeam, this.redTeam);
+                });
+
+                this.redTeam.getChildren().forEach(bot => {
+                    if (!bot.active || bot.hp <= 0 || !bot.isAI) return;
+                    this.executeUnitAILogic(bot, time, this.redTeam, this.blueTeam);
+                });
+            }
+
+            executeUnitAILogic(bot, time, friendlyGroup, enemyGroup) {
+                let target = null;
+                let minDist = 9999;
+
+                enemyGroup.getChildren().forEach(enemy => {
+                    if (enemy.active && enemy.hp > 0) {
+                        if (enemy.isInBush && Phaser.Math.Distance.Between(bot.x, bot.y, enemy.x, enemy.y) > 140) {
+                            return;
+                        }
+                        const d = Phaser.Math.Distance.Between(bot.x, bot.y, enemy.x, enemy.y);
+                        if (d < minDist) {
+                            minDist = d;
+                            target = enemy;
+                        }
+                    }
+                });
+
+                if (!target) {
+                    bot.setVelocity(0, 0);
+                    return;
+                }
+
+                if (!bot.nextStep || time - bot.lastPathCalcTime > 200) {
+                    bot.nextStep = this.getPathNextStep(bot.x, bot.y, target.x, target.y);
+                    bot.lastPathCalcTime = time;
+                }
+
+                const angle = Phaser.Math.Angle.Between(bot.x, bot.y, target.x, target.y);
+                bot.rotation = angle;
+
+                const botSpeed = bot.isBoss ? bot.stats.speed : (bot.stats?.speed || 240);
+                if (minDist > 160) {
+                    this.physics.moveTo(bot, bot.nextStep.x, bot.nextStep.y, botSpeed);
+                } else {
+                    bot.setVelocity(0, 0);
+                }
+
+                const fireInterval = bot.isBoss ? bot.stats.fireRate : (bot.stats?.fireRate || 500);
+                if (minDist < 380 && (!bot.lastShotTime || time - bot.lastShotTime > fireInterval)) {
+                    const randomAngle = angle + (Math.random() - 0.5) * 0.15;
+                    const dmg = bot.isBoss ? bot.stats.dmg : (bot.stats?.dmg || 12);
+                    const bSize = bot.isBoss ? bot.stats.bSize : (bot.stats?.bSize || 1.0);
+                    const bSpeed = bot.isBoss ? bot.stats.bSpeed : (bot.stats?.bSpeed || 600);
+                    
+                    this.fireBullet(bot.x, bot.y, randomAngle, bot.team === this.player.team, dmg, bSize, bSpeed);
+                    bot.lastShotTime = time;
+                }
+            }
+
+            getPathNextStep(startX, startY, targetX, targetY) {
+                const startGx = Phaser.Math.Clamp(Math.floor(startX / 64), 0, this.gridWidth - 1);
+                const startGy = Phaser.Math.Clamp(Math.floor(startY / 64), 0, this.gridHeight - 1);
+                const targetGx = Phaser.Math.Clamp(Math.floor(targetX / 64), 0, this.gridWidth - 1);
+                const targetGy = Phaser.Math.Clamp(Math.floor(targetY / 64), 0, this.gridHeight - 1);
+
+                if (startGx === targetGx && startGy === targetGy) return { x: targetX, y: targetY };
+
+                const queue = [[startGx, startGy]];
+                const visited = {};
+                visited[`${startGx},${startGy}`] = null;
+
+                let found = false;
+                while (queue.length > 0) {
+                    const [cx, cy] = queue.shift();
+                    if (cx === targetGx && cy === targetGy) {
+                        found = true;
+                        break;
+                    }
+                    const dirs = [[0, 1], [0, -1], [1, 0], [-1, 0]];
+                    for (const [dx, dy] of dirs) {
+                        const nx = cx + dx;
+                        const ny = cy + dy;
+                        if (nx >= 0 && nx < this.gridWidth && ny >= 0 && ny < this.gridHeight) {
+                            if (this.aiGrid[nx][ny] === 0 && !(`${nx},${ny}` in visited)) {
+                                visited[`${nx},${ny}`] = [cx, cy];
+                                queue.push([nx, ny]);
+                            }
+                        }
+                    }
+                }
+
+                if (!found) return { x: targetX, y: targetY };
+
+                let curr = [targetGx, targetGy];
+                let prev = null;
+                while (curr !== null) {
+                    const parent = visited[`${curr[0]},${curr[1]}`];
+                    if (parent && parent[0] === startGx && parent[1] === startGy) {
+                        prev = curr;
+                        break;
+                    }
+                    curr = parent;
+                }
+
+                if (prev) return { x: prev[0] * 64 + 32, y: prev[1] * 64 + 32 };
+                return { x: targetX, y: targetY };
+            }
+
+            drawUI() {
+                this.uiGraphics.clear();
+                this.aimLine.clear();
+
+                this.handleBushAndStormInvisibility();
+
+                const units = [this.player];
+                if (this.remotePlayer) units.push(this.remotePlayer);
+                this.blueTeam.getChildren().forEach(u => { if (u.isAI) units.push(u); });
+                this.redTeam.getChildren().forEach(u => { if (u.isAI) units.push(u); });
+
+                units.forEach(u => {
+                    if (u.active && u.hp > 0 && u.alpha > 0) {
+                        const hpColor = (u.team === 'blue') ? 0x10b981 : 0xef4444;
+                        this.drawUnitHPBar(u, hpColor);
+                        
+                        if (selectedSingleModeId === 'gems' && u.gemsCount > 0) {
+                            this.uiGraphics.fillStyle(0xfacc15, 1);
+                            this.uiGraphics.fillCircle(u.x + 18, u.y - 48, 6);
+                            this.uiGraphics.lineStyle(1.5, 0x000000, 1);
+                            this.uiGraphics.strokeCircle(u.x + 18, u.y - 48, 6);
+                        }
+                    }
+                });
+
+                if (selectedSingleModeId === 'defense' && this.safeVault && this.safeVault.active) {
+                    this.drawUnitHPBar(this.safeVault, 0x3b82f6);
+                }
+
+                if (selectedSingleModeId === 'hotzone' && this.zones) {
+                    this.zones.forEach(zone => {
+                        const col = (zone.team === 'blue') ? 0x2563eb : ((zone.team === 'red') ? 0xdc2626 : 0xffffff);
+                        zone.marker.setStrokeStyle(3.5, col);
+                    });
+                }
+
+                if (this.virtualAim.active) {
+                    const angle = Math.atan2(this.virtualAim.y, this.virtualAim.x);
+                    this.aimLine.lineStyle(2, 0xffffff, 0.45);
+                    this.aimLine.fillStyle(0xffffff, 0.08);
+
+                    const length = 320;
+                    const startX = this.player.x;
+                    const startY = this.player.y;
+
+                    if (selectedCharId === 'shelly' || selectedCharId === 'poco' || selectedCharId === 'sandy') {
+                        this.aimLine.beginPath();
+                        this.aimLine.moveTo(startX, startY);
+                        this.aimLine.arc(startX, startY, length, angle - 0.4, angle + 0.4);
+                        this.aimLine.closePath();
+                        this.aimLine.fillPath();
+                        this.aimLine.strokePath();
+                    } else {
+                        const endX = startX + Math.cos(angle) * length;
+                        const endY = startY + Math.sin(angle) * length;
+                        this.aimLine.lineBetween(startX, startY, endX, endY);
+                        this.aimLine.strokeCircle(endX, endY, 12);
+                    }
+                }
+
+                if (!window.isMobile && this.isRightClickAiming) {
+                    const pointer = this.input.activePointer;
+                    const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+                    const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, worldPoint.x, worldPoint.y);
+                    this.setVirtualAiming(Math.cos(angle), Math.sin(angle), true);
+                }
+
+                this.drawSuperChargeUI();
+            }
+
+            handleBushAndStormInvisibility() {
+                const units = [this.player];
+                if (this.remotePlayer) units.push(this.remotePlayer);
+                this.blueTeam.getChildren().forEach(u => { if (u.isAI) units.push(u); });
+                this.redTeam.getChildren().forEach(u => { if (u.isAI) units.push(u); });
+
+                const storms = [];
+                this.superObjects.getChildren().forEach(obj => {
+                    if (obj.name === 'sand_storm') storms.push(obj);
+                });
+
+                units.forEach(u => {
+                    u.isInBush = false;
+                    u.isInStorm = false;
+
+                    this.bushes.getChildren().forEach(bush => {
+                        const dist = Phaser.Math.Distance.Between(u.x, u.y, bush.x, bush.y);
+                        if (dist < 45) {
+                            u.isInBush = true;
+                        }
+                    });
+
+                    storms.forEach(storm => {
+                        const dist = Phaser.Math.Distance.Between(u.x, u.y, storm.x, storm.y);
+                        if (dist < 150) {
+                            u.isInStorm = true;
+                        }
+                    });
+
+                    const isHidden = (u.isInBush || u.isInStorm);
+
+                    if (u.isPlayer) {
+                        u.setAlpha(isHidden ? 0.55 : 1);
+                    } else {
+                        if (isHidden) {
+                            const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, u.x, u.y);
+                            if (dist < 140) {
+                                u.setAlpha(0.45); 
+                            } else {
+                                u.setAlpha(0); 
+                            }
+                        } else {
+                            u.setAlpha(1);
+                        }
+                    }
+                });
+            }
+
+            drawUnitHPBar(char, color) {
+                if (!char.active || char.hp <= 0) return;
+                const barWidth = 60;
+                const barHeight = 6;
+                const offset = 35;
+
+                this.uiGraphics.fillStyle(0x374151, 1);
+                this.uiGraphics.fillRect(char.x - barWidth / 2, char.y - offset, barWidth, barHeight);
+
+                const hpPercent = char.hp / char.maxHp;
+                this.uiGraphics.fillStyle(color, 1);
+                this.uiGraphics.fillRect(char.x - barWidth / 2, char.y - offset, barWidth * hpPercent, barHeight);
+
+                this.uiGraphics.lineStyle(1, 0xffffff, 0.6);
+                this.uiGraphics.strokeRect(char.x - barWidth / 2, char.y - offset, barWidth, barHeight);
+            }
+
+            drawSuperChargeUI() {
+                this.uiGraphics.lineStyle(3, 0x1f2937, 0.8);
+                this.uiGraphics.strokeCircle(this.player.x, this.player.y, 28);
+
+                if (this.superCharged) {
+                    this.uiGraphics.lineStyle(3, 0xeab308, 1);
+                    this.uiGraphics.strokeCircle(this.player.x, this.player.y, 28);
+                } else {
+                    const endAngle = (this.superCharge / 100) * Math.PI * 2;
+                    this.uiGraphics.lineStyle(3, 0xfacc15, 0.9);
+                    this.uiGraphics.beginPath();
+                    this.uiGraphics.arc(this.player.x, this.player.y, 28, -Math.PI / 2, -Math.PI / 2 + endAngle);
+                    this.uiGraphics.strokePath();
+                }
+            }
+
+            update(time, delta) {
+                this.handleMovement();
+                this.handleBotAI(time);
+                
+                const allUnits = [this.player];
+                if (this.remotePlayer) allUnits.push(this.remotePlayer);
+                this.blueTeam.getChildren().forEach(u => { if (u.isAI) allUnits.push(u); });
+                this.redTeam.getChildren().forEach(u => { if (u.isAI) allUnits.push(u); });
+
+                allUnits.forEach(u => {
+                    if (u.active && u.hp > 0) {
+                        if (time - u.lastDamageTime > 3500) {
+                            if (!u.lastRegenTime || time - u.lastRegenTime > 500) {
+                                const amount = Math.floor(u.maxHp * 0.04);
+                                u.hp = Math.min(u.maxHp, u.hp + amount);
+                                u.lastRegenTime = time;
+                                if (u.isPlayer && u.hp < u.maxHp) {
+                                    this.showScoreIndicator(u.x, u.y, `+${amount}`, "#22c55e");
+                                }
+                            }
+                        }
+                    }
+                });
+
+                if (selectedSingleModeId === 'hotzone' && this.zones) {
+                    this.zones.forEach(zone => {
+                        let blueCount = 0;
+                        let redCount = 0;
+
+                        const checkInside = (u) => {
+                            if (u.active && u.hp > 0) {
+                                const d = Phaser.Math.Distance.Between(u.x, u.y, zone.x, zone.y);
+                                if (d < zone.radius) {
+                                    if (u.team === 'blue') blueCount++;
+                                    else redCount++;
+                                }
+                            }
+                        };
+                        allUnits.forEach(checkInside);
+
+                        if (blueCount > 0 && redCount === 0) {
+                            zone.team = 'blue';
+                            this.blueScore = Math.min(100, this.blueScore + 0.03);
+                        } else if (redCount > 0 && blueCount === 0) {
+                            zone.team = 'red';
+                            this.redScore = Math.min(100, this.redScore + 0.03);
+                        }
+
+                        if (this.blueScore >= 100) {
+                            this.showGameOverScreen('blue');
+                        } else if (this.redScore >= 100) {
+                            this.showGameOverScreen('red');
+                        }
+                    });
+                }
+
+                if (selectedSingleModeId === 'gems') {
+                    const blueCount = this.getTeamGemCount('blue');
+                    const redCount = this.getTeamGemCount('red');
+
+                    if (blueCount >= 10 && !this.victoryCountdownEvent) {
+                        this.showScoreIndicator(this.player.x, this.player.y, "藍隊收集滿10顆！開始倒數15秒...", "#3b82f6");
+                        this.startVictoryTimer('blue');
+                    } else if (redCount >= 10 && !this.victoryCountdownEvent) {
+                        this.showScoreIndicator(this.player.x, this.player.y, "紅隊收集滿10顆！開始倒數15秒...", "#ef4444");
+                        this.startVictoryTimer('red');
+                    } else if (blueCount < 10 && redCount < 10 && this.victoryCountdownEvent) {
+                        this.victoryCountdownEvent.destroy();
+                        this.victoryCountdownEvent = null;
+                        this.showScoreIndicator(this.player.x, this.player.y, "倒數中斷！有人寶石遺失落空！", "#94a3b8");
+                    }
+                }
+
+                this.drawUI();
+
+                if (!isBotMode && conn && conn.open) {
+                    if (time - this.lastSentUpdate > 25) {
+                        this.sendPositionUpdate();
+                        this.lastSentUpdate = time;
+                    }
+                }
+            }
+
+            startVictoryTimer(team) {
+                this.victoryCountdownEvent = this.time.addEvent({
+                    delay: 15000,
+                    callback: () => {
+                        this.showGameOverScreen(team);
+                    }
+                });
+            }
+
+            showScoreIndicator(x, y, text, color) {
+                const textObj = this.add.text(x, y - 20, text, { font: "18px Arial Black", fill: color }).setDepth(150);
+                this.tweens.add({
+                    targets: textObj,
+                    y: y - 60,
+                    alpha: 0,
+                    duration: 1000,
+                    onComplete: () => textObj.destroy()
+                });
+            }
+
+            sendPositionUpdate() {
+                this.sendNetworkMessage({
+                    type: 'update',
+                    x: this.player.x,
+                    y: this.player.y,
+                    rotation: this.player.rotation,
+                    vx: this.player.body.velocity.x,
+                    vy: this.player.body.velocity.y,
+                    hp: this.player.hp,
+                    shield: this.player.shield
+                });
+            }
+
+            sendNetworkMessage(msgObj) {
+                if (conn && conn.open) {
+                    conn.send(msgObj);
+                }
+            }
+
+            handleNetworkData(data) {
+                switch(data.type) {
+                    case 'update':
+                        if (this.remotePlayer) {
+                            this.remotePlayer.x = data.x;
+                            this.remotePlayer.y = data.y;
+                            this.remotePlayer.rotation = data.rotation;
+                            this.remotePlayer.hp = data.hp;
+                            this.remotePlayer.shield = data.shield;
+                        }
+                        break;
+                    case 'shoot':
+                        this.fireBullet(data.x, data.y, data.angle, false, data.dmg, data.bSize, data.bSpeed);
+                        break;
+                    case 'hit':
+                        if (this.remotePlayer) {
+                            this.remotePlayer.hp = data.hp;
+                            this.remotePlayer.shield = data.shield;
+                        }
+                        break;
+                    case 'gameover':
+                        this.showGameOverScreen(data.winnerTeam);
+                        break;
+                    case 'restart':
+                        this.resetGameScene();
+                        break;
+                }
+            }
+
+            resetGameScene() {
+                gameoverMenu.classList.add('hidden');
+                this.physics.resume();
+                
+                this.player.hp = this.localStats.hp;
+                this.player.setActive(true);
+                this.player.setVisible(true);
+
+                this.redTeam.getChildren().forEach(e => {
+                    e.hp = e.maxHp;
+                    e.setActive(true);
+                    e.setVisible(true);
+                });
+
+                this.blueTeam.getChildren().forEach(ally => {
+                    ally.hp = ally.maxHp;
+                    ally.setActive(true);
+                    ally.setVisible(true);
+                });
+
+                const spawnPos = this.playerTeam === 'blue' ? { x: 200, y: 1200 } : { x: 3000, y: 1200 };
+                this.player.x = spawnPos.x;
+                this.player.y = spawnPos.y;
+
+                if (this.remotePlayer) {
+                    const enemySpawnPos = remotePlayerConfigs.team === 'blue' ? { x: 200, y: 1200 } : { x: 3000, y: 1200 };
+                    this.remotePlayer.x = enemySpawnPos.x;
+                    this.remotePlayer.y = enemySpawnPos.y;
+                }
+
+                this.myBullets.clear(true, true);
+                this.enemyBullets.clear(true, true);
+            }
+        }
+    </script>
+</body>
+</html>
