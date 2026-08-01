@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Cyber Pulse MIDI - MIDI 音樂遊戲</title>
+  <meta name="description" content="Cyber Pulse MIDI — 支援 MIDI 導入、觸控操作、長押 Roll 音符、OSU! 判定的音樂節奏遊戲">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ============================
+     SCREEN: HOME PAGE
+============================= -->
+<div id="screen-home" class="screen active">
+  <canvas id="home-bg-canvas"></canvas>
+  <div class="home-content">
+    <div class="home-logo">
+      <div class="home-logo-icon">⚡</div>
+      <h1 class="home-logo-text">CYBER PULSE</h1>
+      <div class="home-logo-sub">MIDI RHYTHM GAME</div>
+    </div>
+
+    <div class="home-buttons">
+      <button id="btn-home-start" class="home-btn home-btn-primary">
+        <span class="home-btn-icon">▶</span>
+        <span>開始遊戲</span>
+      </button>
+      <button id="btn-home-upload" class="home-btn">
+        <span class="home-btn-icon">📁</span>
+        <span>導入 MIDI 檔案</span>
+      </button>
+      <input type="file" id="midi-file-input" accept=".mid,.midi">
+      <button id="btn-home-preset" class="home-btn">
+        <span class="home-btn-icon">🎵</span>
+        <span>選擇內建曲目</span>
+      </button>
+    </div>
+
+    <div class="home-footer">
+      <span>按 D F J K 遊玩 ·</span>
+      <span>支援觸控操作 ·</span>
+      <span>可導入 .mid / .midi 檔案</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============================
+     SCREEN: GAME PLAY
+============================= -->
+<div id="screen-game" class="screen">
+  <header>
+    <div class="logo">⚡ CYBER PULSE</div>
+    <div class="header-center">
+      <div id="song-title" class="song-title-hdr">Canon in D Major</div>
+      <div id="song-meta" class="song-meta-hdr">Normal · 4 Lanes</div>
+      <div id="status-badge" class="status-badge" data-tone="info">內建曲目可直接開始</div>
+    </div>
+    <div class="nav-controls">
+      <button id="btn-auto-play" class="btn btn-auto">🤖 Auto</button>
+      <button id="btn-pause" class="btn">⏸ 暫停</button>
+    </div>
+  </header>
+
+  <div id="game-viewport">
+    <canvas id="game-canvas"></canvas>
+
+    <!-- HUD Overlay -->
+    <div id="hud-overlay">
+      <div id="progress-bar-container" class="progress-bar-container">
+        <div id="progress-fill" class="progress-fill"></div>
+      </div>
+
+      <div class="hud-top">
+        <div class="hud-left">
+          <div class="health-bar-container">
+            <div id="health-bar-fill" class="health-bar-fill"></div>
+          </div>
+        </div>
+        <div class="hud-right score-box">
+          <div id="score-val" class="score-val">0000000</div>
+          <div id="acc-val" class="acc-val">100.00%</div>
+          <div id="time-val" class="time-val">00:00 / 00:00</div>
+        </div>
+      </div>
+
+      <div id="combo-container" class="combo-container">
+        <div id="combo-num" class="combo-num">0</div>
+        <div class="combo-label">COMBO</div>
+      </div>
+
+      <div class="hit-feedback-box">
+        <div id="hit-feedback" class="hit-feedback val-300">300</div>
+        <div id="hit-offset-tag" class="hit-offset-tag"></div>
+      </div>
+
+      <!-- Touch Lane Buttons -->
+      <div id="touch-lane-container" class="touch-lane-container"></div>
+
+      <!-- Key Hints (Desktop) -->
+      <div id="key-hints-container" class="key-hints-container"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================
+     MODAL: PRESET SONGS
+============================= -->
+<div id="preset-modal" class="modal-overlay">
+  <div class="modal-card">
+    <div class="modal-title">🎵 選擇內建曲目</div>
+    <div class="modal-desc">選擇以下經典 MIDI 樂曲即可立即開始演奏：</div>
+    <div class="preset-list">
+      <div class="preset-item selected" data-preset="canon">
+        <div>
+          <div class="preset-name">卡農 (Canon in D)</div>
+          <div class="preset-info">約翰·帕海貝爾 · 全聲部 MIDI</div>
+        </div>
+        <span class="diff-badge normal">Normal</span>
+      </div>
+      <div class="preset-item" data-preset="furelise">
+        <div>
+          <div class="preset-name">致愛麗絲 (Für Elise)</div>
+          <div class="preset-info">貝多芬 · 全聲部鋼琴曲</div>
+        </div>
+        <span class="diff-badge hard">Hard</span>
+      </div>
+    </div>
+    <button id="btn-close-preset" class="btn btn-primary modal-close-btn">✔ 確認選擇</button>
+  </div>
+</div>
+
+<!-- ============================
+     MODAL: PAUSE / SETTINGS
+============================= -->
+<div id="pause-modal" class="modal-overlay">
+  <div class="modal-card" style="max-width:600px">
+    <div class="modal-title">⏸ 遊戲暫停</div>
+
+    <div class="pause-actions">
+      <button id="btn-resume" class="btn btn-primary">▶ 繼續遊戲</button>
+      <button id="btn-restart-pause" class="btn">🔄 重新開始</button>
+      <button id="btn-back-home" class="btn btn-danger">🏠 返回首頁</button>
+    </div>
+
+    <div class="settings-divider">⚙️ 遊戲設定</div>
+
+    <div class="setting-row">
+      <span class="setting-label">下落速度 (Scroll Speed)</span>
+      <div class="setting-input-group">
+        <input type="range" id="speed-range" min="0.8" max="5.0" step="0.2" value="1.8">
+        <span id="speed-val" class="range-val">1.8x</span>
+      </div>
+    </div>
+
+    <div class="setting-row">
+      <span class="setting-label">OSU! 音效風格</span>
+      <div class="setting-input-group">
+        <select id="hitsound-select" class="setting-select">
+          <option value="osu">OSU! Classic</option>
+          <option value="soft">Soft Tap</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="setting-row">
+      <span class="setting-label">MIDI 譜面難度 (Melody Filter)</span>
+      <div class="setting-input-group">
+        <select id="diff-select" class="setting-select">
+          <option value="easy">Easy (休閒)</option>
+          <option value="normal" selected>Normal (推薦)</option>
+          <option value="hard">Hard (困難)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="setting-row">
+      <span class="setting-label">音符按擊模式</span>
+      <div class="setting-input-group">
+        <select id="note-mode-select" class="setting-select">
+          <option value="standard">Standard (單點 + 長按)</option>
+          <option value="tap-only">Tap Only (僅單點)</option>
+          <option value="roll">Roll (連打鍵)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="setting-row">
+      <span class="setting-label">軌道數量 (Lane Mode)</span>
+      <div class="setting-input-group">
+        <select id="lane-select" class="setting-select">
+          <option value="4">4 軌 (D, F, J, K)</option>
+          <option value="6">6 軌 (S, D, F, J, K, L)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="setting-row">
+      <span class="setting-label">音訊延遲補償 (Audio Offset)</span>
+      <div class="setting-input-group">
+        <input type="range" id="offset-range" min="-200" max="200" step="5" value="0">
+        <span id="offset-val" class="range-val">0 ms</span>
+      </div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">音樂音量 (Music Volume)</span>
+      <div class="setting-input-group">
+        <input type="range" id="bgm-volume-range" min="0" max="100" step="5" value="100">
+        <span id="bgm-volume-val" class="range-val">100%</span>
+      </div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">音效音量 (SFX Volume)</span>
+      <div class="setting-input-group">
+        <input type="range" id="sfx-volume-range" min="0" max="100" step="5" value="85">
+        <span id="sfx-volume-val" class="range-val">85%</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <div id="countdown-overlay" class="countdown-overlay">
+    <div id="countdown-text" class="countdown-text">3</div>
+  </div>
+
+<!-- ============================
+     MODAL: RESULT
+============================= -->
+<div id="result-modal" class="modal-overlay">
+  <div class="modal-card" style="text-align:center">
+    <div class="modal-title">🎉 CLEAR!</div>
+    <div id="result-rank" class="rank-display">SS</div>
+    <div class="result-stats-grid">
+      <div class="stat-item"><span class="stat-label">最終得分</span><span id="result-score" class="stat-val">1,000,000</span></div>
+      <div class="stat-item"><span class="stat-label">精準度</span><span id="result-acc" class="stat-val">100.00%</span></div>
+      <div class="stat-item"><span class="stat-label">Max Combo</span><span id="result-max-combo" class="stat-val">0</span></div>
+      <div class="stat-item"><span class="stat-label">300 ✨</span><span id="result-300" class="stat-val stat-300">0</span></div>
+      <div class="stat-item"><span class="stat-label">100 ⭐</span><span id="result-100" class="stat-val stat-100">0</span></div>
+      <div class="stat-item"><span class="stat-label">50 🌀</span><span id="result-50" class="stat-val stat-50">0</span></div>
+      <div class="stat-item"><span class="stat-label">Miss ✕</span><span id="result-miss" class="stat-val stat-miss">0</span></div>
+    </div>
+    <div style="display:flex;gap:12px;margin-top:8px">
+      <button id="btn-restart-result" class="btn btn-primary" style="flex:1;justify-content:center">🔄 再次演奏</button>
+      <button id="btn-home-result" class="btn btn-danger" style="flex:1;justify-content:center">🏠 返回首頁</button>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="js/audio-engine.js"></script>
+<script src="js/midi-parser.js"></script>
+<script src="js/renderer.js"></script>
+<script src="js/game-engine.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
